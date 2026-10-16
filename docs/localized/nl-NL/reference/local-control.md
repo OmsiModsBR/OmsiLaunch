@@ -1,7 +1,7 @@
 # Lokaal control plane
 
 <!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/local-control.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/local-control.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Het lokale control plane (local control, lokale besturing) is het named-pipe-eindpunt waarlangs een actieve OmsiLaunch-eigenaar (het proces dat een sessie heeft gestart) semantische sessieopdrachten van andere processen op dezelfde machine aanneemt: status, gebeurtenissen, stoppen en openbare runtime-operaties. Deze pagina specificeert het eindpunt zoals geïmplementeerd in `tools\OmsiLaunch.Cli\LocalControlPlane.cs` en de verzoekhandler in `OwnerSession.RunAsync` (`tools\OmsiLaunch.Cli\Program.cs`): naamgeving van de pipe, framing, protocolversie, opdrachten, sessiebinding, foutcodes, vertrouwensmodel, beschikbaarheidsvenster en hoe je er vanuit andere tooling mee communiceert. De CLI-clientopdrachten (`session status`, `session stop`, `events read`, `events watch`, routes zoals `time get`) zijn dunne wrappers rond dit protocol; zie de [CLI-referentie](cli.md). De runtime-operaties zelf zijn gespecificeerd in [runtime control](runtime-control.md); het alternatief binnen het proces voor integrators is de [openbare API](public-api.md).
 

@@ -35,9 +35,9 @@
 
 > **定义会话，而不是点击。**
 
-## 状态：0.1.0-beta3
+## 状态：0.1.0-beta4
 
-当前公开 Beta 版本为 **`0.1.0-beta3`**。Beta 3 是完成加固后的基线版本。其大部分功能为 `RUNTIME_VALIDATED`：这些功能已在实际 OMSI 会话中观察验证，其中包括 2026-09-23 的运行时收尾轮次。部分功能仍为 `STATICALLY_VALIDATED`（仅离线测试）、`PARTIAL` 或 `UNAVAILABLE`。有两个运行时事项仍未关闭，因为无法安全地产生相应场景：Steam LAA 的游戏过程，以及道路车辆和人物对象的自然移除（RV-002）。[运行时验证状态](../localized/zh-CN/status/runtime-validation-status.md)页面是权威记录，说明哪些内容在 OMSI 下运行过、哪些仅离线运行过。
+当前公开 Beta 版本为 **`0.1.0-beta4`**。Beta 4 新增了按能力兼容性、运行时模块（Runtime Modules）、1..99 号会话配置档，以及一组启动和运行时功能。兼容性、能力目录、分页、类型化错误和模块桥已在实际 OMSI 会话中观察验证（验证轮次 A 和 B）。这些轮次之后新增的功能为 `EXPERIMENTAL`：已通过静态分析关闭，仅经离线测试，运行时验证待进行。部分功能仍为 `STATICALLY_VALIDATED`、`PARTIAL` 或 `UNAVAILABLE`。有两个运行时事项仍未关闭，因为无法安全地产生相应场景：Steam LAA 的游戏过程，以及道路车辆和人物对象的自然移除（RV-002）。[运行时验证状态](../localized/zh-CN/status/runtime-validation-status.md)页面是权威记录，说明哪些内容在 OMSI 下运行过、哪些仅离线运行过。
 
 这是 Beta 版本：公共 API、CLI 和文件格式按成员分别标记为 `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL` 或 `UNAVAILABLE`，在 1.0 之前仍可能变化。
 
@@ -120,7 +120,7 @@ OmsiLaunch.exe session stop
 
 ### 其他语言的文档
 
-文档已翻译为 14 种语言区域，位于 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md) 下。这些译文依据规范性的 English (US) 页面生成，并已对照原文进行机械校验。母语人士的编辑审校不属于 Beta 3 发布的一部分，可能会在发布后进行。当译文与英文页面不一致时，以英文页面为准。
+文档已翻译为 14 种语言区域，位于 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md) 下。这些译文依据规范性的 English (US) 页面生成，并已对照原文进行机械校验。母语人士的编辑审校不属于 Beta 4 发布的一部分，可能会在发布后进行。当译文与英文页面不一致时，以英文页面为准。
 
 ## 限制与未关闭事项
 
@@ -136,7 +136,7 @@ OmsiLaunch.exe session stop
 
 ## 下载
 
-从 [Releases 页面](https://github.com/lmonteirotech/OmsiLaunch/releases)下载 **`OmsiLaunch-0.1.0-beta3.zip`** 及其 `.sha256` 文件，并将其直接解压到受支持的 OMSI 根目录中。该包包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其依赖项、附带 `release-manifest.json` 的永久插件闭包、启动画面资源、一个会话示例，以及位于 `.omsilaunch\docs\` 下的离线文档。包布局和彻底移除方法：[打包](../localized/zh-CN/reference/packaging.md)。
+从 [Releases 页面](https://github.com/lmonteirotech/OmsiLaunch/releases)下载 **`OmsiLaunch-0.1.0-beta4.zip`** 及其 `.sha256` 文件，并将其直接解压到受支持的 OMSI 根目录中。该包包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其依赖项、附带 `release-manifest.json` 的永久插件闭包、启动画面资源、一个会话示例，以及位于 `.omsilaunch\docs\` 下的离线文档。包布局和彻底移除方法：[打包](../localized/zh-CN/reference/packaging.md)。
 
 ## 从源代码构建
 

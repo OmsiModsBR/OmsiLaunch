@@ -1,7 +1,7 @@
 # ローカルコントロールプレーン
 
 <!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/local-control.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/local-control.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 ローカルコントロールプレーンは、実行中の OmsiLaunch オーナー（セッションを開始したプロセス）が、同じマシン上の他のプロセスからセマンティックなセッションコマンド（状態取得、イベント、停止、公開ランタイム操作）を受け付けるための名前付きパイプのエンドポイントです。このページでは、`tools\OmsiLaunch.Cli\LocalControlPlane.cs` に実装されたエンドポイントと、`OwnerSession.RunAsync`（`tools\OmsiLaunch.Cli\Program.cs`）内の要求ハンドラーについて、パイプの命名、フレーミング、プロトコルバージョン、コマンド、セッションへのバインド、エラーコード、信頼モデル、利用可能な期間、および他のツールからの通信方法を規定します。CLI クライアントのコマンド（`session status`、`session stop`、`events read`、`events watch`、`time get` などのルート）は、このプロトコルの薄いラッパーです。[CLI リファレンス](cli.md)を参照してください。ランタイム操作そのものは[ランタイム制御](runtime-control.md)で規定されています。インテグレーター向けのプロセス内の代替手段は[公開 API](public-api.md)です。
 

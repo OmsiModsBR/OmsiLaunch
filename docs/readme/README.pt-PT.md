@@ -42,15 +42,19 @@ comunidade. Não é um launcher gráfico.
 
 > **Defina a sessão, não os cliques.**
 
-## Estado: 0.1.0-beta3
+## Estado: 0.1.0-beta4
 
-A versão beta pública atual é a **`0.1.0-beta3`**. A Beta 3 é a base posterior
-ao reforço (hardening). A maioria das suas funcionalidades está `RUNTIME_VALIDATED`:
-foram observadas em sessões reais do OMSI, incluindo a ronda de fecho de runtime
-de 2026-09-23. Algumas continuam `STATICALLY_VALIDATED` (apenas testes offline),
-`PARTIAL` ou `UNAVAILABLE`. Dois itens de runtime continuam em aberto porque não
-é possível produzi-los em segurança: o jogo com o Steam LAA e a remoção natural
-de veículos rodoviários e humanos (RV-002). A página de
+A versão beta pública atual é a **`0.1.0-beta4`**. A Beta 4 acrescenta
+compatibilidade por capacidade, Runtime Modules, perfis de sessão 1..99 e um
+conjunto de funcionalidades de arranque e de runtime. A compatibilidade, o
+catálogo de capacidades, a paginação, os erros tipados e a ponte de módulos
+foram observados em sessões reais do OMSI (rondas de validação A e B). As
+funcionalidades acrescentadas depois dessas rondas são `EXPERIMENTAL`: fechadas
+por análise estática e testadas apenas offline, com a validação em runtime
+pendente. Algumas continuam `STATICALLY_VALIDATED`, `PARTIAL` ou `UNAVAILABLE`.
+Dois itens de runtime continuam em aberto porque não é possível produzi-los em
+segurança: o jogo com o Steam LAA e a remoção natural de veículos rodoviários
+e humanos (RV-002). A página de
 [estado da validação em runtime](../localized/pt-PT/status/runtime-validation-status.md) é
 o registo de referência do que foi executado sob o OMSI e do que foi executado apenas offline.
 
@@ -187,7 +191,7 @@ A documentação está traduzida para 14 locales em
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). As traduções
 foram produzidas a partir das páginas canónicas em inglês (US) e validadas
 mecanicamente face a estas. A revisão editorial por falantes nativos não fez
-parte da versão Beta 3 e poderá ser feita após a publicação. Quando uma tradução
+parte da versão Beta 4 e poderá ser feita após a publicação. Quando uma tradução
 e a página em inglês divergem, prevalece a página em inglês.
 
 ## Limitações e itens em aberto
@@ -218,7 +222,7 @@ Estas são as limitações mais importantes. A lista completa encontra-se em
 
 ## Transferência
 
-Transferir **`OmsiLaunch-0.1.0-beta3.zip`** e o respetivo ficheiro `.sha256` a
+Transferir **`OmsiLaunch-0.1.0-beta4.zip`** e o respetivo ficheiro `.sha256` a
 partir da [página de versões](https://github.com/lmonteirotech/OmsiLaunch/releases). Extraí-lo
 diretamente para a raiz do OMSI suportada. O pacote contém o controlador
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), as respetivas dependências, o conjunto do

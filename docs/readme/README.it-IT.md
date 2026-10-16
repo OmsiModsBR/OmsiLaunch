@@ -42,12 +42,15 @@ community. Non è un launcher grafico.
 
 > **Definire la sessione, non i clic.**
 
-## Stato: 0.1.0-beta3
+## Stato: 0.1.0-beta4
 
-La beta pubblica attuale è **`0.1.0-beta3`**. La Beta 3 è la base successiva al
-consolidamento (hardening). La maggior parte delle sue funzionalità è `RUNTIME_VALIDATED`:
-sono state osservate in sessioni OMSI reali, incluso il ciclo di chiusura runtime del
-2026-09-23. Alcune restano `STATICALLY_VALIDATED` (solo test offline), `PARTIAL` o `UNAVAILABLE`.
+La beta pubblica attuale è **`0.1.0-beta4`**. La Beta 4 aggiunge la compatibilità per
+capability, i Runtime Module, i profili di sessione 1..99 e un insieme di funzionalità di avvio
+e di runtime. Compatibilità, catalogo delle capability, paginazione, errori tipizzati e il bridge
+dei moduli sono stati osservati in sessioni OMSI reali (cicli di validazione A e B). Le
+funzionalità aggiunte dopo tali cicli sono `EXPERIMENTAL`: chiuse tramite analisi statica e
+testate solo offline, con validazione a runtime in sospeso. Alcune restano `STATICALLY_VALIDATED`,
+`PARTIAL` o `UNAVAILABLE`.
 Due voci runtime sono ancora aperte perché non possono essere prodotte in modo sicuro: il
 gameplay con Steam LAA e la rimozione naturale di veicoli stradali e human (RV-002). La pagina
 [stato della validazione a runtime](../localized/it-IT/status/runtime-validation-status.md) è
@@ -180,7 +183,7 @@ La documentazione è tradotta in 14 locale in
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). Le traduzioni
 sono state prodotte a partire dalle pagine canoniche in inglese (US) e validate meccanicamente
 rispetto a esse. La revisione editoriale da parte di madrelingua non ha fatto parte del rilascio
-della Beta 3 e potrà seguire dopo la pubblicazione. Quando una traduzione e la pagina inglese
+della Beta 4 e potrà seguire dopo la pubblicazione. Quando una traduzione e la pagina inglese
 non concordano, fa fede la pagina inglese.
 
 ## Limitazioni e voci aperte
@@ -209,7 +212,7 @@ Queste sono le limitazioni più importanti. L'elenco completo si trova in
 
 ## Download
 
-Scaricare **`OmsiLaunch-0.1.0-beta3.zip`** e il relativo file `.sha256` dalla
+Scaricare **`OmsiLaunch-0.1.0-beta4.zip`** e il relativo file `.sha256` dalla
 [pagina Releases](https://github.com/lmonteirotech/OmsiLaunch/releases). Estrarlo
 direttamente nella radice di OMSI supportata. Il pacchetto contiene il controller
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), le sue dipendenze, la chiusura del plugin permanente

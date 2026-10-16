@@ -1,7 +1,7 @@
 # 公開 API 快速入門
 
 <!-- l10n: source=getting-started/api-quick-start.md source-sha256=cd9b92efa4f35f7a4f8947145e72af4b066eb29e49c6f4435497e0001eadc69c -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../getting-started/api-quick-start.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../getting-started/api-quick-start.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁示範如何從您自己的 .NET 程式啟動、讀取並結束一個 OmsiLaunch 工作階段。本頁假設套件已安裝在 OMSI 2 目錄中（請參閱[安裝](installation.md)），且 `OmsiLaunch.exe /plan` 在該處可正常運作（請參閱[第一個工作階段](first-session.md)）。完整的合約請見[公開 API 參考](../reference/public-api.md)。
 

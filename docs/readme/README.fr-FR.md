@@ -42,16 +42,19 @@ intégrations communautaires. Ce n'est pas un lanceur graphique.
 
 > **Définissez la session, pas les clics.**
 
-## Statut : 0.1.0-beta3
+## Statut : 0.1.0-beta4
 
-La bêta publique actuelle est **`0.1.0-beta3`**. La bêta 3 est la base
-consolidée après la phase de durcissement. La plupart de ses fonctionnalités
-sont `RUNTIME_VALIDATED` : elles ont été observées dans des sessions OMSI
-réelles, y compris lors de la série de clôture runtime du 2026-09-23. Certaines
-restent `STATICALLY_VALIDATED` (tests hors ligne uniquement), `PARTIAL` ou
-`UNAVAILABLE`. Deux points runtime restent ouverts, car ils ne peuvent pas être
-produits de façon sûre : la phase de jeu avec Steam LAA et la disparition
-naturelle des véhicules routiers et des humains (RV-002). La page
+La bêta publique actuelle est **`0.1.0-beta4`**. La bêta 4 ajoute la
+compatibilité par capacité, les Runtime Modules, les profils de session 1..99
+et un ensemble de fonctionnalités de démarrage et runtime. La compatibilité, le
+catalogue des capacités, la pagination, les erreurs typées et le pont des
+modules ont été observés dans des sessions OMSI réelles (séries de validation A
+et B). Les fonctionnalités ajoutées après ces séries sont `EXPERIMENTAL` :
+closes par analyse statique et testées hors ligne uniquement, la validation à
+l'exécution restant en attente. Certaines restent `STATICALLY_VALIDATED`,
+`PARTIAL` ou `UNAVAILABLE`. Deux points runtime restent ouverts, car ils ne
+peuvent pas être produits de façon sûre : la phase de jeu avec Steam LAA et la
+disparition naturelle des véhicules routiers et des humains (RV-002). La page
 [Statut de la validation à l'exécution](../localized/fr-FR/status/runtime-validation-status.md)
 est la référence qui fait foi sur ce qui a été exécuté sous OMSI et ce qui a
 été exécuté uniquement hors ligne.
@@ -193,7 +196,7 @@ La documentation est traduite dans 14 locales sous
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). Les traductions
 ont été produites à partir des pages canoniques en anglais (US) et validées
 mécaniquement par rapport à celles-ci. Une relecture éditoriale par des
-locuteurs natifs ne faisait pas partie de la version bêta 3 et pourra avoir lieu
+locuteurs natifs ne faisait pas partie de la version bêta 4 et pourra avoir lieu
 après la publication. En cas de divergence entre une traduction et la page
 anglaise, la page anglaise fait foi.
 
@@ -226,7 +229,7 @@ Voici les limitations les plus importantes. La liste complète figure dans
 
 ## Téléchargement
 
-Téléchargez **`OmsiLaunch-0.1.0-beta3.zip`** et son fichier `.sha256` depuis la
+Téléchargez **`OmsiLaunch-0.1.0-beta4.zip`** et son fichier `.sha256` depuis la
 [page des Releases](https://github.com/lmonteirotech/OmsiLaunch/releases).
 Extrayez-le directement dans la racine OMSI prise en charge. Le paquet contient
 le contrôleur (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), ses dépendances, la closure

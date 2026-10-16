@@ -1,7 +1,7 @@
 # Transacties en recovery
 
 <!-- l10n: source=concepts/transactions-and-recovery.md source-sha256=cc2e7f493ee6d112a3d5326be020b81beb67a1002aa25b6042e982b0b3d9bb9c -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../concepts/transactions-and-recovery.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../concepts/transactions-and-recovery.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Elke OmsiLaunch-sessie die een OMSI-bestand wijzigt, doet dat binnen een duurzame transactie met journal: van de oorspronkelijke bytes wordt een back-up gemaakt voordat ze worden vervangen, het journal legt vast hoe ver de sessie is gekomen, en bij het herstellen wordt elke back-up geverifieerd voordat deze wordt teruggeschreven. Deze pagina beschrijft die transactie zoals geïmplementeerd door `FileConfigurationTransaction` (`src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`) en aangestuurd door `OmsiLaunchService.StartAsync`, `SuperviseAsync` en `RecoverPendingAsync` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), samen met de bestandsinvoer die door `SessionVisualAssets` (`src/OmsiLaunch.Core/SessionVisualAssets.cs`) wordt berekend. De pagina is bedoeld voor gebruikers die willen weten wat een sessie wijzigt en wat recovery doet, en voor integrators die de exacte garanties nodig hebben.
 

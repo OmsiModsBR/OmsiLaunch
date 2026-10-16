@@ -35,9 +35,9 @@
 
 > **定義工作階段，而非點擊步驟。**
 
-## 狀態：0.1.0-beta3
+## 狀態：0.1.0-beta4
 
-目前的公開 Beta 版為 **`0.1.0-beta3`**。Beta 3 是強化後的基準版本。其大部分功能為 `RUNTIME_VALIDATED`：這些功能已在實際的 OMSI 工作階段中觀察到，包括 2026-09-23 的執行階段收尾回合。部分功能仍為 `STATICALLY_VALIDATED`（僅離線測試）、`PARTIAL` 或 `UNAVAILABLE`。有兩個執行階段項目仍未結案，因為無法安全地產生其情境：Steam LAA 的遊戲過程，以及道路車輛與人物的自然移除（RV-002）。[執行階段驗證狀態](../localized/zh-TW/status/runtime-validation-status.md)頁面是權威紀錄，說明哪些項目曾在 OMSI 下執行、哪些僅以離線方式執行。
+目前的公開 Beta 版為 **`0.1.0-beta4`**。Beta 4 新增了逐項功能相容性、Runtime Modules、工作階段設定檔 1..99，以及一組啟動與執行階段功能。相容性、功能目錄、分頁、具型別的錯誤與模組橋接層已在實際的 OMSI 工作階段中觀察到（驗證回合 A 與 B）。這些回合之後新增的功能為 `EXPERIMENTAL`：已透過靜態分析結案並僅以離線方式測試，執行階段驗證尚待進行。部分功能仍為 `STATICALLY_VALIDATED`、`PARTIAL` 或 `UNAVAILABLE`。有兩個執行階段項目仍未結案，因為無法安全地產生其情境：Steam LAA 的遊戲過程，以及道路車輛與人物的自然移除（RV-002）。[執行階段驗證狀態](../localized/zh-TW/status/runtime-validation-status.md)頁面是權威紀錄，說明哪些項目曾在 OMSI 下執行、哪些僅以離線方式執行。
 
 本版本為 Beta：公開 API、CLI 與檔案格式依成員分別標示為 `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL` 或 `UNAVAILABLE`，且在 1.0 之前仍可能變更。
 
@@ -120,7 +120,7 @@ OmsiLaunch.exe session stop
 
 ### 其他語言的文件
 
-文件已翻譯為 14 種地區語言，位於 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md) 下。這些翻譯以規範性的英文（美國）頁面為來源產生，並已依據英文頁面進行機械式驗證。母語人士的編輯審閱不屬於 Beta 3 發行的一部分，可能於發佈後進行。當翻譯與英文頁面不一致時，以英文頁面為準。
+文件已翻譯為 14 種地區語言，位於 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md) 下。這些翻譯以規範性的英文（美國）頁面為來源產生，並已依據英文頁面進行機械式驗證。母語人士的編輯審閱不屬於 Beta 4 發行的一部分，可能於發佈後進行。當翻譯與英文頁面不一致時，以英文頁面為準。
 
 ## 限制與未結項目
 
@@ -136,7 +136,7 @@ OmsiLaunch.exe session stop
 
 ## 下載
 
-請從 [Releases 頁面](https://github.com/lmonteirotech/OmsiLaunch/releases)下載 **`OmsiLaunch-0.1.0-beta3.zip`** 及其 `.sha256` 檔案，並直接解壓縮到支援的 OMSI 根目錄。套件包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其相依元件、附有 `release-manifest.json` 的永久外掛程式檔案集合、啟動畫面資源、一個工作階段範例，以及位於 `.omsilaunch\docs\` 下的離線文件。套件配置與完整移除：[封裝](../localized/zh-TW/reference/packaging.md)。
+請從 [Releases 頁面](https://github.com/lmonteirotech/OmsiLaunch/releases)下載 **`OmsiLaunch-0.1.0-beta4.zip`** 及其 `.sha256` 檔案，並直接解壓縮到支援的 OMSI 根目錄。套件包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其相依元件、附有 `release-manifest.json` 的永久外掛程式檔案集合、啟動畫面資源、一個工作階段範例，以及位於 `.omsilaunch\docs\` 下的離線文件。套件配置與完整移除：[封裝](../localized/zh-TW/reference/packaging.md)。
 
 ## 從原始碼建置
 

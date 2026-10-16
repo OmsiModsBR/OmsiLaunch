@@ -1,7 +1,7 @@
 # 結束代碼
 
 <!-- l10n: source=reference/exit-codes.md source-sha256=e4c8d0f699c39379c1bb3c3194c29b92bf3ca4b830a086b6b3c2a104b8422cfa -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/exit-codes.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/exit-codes.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁列出 `OmsiLaunch.exe` 與 `OmsiLaunchW.exe` 可能回傳的所有處理程序結束代碼：公開的受控合約 `PublicExitCode`（`src\OmsiLaunch.Api\PublicControlContract.cs`）、原生 shim 代碼 `100`..`106`（`tools\OmsiLaunch.Bootstrapper\OmsiLaunch.Bootstrapper.cpp` 與 `OmsiLaunch.WindowsHost.cpp`），以及 `CliProgram.Classify` 對任何未攔截例外套用的分類規則（`tools\OmsiLaunch.Cli\Program.cs`）。呼叫端必須依據代碼與結構化錯誤封套（envelope）判斷語意，絕不可依據訊息文字。錯誤碼列於[錯誤](errors.md)；產生各代碼的命令列於 [CLI 參考](cli.md)。
 

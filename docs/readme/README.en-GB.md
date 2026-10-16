@@ -41,12 +41,15 @@ integrations. It is not a graphical launcher.
 
 > **Define the session, not the clicks.**
 
-## Status: 0.1.0-beta3
+## Status: 0.1.0-beta4
 
-The current public beta is **`0.1.0-beta3`**. Beta 3 is the post-hardening
-baseline. Most of its features are `RUNTIME_VALIDATED`: they were observed in
-live OMSI sessions, including the runtime closure round of 2026-09-23. Some
-remain `STATICALLY_VALIDATED` (offline tests only), `PARTIAL` or `UNAVAILABLE`.
+The current public beta is **`0.1.0-beta4`**. Beta 4 adds per-capability
+compatibility, Runtime Modules, session profiles 1..99 and a set of start and
+runtime features. Compatibility, the capability catalogue, pagination, typed
+errors and the modules bridge were observed in live OMSI sessions (validation
+rounds A and B). The features added after those rounds are `EXPERIMENTAL`:
+closed by static analysis and tested offline only, with runtime validation
+pending. Some remain `STATICALLY_VALIDATED`, `PARTIAL` or `UNAVAILABLE`.
 Two runtime items are still open because they cannot be produced safely: Steam
 LAA gameplay and the natural removal of road vehicles and humans (RV-002). The
 [runtime validation status](../localized/en-GB/status/runtime-validation-status.md) page is
@@ -178,7 +181,7 @@ The English (US) pages under `docs/` are canonical and normative.
 The documentation is translated into 14 locales under
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). The translations
 were produced from the canonical English (US) pages and validated mechanically
-against them. Native-speaker editorial review was not part of the Beta 3 release
+against them. Native-speaker editorial review was not part of the Beta 4 release
 and may follow after publication. When a translation and the English page
 disagree, the English page is authoritative.
 
@@ -208,7 +211,7 @@ These are the most important limitations. The complete list is in
 
 ## Download
 
-Download **`OmsiLaunch-0.1.0-beta3.zip`** and its `.sha256` file from the
+Download **`OmsiLaunch-0.1.0-beta4.zip`** and its `.sha256` file from the
 [Releases page](https://github.com/lmonteirotech/OmsiLaunch/releases). Extract
 it directly into the supported OMSI root. The package contains the controller
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), its dependencies, the permanent plugin

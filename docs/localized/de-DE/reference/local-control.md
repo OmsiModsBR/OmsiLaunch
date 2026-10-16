@@ -1,7 +1,7 @@
 # Lokale Steuerungsebene (Local Control Plane)
 
 <!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
-> Übersetzung der [englischen Originalseite](../../../reference/local-control.md) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
+> Übersetzung der [englischen Originalseite](../../../reference/local-control.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
 Die lokale Steuerungsebene ist der Named-Pipe-Endpunkt, über den ein laufender OmsiLaunch-Eigentümer (der Prozess, der eine Sitzung gestartet hat) semantische Sitzungsbefehle von anderen Prozessen auf demselben Rechner entgegennimmt: Status, Ereignisse, Stopp und öffentliche Runtime-Operationen. Diese Seite spezifiziert den Endpunkt, wie er in `tools\OmsiLaunch.Cli\LocalControlPlane.cs` implementiert ist, und den Request-Handler in `OwnerSession.RunAsync` (`tools\OmsiLaunch.Cli\Program.cs`): Pipe-Benennung, Framing, Protokollversion, Befehle, Sitzungsbindung, Fehlercodes, Vertrauensmodell, Verfügbarkeitsfenster und die Ansprache aus anderen Werkzeugen. Die Befehle des CLI-Clients (`session status`, `session stop`, `events read`, `events watch`, Routen wie `time get`) sind dünne Wrapper über diesem Protokoll; siehe die [CLI-Referenz](cli.md). Die Runtime-Operationen selbst sind unter [Runtime-Steuerung](runtime-control.md) spezifiziert; die In-Process-Alternative für Integratoren ist die [öffentliche API](public-api.md).
 

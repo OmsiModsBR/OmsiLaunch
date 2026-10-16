@@ -1,7 +1,7 @@
 # Transactions et récupération
 
 <!-- l10n: source=concepts/transactions-and-recovery.md source-sha256=cc2e7f493ee6d112a3d5326be020b81beb67a1002aa25b6042e982b0b3d9bb9c -->
-> Traduction de la [page originale en anglais](../../../concepts/transactions-and-recovery.md) d’OmsiLaunch 0.1.0-beta3. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
+> Traduction de la [page originale en anglais](../../../concepts/transactions-and-recovery.md) d’OmsiLaunch 0.1.0-beta4. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
 
 Chaque session OmsiLaunch qui touche un fichier OMSI le fait à l'intérieur d'une transaction durable et journalisée : les octets originaux sont sauvegardés avant d'être remplacés, le journal enregistre jusqu'où la session est allée, et la restauration vérifie chaque sauvegarde avant de la réécrire. Cette page décrit cette transaction telle qu'elle est implémentée par `FileConfigurationTransaction` (`src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`) et pilotée par `OmsiLaunchService.StartAsync`, `SuperviseAsync` et `RecoverPendingAsync` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), avec les fichiers d'entrée calculés par `SessionVisualAssets` (`src/OmsiLaunch.Core/SessionVisualAssets.cs`). Elle s'adresse aux utilisateurs qui ont besoin de savoir ce qu'une session modifie et ce que fait la récupération, ainsi qu'aux intégrateurs qui ont besoin des garanties exactes.
 

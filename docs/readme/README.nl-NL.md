@@ -42,12 +42,15 @@ community-integraties. Het is geen grafische launcher.
 
 > **Definieer de sessie, niet de klikken.**
 
-## Status: 0.1.0-beta3
+## Status: 0.1.0-beta4
 
-De huidige publieke bèta is **`0.1.0-beta3`**. Beta 3 is de basislijn na de
-hardeningronde. De meeste functies zijn `RUNTIME_VALIDATED`: ze zijn
-waargenomen in live OMSI-sessies, waaronder de afsluitende runtimeronde van
-2026-09-23. Enkele zijn nog `STATICALLY_VALIDATED` (alleen offline tests),
+De huidige publieke bèta is **`0.1.0-beta4`**. Beta 4 voegt compatibiliteit per
+capability, Runtime Modules, sessieprofielen 1..99 en een reeks start- en
+runtimefuncties toe. Compatibiliteit, de capabilitycatalogus, paginering,
+getypeerde fouten en de modulebrug zijn waargenomen in live OMSI-sessies
+(validatierondes A en B). De functies die na die rondes zijn toegevoegd, zijn
+`EXPERIMENTAL`: afgesloten met statische analyse en alleen offline getest,
+met runtimevalidatie nog in afwachting. Enkele zijn nog `STATICALLY_VALIDATED`,
 `PARTIAL` of `UNAVAILABLE`. Twee runtime-items staan nog open omdat ze niet
 veilig kunnen worden opgewekt: Steam LAA-gameplay en het natuurlijk verdwijnen
 van wegvoertuigen en mensen (RV-002). De pagina
@@ -186,7 +189,7 @@ De documentatie is vertaald in 14 locales onder
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). De vertalingen
 zijn gemaakt op basis van de canonieke Engelstalige (US) pagina's en er
 mechanisch tegen gevalideerd. Een redactionele controle door moedertaalsprekers
-maakte geen deel uit van de release van Beta 3 en kan na publicatie volgen. Als
+maakte geen deel uit van de release van Beta 4 en kan na publicatie volgen. Als
 een vertaling en de Engelse pagina van elkaar afwijken, is de Engelse pagina
 gezaghebbend.
 
@@ -218,7 +221,7 @@ Dit zijn de belangrijkste beperkingen. De volledige lijst staat in
 
 ## Download
 
-Download **`OmsiLaunch-0.1.0-beta3.zip`** en het bijbehorende `.sha256`-bestand
+Download **`OmsiLaunch-0.1.0-beta4.zip`** en het bijbehorende `.sha256`-bestand
 van de [Releases-pagina](https://github.com/lmonteirotech/OmsiLaunch/releases).
 Pak het direct uit in de ondersteunde OMSI-hoofdmap. Het pakket bevat de
 controller (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), de afhankelijkheden daarvan,
