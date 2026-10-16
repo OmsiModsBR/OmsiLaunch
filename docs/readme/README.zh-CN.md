@@ -137,7 +137,7 @@ OmsiLaunch.exe session stop
 
 ## 下载
 
-从 [Releases 页面](https://github.com/lmonteirotech/OmsiLaunch/releases)下载 **`OmsiLaunch-0.1.0-beta4.zip`** 及其 `.sha256` 文件，并将其直接解压到受支持的 OMSI 根目录中。该包包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其依赖项、附带 `release-manifest.json` 的永久插件闭包、启动画面资源、一个会话示例，以及位于 `.omsilaunch\docs\` 下的离线文档。包布局和彻底移除方法：[打包](../localized/zh-CN/reference/packaging.md)。
+从 [Releases 页面](https://github.com/OmsiModsBR/OmsiLaunch/releases)下载 **`OmsiLaunch-0.1.0-beta4.zip`** 及其 `.sha256` 文件，并将其直接解压到受支持的 OMSI 根目录中。该包包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其依赖项、附带 `release-manifest.json` 的永久插件闭包、启动画面资源、一个会话示例，以及位于 `.omsilaunch\docs\` 下的离线文档。包布局和彻底移除方法：[打包](../localized/zh-CN/reference/packaging.md)。
 
 ## 从源代码构建
 

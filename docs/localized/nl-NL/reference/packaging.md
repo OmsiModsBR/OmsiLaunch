@@ -1,6 +1,6 @@
 # Pakketindeling en releasestructuur
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/packaging.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta4`: wat `tools\New-ReleasePackage.ps1` oplevert, de velden van `release-manifest.json`, hoe de controller het manifest tijdens runtime gebruikt om de permanente plugin-closure te verifiëren, hoe het pakket in een OMSI-installatiemap wordt geïnstalleerd en daaruit wordt verwijderd, wat de map `.omsilaunch` na gebruik bevat, en de validatiescripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). De productidentiteit komt uit `OmsiLaunch.Version.props`. De installatiestappen voor gebruikers staan in [installatie](../getting-started/installation.md); de rol van de plugin-closure tijdens runtime staat in [permanente plugin](../concepts/permanent-plugin.md).
@@ -12,7 +12,7 @@ Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta4`: wat `tool
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Manifest `product`, Windows `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | Manifest `product_version`, Windows `ProductVersion`, informatieve assemblyversie (`/version`), naam van de openbare ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Basis van de managed assemblyversie |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Assemblyversie en Windows-bestandsversie |

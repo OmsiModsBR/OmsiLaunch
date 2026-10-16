@@ -224,7 +224,7 @@ Poniżej wymieniono najważniejsze ograniczenia. Pełna lista znajduje się w
 ## Pobieranie
 
 Należy pobrać **`OmsiLaunch-0.1.0-beta4.zip`** wraz z plikiem `.sha256` ze
-[strony wydań](https://github.com/lmonteirotech/OmsiLaunch/releases) i rozpakować
+[strony wydań](https://github.com/OmsiModsBR/OmsiLaunch/releases) i rozpakować
 go bezpośrednio do obsługiwanego katalogu głównego OMSI. Pakiet zawiera kontroler
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), jego zależności, zestaw plików stałej wtyczki
 wraz z `release-manifest.json`, zasoby ekranu startowego, przykładową sesję oraz

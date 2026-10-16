@@ -1,6 +1,6 @@
 # Pakowanie i układ wydania
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/packaging.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 Ta strona opisuje pakiet wydania OmsiLaunch `0.1.0-beta4`: co tworzy `tools\New-ReleasePackage.ps1`, pola pliku `release-manifest.json`, sposób, w jaki kontroler wykorzystuje manifest w czasie działania do weryfikacji zestawu plików stałej wtyczki (closure), jak pakiet jest instalowany w katalogu głównym instalacji OMSI i z niego usuwany, co zawiera katalog `.omsilaunch` po użyciu, a także skrypty walidacyjne (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Tożsamość produktu pochodzi z `OmsiLaunch.Version.props`. Kroki instalacji dla użytkowników opisano w sekcji [instalacja](../getting-started/installation.md); rolę zestawu plików wtyczki w runtime – na stronie [stała wtyczka](../concepts/permanent-plugin.md).
@@ -12,7 +12,7 @@ Ta strona opisuje pakiet wydania OmsiLaunch `0.1.0-beta4`: co tworzy `tools\New-
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Pole manifestu `product`, Windows `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | Pole manifestu `product_version`, Windows `ProductVersion`, informacyjna wersja zestawu (`/version`), nazwa publicznego archiwum ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Podstawa wersji zestawów zarządzanych |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Wersja zestawu i wersja pliku Windows |

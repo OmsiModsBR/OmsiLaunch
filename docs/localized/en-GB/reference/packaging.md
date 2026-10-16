@@ -1,6 +1,6 @@
 # Packaging and Release Layout
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > British English edition of the [canonical page](../../../reference/packaging.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 This page describes the OmsiLaunch `0.1.0-beta4` release package: what `tools\New-ReleasePackage.ps1` produces, the fields of `release-manifest.json`, how the controller uses the manifest at runtime to verify the permanent plugin closure, how the package is installed into and removed from an OMSI installation root, what the `.omsilaunch` directory contains after use, and the validation scripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Product identity comes from `OmsiLaunch.Version.props`. Installation steps for users are in [installation](../getting-started/installation.md); the plugin closure's runtime role is in [permanent plugin](../concepts/permanent-plugin.md).
@@ -11,7 +11,7 @@ This page describes the OmsiLaunch `0.1.0-beta4` release package: what `tools\Ne
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Manifest `product`, Windows `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | Manifest `product_version`, Windows `ProductVersion`, assembly informational version (`/version`), public ZIP name |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Managed assembly version base |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Assembly and Windows file version |

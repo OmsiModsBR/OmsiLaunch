@@ -231,7 +231,7 @@ Dit zijn de belangrijkste beperkingen. De volledige lijst staat in
 ## Download
 
 Download **`OmsiLaunch-0.1.0-beta4.zip`** en het bijbehorende `.sha256`-bestand
-van de [Releases-pagina](https://github.com/lmonteirotech/OmsiLaunch/releases).
+van de [Releases-pagina](https://github.com/OmsiModsBR/OmsiLaunch/releases).
 Pak het direct uit in de ondersteunde OMSI-hoofdmap. Het pakket bevat de
 controller (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), de afhankelijkheden daarvan,
 de permanente plugin-closure met `release-manifest.json`, bestanden voor het
