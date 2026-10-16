@@ -213,7 +213,7 @@ OmsiLaunch.exe session stop
 
 ## ダウンロード
 
-[リリースページ](https://github.com/lmonteirotech/OmsiLaunch/releases)から
+[リリースページ](https://github.com/OmsiModsBR/OmsiLaunch/releases)から
 **`OmsiLaunch-0.1.0-beta4.zip`** とその `.sha256` ファイルをダウンロードします。
 対応する OMSI ルートに直接展開してください。パッケージには、コントローラー
 （`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、その依存関係、`release-manifest.json` を含む

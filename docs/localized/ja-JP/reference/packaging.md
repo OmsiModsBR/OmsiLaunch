@@ -1,6 +1,6 @@
 # パッケージングとリリースレイアウト
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/packaging.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページでは、OmsiLaunch `0.1.0-beta4` のリリースパッケージについて説明します。`tools\New-ReleasePackage.ps1` が生成するもの、`release-manifest.json` のフィールド、コントローラーが実行時にマニフェストを使って常駐プラグインのクロージャーを検証する方法、OMSI のインストールルートへのパッケージのインストールと削除の方法、使用後に `.omsilaunch` ディレクトリに含まれるもの、および検証スクリプト（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）を扱います。製品のアイデンティティは `OmsiLaunch.Version.props` から取得されます。利用者向けのインストール手順は [インストール](../getting-started/installation.md) を、プラグインクロージャーの実行時の役割は [常駐プラグイン](../concepts/permanent-plugin.md) を参照してください。
@@ -12,7 +12,7 @@
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | マニフェストの `product`、Windows の `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows の `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows の `LegalCopyright` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows の `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | マニフェストの `product_version`、Windows の `ProductVersion`、アセンブリの情報バージョン（`/version`）、公開 ZIP の名前 |
 | `OmsiLaunchManagedVersion` | `0.1.0` | マネージドアセンブリのバージョンの基準 |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | アセンブリバージョンと Windows のファイルバージョン |

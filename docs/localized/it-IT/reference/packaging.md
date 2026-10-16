@@ -1,6 +1,6 @@
 # Pacchetto e struttura del rilascio
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > Traduzione della [pagina originale in inglese](../../../reference/packaging.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
 Questa pagina descrive il pacchetto di rilascio di OmsiLaunch `0.1.0-beta4`: che cosa produce `tools\New-ReleasePackage.ps1`, i campi di `release-manifest.json`, come il controller usa il manifest a runtime per verificare la chiusura del plugin permanente, come il pacchetto viene installato in una radice dell'installazione di OMSI e rimosso da essa, che cosa contiene la directory `.omsilaunch` dopo l'uso e gli script di validazione (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). L'identità del prodotto proviene da `OmsiLaunch.Version.props`. I passaggi di installazione per gli utenti sono in [installazione](../getting-started/installation.md); il ruolo a runtime della chiusura del plugin è descritto in [plugin permanente](../concepts/permanent-plugin.md).
@@ -12,7 +12,7 @@ Questa pagina descrive il pacchetto di rilascio di OmsiLaunch `0.1.0-beta4`: che
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | `product` del manifest, `ProductName` di Windows |
 | `OmsiLaunchCompanyName` | `LMonteiro` | `CompanyName` di Windows |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | `LegalCopyright` di Windows |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | `LegalCopyright` di Windows |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | `product_version` del manifest, `ProductVersion` di Windows, versione informativa dell'assembly (`/version`), nome dello ZIP pubblico |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Base della versione degli assembly gestiti |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Versione dell'assembly e versione del file Windows |

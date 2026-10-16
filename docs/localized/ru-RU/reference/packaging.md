@@ -1,6 +1,6 @@
 # Упаковка и структура релиза
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > Перевод [исходной страницы на английском языке](../../../reference/packaging.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 На этой странице описан релизный пакет OmsiLaunch `0.1.0-beta4`: что создаёт `tools\New-ReleasePackage.ps1`, поля `release-manifest.json`, как контроллер использует манифест во время работы для проверки замыкания постоянного плагина (набора его файлов), как пакет устанавливается в корневой каталог установки OMSI и удаляется из него, что содержит каталог `.omsilaunch` после использования, а также скрипты проверки (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Идентичность продукта берётся из `OmsiLaunch.Version.props`. Шаги установки для пользователей приведены на странице [установка](../getting-started/installation.md); роль замыкания плагина во время работы описана на странице [постоянный плагин](../concepts/permanent-plugin.md).
@@ -12,7 +12,7 @@
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | `product` в манифесте, `ProductName` в Windows |
 | `OmsiLaunchCompanyName` | `LMonteiro` | `CompanyName` в Windows |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | `LegalCopyright` в Windows |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | `LegalCopyright` в Windows |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | `product_version` в манифесте, `ProductVersion` в Windows, информационная версия сборки (`/version`), имя публичного ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Основа версии управляемых сборок |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Версия сборки и версия файла Windows |

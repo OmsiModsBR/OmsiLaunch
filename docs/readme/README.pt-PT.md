@@ -231,7 +231,7 @@ Estas são as limitações mais importantes. A lista completa encontra-se em
 ## Transferência
 
 Transferir **`OmsiLaunch-0.1.0-beta4.zip`** e o respetivo ficheiro `.sha256` a
-partir da [página de versões](https://github.com/lmonteirotech/OmsiLaunch/releases). Extraí-lo
+partir da [página de versões](https://github.com/OmsiModsBR/OmsiLaunch/releases). Extraí-lo
 diretamente para a raiz do OMSI suportada. O pacote contém o controlador
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), as respetivas dependências, o conjunto do
 plugin permanente com `release-manifest.json`, recursos do ecrã de abertura

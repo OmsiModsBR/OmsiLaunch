@@ -1,6 +1,6 @@
 # Empaquetado y estructura de la versión
 
-<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
 > Traducción de la [página original en inglés](../../../reference/packaging.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.
 
 Esta página describe el paquete de la versión `0.1.0-beta4` de OmsiLaunch: qué produce `tools\New-ReleasePackage.ps1`, los campos de `release-manifest.json`, cómo usa el controlador el manifiesto en runtime para verificar el conjunto de archivos del plugin permanente, cómo se instala el paquete en la raíz de una instalación de OMSI y cómo se quita, qué contiene el directorio `.omsilaunch` tras su uso, y los scripts de validación (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). La identidad del producto procede de `OmsiLaunch.Version.props`. Los pasos de instalación para usuarios están en [instalación](../getting-started/installation.md); la función en runtime del conjunto de archivos del plugin está en [plugin permanente](../concepts/permanent-plugin.md).
@@ -12,7 +12,7 @@ Esta página describe el paquete de la versión `0.1.0-beta4` de OmsiLaunch: qu�
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | `product` del manifiesto, `ProductName` de Windows |
 | `OmsiLaunchCompanyName` | `LMonteiro` | `CompanyName` de Windows |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | `LegalCopyright` de Windows |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | `LegalCopyright` de Windows |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | `product_version` del manifiesto, `ProductVersion` de Windows, versión informativa del ensamblado (`/version`), nombre del ZIP público |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Base de la versión de los ensamblados administrados |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Versión del ensamblado y versión de archivo de Windows |

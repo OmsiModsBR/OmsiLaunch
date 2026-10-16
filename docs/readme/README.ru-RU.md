@@ -227,7 +227,7 @@ OmsiLaunch.exe session stop
 ## Загрузка
 
 Загрузите **`OmsiLaunch-0.1.0-beta4.zip`** и соответствующий файл `.sha256` со
-[страницы Releases](https://github.com/lmonteirotech/OmsiLaunch/releases). Распакуйте
+[страницы Releases](https://github.com/OmsiModsBR/OmsiLaunch/releases). Распакуйте
 архив непосредственно в поддерживаемый корневой каталог OMSI. Пакет содержит контроллер
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), его зависимости, замыкание постоянного
 плагина с `release-manifest.json`, ресурсы заставки, пример сеанса и

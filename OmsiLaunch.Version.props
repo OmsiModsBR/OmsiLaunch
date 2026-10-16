@@ -4,7 +4,7 @@
   <PropertyGroup>
     <OmsiLaunchProductName>OmsiLaunch</OmsiLaunchProductName>
     <OmsiLaunchCompanyName>LMonteiro</OmsiLaunchCompanyName>
-    <OmsiLaunchLegalCopyright>Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch</OmsiLaunchLegalCopyright>
+    <OmsiLaunchLegalCopyright>Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch</OmsiLaunchLegalCopyright>
     <OmsiLaunchProductVersion>0.1.0-beta4</OmsiLaunchProductVersion>
     <OmsiLaunchManagedVersion>0.1.0</OmsiLaunchManagedVersion>
     <OmsiLaunchAssemblyVersion>0.1.0.0</OmsiLaunchAssemblyVersion>
