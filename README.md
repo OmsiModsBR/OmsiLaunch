@@ -7,20 +7,20 @@
 
 <p align="center">
   <strong>English (US)</strong> ·
-  <a href="README.en-GB.md">English (UK)</a> ·
-  <a href="README.pt-BR.md">Português (Brasil)</a> ·
-  <a href="README.pt-PT.md">Português (Portugal)</a> ·
-  <a href="README.fr-FR.md">Français</a> ·
-  <a href="README.de-DE.md">Deutsch</a> ·
-  <a href="README.es-ES.md">Español (España)</a> ·
-  <a href="README.es-LATAM.md">Español (Latinoamérica)</a> ·
-  <a href="README.it-IT.md">Italiano</a> ·
-  <a href="README.pl-PL.md">Polski</a> ·
-  <a href="README.nl-NL.md">Nederlands</a> ·
-  <a href="README.ru-RU.md">Русский</a> ·
-  <a href="README.zh-CN.md">简体中文</a> ·
-  <a href="README.zh-TW.md">繁體中文</a> ·
-  <a href="README.ja-JP.md">日本語</a>
+  <a href="docs/readme/README.en-GB.md">English (UK)</a> ·
+  <a href="docs/readme/README.pt-BR.md">Português (Brasil)</a> ·
+  <a href="docs/readme/README.pt-PT.md">Português (Portugal)</a> ·
+  <a href="docs/readme/README.fr-FR.md">Français</a> ·
+  <a href="docs/readme/README.de-DE.md">Deutsch</a> ·
+  <a href="docs/readme/README.es-ES.md">Español (España)</a> ·
+  <a href="docs/readme/README.es-LATAM.md">Español (Latinoamérica)</a> ·
+  <a href="docs/readme/README.it-IT.md">Italiano</a> ·
+  <a href="docs/readme/README.pl-PL.md">Polski</a> ·
+  <a href="docs/readme/README.nl-NL.md">Nederlands</a> ·
+  <a href="docs/readme/README.ru-RU.md">Русский</a> ·
+  <a href="docs/readme/README.zh-CN.md">简体中文</a> ·
+  <a href="docs/readme/README.zh-TW.md">繁體中文</a> ·
+  <a href="docs/readme/README.ja-JP.md">日本語</a>
 </p>
 
 ---
@@ -56,14 +56,17 @@ change before 1.0.
 
 ## Supported OMSI scope
 
-OmsiLaunch supports exactly one OMSI 2 build and refuses to start anything it
-does not recognise.
+OmsiLaunch requires an installed OMSI 2. It does not depend on one particular
+`Omsi.exe` file: every native capability is resolved and verified individually
+inside OMSI before it is used, and a capability that cannot be verified on a
+build is unavailable on that build.
 
 | Item | Scope |
 | --- | --- |
-| OMSI build | Profile `Omsi23004_692EBFBF`: `Omsi.exe` with SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (OMSI 2.3.004). `STABLE_BETA`; every runtime validation ran on this file. |
-| Steam LAA executable | SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` is accepted by allow-list. Only the fingerprint and planning were validated; gameplay was **not** runtime validated. `PARTIAL`. |
-| Unknown builds | Rejected with `OL_E_UNSUPPORTED_BUILD`. The hash is re-checked at every plan and at every start. |
+| Requirement | OMSI 2 installed: a 32-bit `Omsi.exe` with an OMSI 2 (2.x) version and the `maps\` and `Vehicles\` directories. Anything else is refused with `OL_E_UNSUPPORTED_BUILD`. |
+| Known layout | OMSI 2.3.004 (`Omsi23004`). Every capability resolves, and every runtime validation ran on this layout. Hashes identify it as a fast path; they are not a requirement. |
+| Other OMSI 2 builds | Each capability is resolved by build-independent strategies (Delphi RTTI, unique code signatures, VMT slots) and verified. Capabilities that read object layouts need a known layout. |
+| Steam executable | Resolved in process; a genuine Steam session has **not** been runtime validated. |
 | Operating system | Windows 10 or later, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controller) and .NET 6 Runtime **x86** (the plugin runs inside the 32-bit `Omsi.exe`). |
 
@@ -187,12 +190,14 @@ These are the most important limitations. The complete list is in
 
 - **One OMSI build.** Steam LAA is `PARTIAL`: gameplay, reads, commands and stop
   need a genuine Steam installation and were not runtime validated.
-- **Not available in this beta:** starting from the last map state (`/last`),
-  explicit date, time, year or weather at start, and player-vehicle assignment
-  at start. Requesting any of these makes the plan not runnable instead of being
-  silently ignored.
-- **Runtime writes are limited.** `weather.set`, calendar writes, string-variable
-  writes and vehicle relocation are unavailable. Runtime changes are not
+- **Experimental in this beta:** starting from the last map state (`/last`)
+  and explicit date, time, year or weather at start are closed statically and
+  await runtime validation. **Not available:** player-vehicle assignment at
+  start; requesting it makes the plan not runnable instead of being silently
+  ignored.
+- **Runtime writes are limited.** `weather.set`, `weather.metar.set`,
+  string-variable writes and script triggers are experimental until runtime
+  validated; calendar writes and vehicle relocation are unavailable. Runtime changes are not
   journaled and are not restored.
 - **Handle lifetime.** Stale detection for road vehicles and humans that
   disappear naturally (RV-002) has no safe runtime producer and is validated
@@ -237,7 +242,7 @@ powershell -ExecutionPolicy Bypass -File tools\Invoke-OfflineValidation.ps1
 which is not tracked. `tools\New-ReleasePackage.ps1` stages, hashes, validates
 and compresses a release package from an existing build. See
 [Packaging](docs/reference/packaging.md) and
-[Testing and validation](TESTING-AND-VALIDATION.md).
+[Testing and validation](docs/project/TESTING-AND-VALIDATION.md).
 
 | Path | Content |
 | --- | --- |
@@ -249,12 +254,12 @@ and compresses a release package from an existing build. See
 | `assets/` | Branding, icons and package assets |
 | `third_party/` | Upstream provenance notes |
 
-Maintainer summaries: [PUBLIC-API.md](PUBLIC-API.md),
-[RUNTIME-CONTROL.md](RUNTIME-CONTROL.md),
-[RUNTIME-CAPABILITIES.md](RUNTIME-CAPABILITIES.md),
-[BUILD-PROFILES.md](BUILD-PROFILES.md),
-[IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md),
-[POST-RELEASE-BACKLOG.md](POST-RELEASE-BACKLOG.md).
+Maintainer summaries: [PUBLIC-API.md](docs/specs/PUBLIC-API.md),
+[RUNTIME-CONTROL.md](docs/specs/RUNTIME-CONTROL.md),
+[RUNTIME-CAPABILITIES.md](docs/specs/RUNTIME-CAPABILITIES.md),
+[BUILD-PROFILES.md](docs/specs/BUILD-PROFILES.md),
+[IMPLEMENTATION-STATUS.md](docs/project/IMPLEMENTATION-STATUS.md),
+[POST-RELEASE-BACKLOG.md](docs/project/POST-RELEASE-BACKLOG.md).
 
 ## Community and license
 

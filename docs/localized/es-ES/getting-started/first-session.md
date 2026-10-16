@@ -1,9 +1,9 @@
 # Primera sesión
 
-<!-- l10n: source=getting-started/first-session.md -->
-> Traducción de la [página original en inglés](../../../getting-started/first-session.md) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.
+<!-- l10n: source=getting-started/first-session.md source-sha256=3985b8db122dfbbfeabd69692a21620d4e3d381f398197b61be2c500be1f3170 -->
+> Traducción de la [página original en inglés](../../../getting-started/first-session.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.
 
-Esta página recorre la primera sesión gestionada de OMSI con OmsiLaunch `0.1.0-beta3`: planificar sin iniciar OMSI, iniciar con flags explícitos, iniciar con un perfil de sesión predefinido, controlar y detener la sesión, y localizar los diagnósticos después. Se da por hecho que el paquete está instalado como se describe en [instalación](installation.md). Cada flag se especifica en la [referencia de la CLI](../reference/cli.md); hay más invocaciones en [ejemplos de la CLI](../reference/cli-examples.md).
+Esta página recorre la primera sesión gestionada de OMSI con OmsiLaunch `0.1.0-beta4`: planificar sin iniciar OMSI, iniciar con flags explícitos, iniciar con un perfil de sesión predefinido, controlar y detener la sesión, y localizar los diagnósticos después. Se da por hecho que el paquete está instalado como se describe en [instalación](installation.md). Cada flag se especifica en la [referencia de la CLI](../reference/cli.md); hay más invocaciones en [ejemplos de la CLI](../reference/cli-examples.md).
 
 <a id="what-a-session-does"></a>
 ## Qué hace una sesión
@@ -38,7 +38,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 
 Lo que ocurre, en orden:
 
-1. Se imprime el plan (`Plan: READY profile=Omsi23004_692EBFBF`).
+1. Se imprime el plan (`Plan: READY profile=Omsi23004` en la disposición conocida).
 2. Recuperación de cualquier diario pendiente anterior, adquisición del lease, snapshot, diario, overlays, comprobación de integridad del plugin, inicio de `Omsi.exe`.
 3. Aparece el icono de la bandeja (`OmsiLaunch is running`, es decir, OmsiLaunch se está ejecutando); consulta [bandeja de Windows](../reference/windows-tray.md).
 4. Cuando se llega a la fase de juego, se imprime el estado `Running` como JSON (`"State": 14`). El timeout de arranque predeterminado es de 180 s (se cambia con `/startup-timeout:<1..600>`).
@@ -56,7 +56,7 @@ Los flags que solicitan una fecha, hora, año, tiempo meteorológico o un vehíc
 <a id="3-start-with-a-predefined-session-profile"></a>
 ## 3. Iniciar con un perfil de sesión predefinido
 
-Un perfil de sesión es un archivo YAML bajo `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` que fija el mapa, el punto de entrada y hasta cinco presets de ajustes (esquema `omsilaunch.session-profile/v1`; referencia completa en [perfiles de sesión](../reference/session-profiles.md)). Crea `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`:
+Un perfil de sesión es un archivo YAML bajo `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` que fija el mapa, el punto de entrada y hasta 99 presets de ajustes (esquema `omsilaunch.session-profile/v1`; referencia completa en [perfiles de sesión](../reference/session-profiles.md)). Crea `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`:
 
 ```yaml
 schema: omsilaunch.session-profile/v1
@@ -92,7 +92,7 @@ OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /n
 OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /new
 ```
 
-Reglas que conviene recordar: el `id` debe ser igual al nombre del directorio; el índice es `1..5`; los flags explícitos que sobrescribirían un campo que pertenece al perfil (`/map`, `/entrypoint-index`, una clave de `/set` que pertenece al preset, los flags del splash cuando el preset tiene `presentation`) se rechazan con `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (salida `2`); el bloque `new:` solo se aplica con `/new`; con `/saved:<file.osn>`, el mapa de la situación debe figurar en `compatibility.maps`. El archivo incluido en el paquete `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` ilustra el esquema completo, pero su bloque `new:` establece `date`, `time` y `weather`, que esta build no puede aplicar, así que cópialo solo después de quitar esas claves.
+Reglas que conviene recordar: el `id` debe ser igual al nombre del directorio; el índice es `1..99`; los flags explícitos que sobrescribirían un campo que pertenece al perfil (`/map`, `/entrypoint-index`, una clave de `/set` que pertenece al preset, los flags del splash cuando el preset tiene `presentation`) se rechazan con `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (salida `2`); el bloque `new:` solo se aplica con `/new`; con `/saved:<file.osn>`, el mapa de la situación debe figurar en `compatibility.maps`. El archivo incluido en el paquete `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` ilustra el esquema completo, pero su bloque `new:` establece `date`, `time` y `weather`, que esta build no puede aplicar, así que cópialo solo después de quitar esas claves.
 
 <a id="4-control-the-running-session"></a>
 ## 4. Controlar la sesión en ejecución

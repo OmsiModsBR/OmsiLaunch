@@ -1,7 +1,7 @@
 # Справочник по LaunchSpec
 
-<!-- l10n: source=reference/launchspec.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/launchspec.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/launchspec.md source-sha256=fc6d2fffb75e37ffbd49ece3a88aa84e08c55696a149f74e35f98b492b79caef -->
+> Перевод [исходной страницы на английском языке](../../../reference/launchspec.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Эта страница — нормативный справочник по `LaunchSpec`, записи запроса, которая описывает один сеанс OmsiLaunch. Здесь описаны её форма в C# (`OmsiLaunch.Api`), её форма в виде JSON-файла, который загружает CLI (`/spec:<path>`, `tools/OmsiLaunch.Cli/LaunchSpecJson.cs`), каждое свойство с типом, значением по умолчанию, правилом проверки и текущим действием, правила проверки, делающие план неисполнимым, а также приоритет между флагами CLI, файлами спецификации и профилями сеанса. Документируется только то, что делает текущий код.
 
@@ -28,7 +28,7 @@
 | Имена свойств | Имена свойств C# (`Installation`, `RootPath`, ...). При загрузке сопоставление не зависит от регистра; CLI записывает их в PascalCase. |
 | Перечисления | Целые числа (строкового конвертера перечислений нет). `"Mode": 0` допустимо; `"Mode": "NewMap"` отклоняется как некорректный JSON. Значения перечислены в разделе [Перечисления](#enumerations). |
 | `OptionalValue<T>` | Объект `{ "Presence": 0 | 1, "Value": <T or null> }`. `Presence` 0 = `Unset` (значение игнорируется), 1 = `Set` (значение должно присутствовать и не быть null; `Set` со значением null не проверяется и ведёт себя как недопустимое значение). Опущенный член `OptionalValue` означает `Unset`. Член только для чтения `IsSet` появляется в выводе, который записывает CLI, и при загрузке принимается и игнорируется. |
-| Необязательные записи | `Year`, `Weather`, `Input`, `Diagnostics`, `Presentation`, `InternetTextures`, `SessionProfile` могут быть `null` или опущены; методы доступа `Effective*` подставляют значения по умолчанию. |
+| Необязательные записи | `Year`, `Weather`, `Input`, `Diagnostics`, `Presentation`, `InternetTextures`, `SessionProfile`, `HofManagement`, `Modules` могут быть `null` или опущены; методы доступа `Effective*` подставляют значения по умолчанию. |
 | Обязательные записи | `Installation`, `World`, `Date`, `Time`, `Environment` (со всеми восемью словарями, используйте `{}`), `Behavior` должны быть заданы как объекты. Они не проверяются: значение `null` или отсутствующая запись приводит к более позднему сбою из-за нулевой ссылки, о котором CLI сообщает как `OL_E_INTERNAL` (код выхода 10) или `OL_E_INVALID_ARGUMENT` (код выхода 2). |
 | Неизвестные свойства | Отклоняются до привязки: `OL_E_SPEC_UNKNOWN_PROPERTY: $.Path.Name` (в пути используются имена членов в том виде, в каком они записаны в файле). Содержимое словарей (`Environment.*`) не проверяется как свойства. |
 | Корень | Должен быть JSON-объектом: `OL_E_SPEC_INVALID`. Максимальная глубина вложенности — 32. |
@@ -45,10 +45,10 @@
   // Comments and trailing commas are accepted. Enums are integers.
   "Installation": {
     "RootPath": ".",                          // "." = directory that contains OmsiLaunch.exe (CLI only)
-    "ExpectedExecutableSha256": null          // carried, not consumed
+    "ExpectedExecutableSha256": null          // optional pin of Omsi.exe
   },
   "World": {
-    "Mode": 0,                                // 0 NewMap, 1 SavedSituation, 2 LastMapState (unavailable)
+    "Mode": 0,                                // 0 NewMap, 1 SavedSituation, 2 LastMapState
     "MapIdentity": { "Presence": 1, "Value": "maps\\Grundorf\\global.cfg" },
     "SituationIdentity": { "Presence": 0, "Value": null },
     "PresentedEntrypointIndex": { "Presence": 1, "Value": 1 },
@@ -68,10 +68,11 @@
     "Sound": {}, "AiPassengers": {}, "Keyboard": {}, "Controllers": {}
   },
   "Behavior": {
-    "RestoreConfiguration": true,             // carried, restore always happens
+    "RestoreConfiguration": true,             // must be true
     "SuppressStaleClosecheckWarning": true,
     "StartupTimeoutSeconds": 180,             // 1..600
-    "ShutdownTimeoutSeconds": 30              // carried, not consumed
+    "ShutdownTimeoutSeconds": 30,             // with CooperativeShutdown
+    "CooperativeShutdown": false              // opt-in
   },
   "Input": null,
   "Diagnostics": null,
@@ -89,7 +90,7 @@
 }
 ```
 
-Явная дата, если сборка её поддерживает, записывается как `"Date": { "Mode": 1, "Value": { "Presence": 1, "Value": { "Year": 2024, "Month": 5, "Day": 1 } } }`, а время — как `{ "Mode": 1, "Value": { "Presence": 1, "Value": { "Hour": 7, "Minute": 30, "Second": 0 } } }`. В этой сборке и то и другое делает план неисполнимым (см. ниже).
+Явная дата, если сборка её поддерживает, записывается как `"Date": { "Mode": 1, "Value": { "Presence": 1, "Value": { "Year": 2024, "Month": 5, "Day": 1 } } }`, а время — как `{ "Mode": 1, "Value": { "Presence": 1, "Value": { "Hour": 7, "Minute": 30, "Second": 0 } } }`. И то и другое применяется только к сеансам NEW_MAP (`EXPERIMENTAL`; см. ниже).
 
 <a id="property-reference"></a>
 ## Справочник по свойствам
@@ -103,53 +104,55 @@
 | --- | --- | --- | --- | --- | --- |
 | `Installation` | объект `InstallationSpec` | да | нет | да | `STABLE_BETA` |
 | `World` | объект `WorldSpec` | да | нет | да | `STABLE_BETA` |
-| `Date` | объект `DateSpec` | да | нет | проверяется; любой режим, кроме `Unset`, делает план неисполнимым | `PARTIAL` |
-| `Time` | объект `TimeSpec` | да | нет | проверяется; любой режим, кроме `Unset`, делает план неисполнимым | `PARTIAL` |
+| `Date` | объект `DateSpec` | да | нет | да, только NEW_MAP (см. [`DateSpec`](#datespec-timespec-yearspec)) | `EXPERIMENTAL` |
+| `Time` | объект `TimeSpec` | да | нет | да, только NEW_MAP | `EXPERIMENTAL` |
 | `PlayerVehicle` | `OptionalValue<PlayerVehicleSpec>` | нет | `Unset` | разрешается для диагностики; любое заданное поле делает план неисполнимым | `PARTIAL` |
 | `Environment` | объект `EnvironmentSpec` | да | нет | да (семантический overlay (временная замена файла на время сеанса) файла `options.cfg`) | `STABLE_BETA` |
 | `Behavior` | объект `LaunchBehaviorSpec` | да | нет | частично (см. запись) | `STABLE_BETA` / `PARTIAL` |
-| `Year` | объект `YearSpec` или null | нет | `null` → `EffectiveYear` = режим `Unset` | любой режим, кроме `Unset`, делает план неисполнимым | `PARTIAL` |
-| `Weather` | объект `WeatherSpec` или null | нет | `null` → `EffectiveWeather` = режим `Unset` | любой режим, кроме `Unset`, делает план неисполнимым | `PARTIAL` |
-| `Input` | объект `InputSpec` или null | нет | `null` → `EffectiveInput` = оба не заданы | любой заданный документ делает план неисполнимым | `PARTIAL` |
+| `Year` | объект `YearSpec` или null | нет | `null` → `EffectiveYear` = режим `Unset` | да, только NEW_MAP | `EXPERIMENTAL` |
+| `Weather` | объект `WeatherSpec` или null | нет | `null` → `EffectiveWeather` = режим `Unset` | да, в любом режиме мира, применяется сразу после запуска мира (см. [`WeatherSpec`](#weatherspec)) | `EXPERIMENTAL` |
+| `Input` | объект `InputSpec` или null | нет | `null` → `EffectiveInput` = оба не заданы | да (см. [`InputSpec`](#inputspec)) | `EXPERIMENTAL` |
 | `Diagnostics` | объект `DiagnosticsSpec` или null | нет | `null` → `EffectiveDiagnostics` = значения по умолчанию | только передаётся | `PARTIAL` |
 | `Presentation` | объект `SessionPresentationSpec` или null | нет | `null` → `EffectivePresentation` = управляемая заставка, язык не задан, пользовательский каталог не задан, значок в трее показывается | да | `STABLE_BETA` |
 | `InternetTextures` | объект `InternetTexturesSpec` или null | нет | `null` → `EffectiveInternetTextures` = `Native` | да | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | объект `SessionProfileMetadata` или null | нет | `null` | только сведения о происхождении (диагностическое сообщение плана `session_profile.selected`) | `STABLE_BETA` |
+| `HofManagement` | объект `HofManagementSpec` или null | нет | `null` → `EffectiveHofManagement` = нет операций | да (HOF-overlay сеанса, см. [управление HOF](hof-management.md)) | `STABLE_BETA` |
+| `Modules` | объект `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) или null | нет | `null` → `EffectiveModules` = ничего не запрошено, не отключено и не задано | нет (модули никогда не затрагивают файлы установки через OmsiLaunch; см. [runtime-модули](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
 
-Методы доступа только для чтения (присутствуют в JSON-выводе CLI, при загрузке игнорируются): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`.
+Методы доступа только для чтения (присутствуют в JSON-выводе CLI, при загрузке игнорируются): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
 ### `InstallationSpec`
 
 | Свойство | Тип | По умолчанию | Допустимые значения | Использование | Стабильность |
 | --- | --- | --- | --- | --- | --- |
 | `RootPath` | строка | обязательно | Каталог, содержащий `Omsi.exe` и `plugins\`. См. [правила путей](#path-rules). Пустое значение или только пробелы → `OL_E_INSTALLATION_NOT_FOUND`. | да | `STABLE_BETA` |
-| `ExpectedExecutableSha256` | строка или null | `null` | Любая строка. | В текущем коде не используется: хост всегда вычисляет хеш `Omsi.exe` и сравнивает его с профилем сборки, а не с этим значением. | `PARTIAL` (передаётся, сейчас ни на что не влияет) |
+| `ExpectedExecutableSha256` | строка или null | `null` | `null` или 64 шестнадцатеричные цифры (иначе `OL_E_INVALID_ARGUMENT`). | Необязательная привязка: если задано, план неисполним, пока SHA-256 файла `Omsi.exe` не совпадёт с ним (`OL_E_UNSUPPORTED_BUILD`, данные `expected_sha256` и `file_sha256`). | `STABLE_BETA` |
 
 ### `WorldSpec`
 
 | Свойство | Тип | По умолчанию | Допустимые значения | Использование | Стабильность |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | `WorldMode` int | обязательно | `0` `NewMap`, `1` `SavedSituation`, `2` `LastMapState` (`LastSituation` — устаревший псевдоним с тем же значением 2). | да; `LastMapState` → `OL_E_CAPABILITY_UNAVAILABLE` | `NewMap`, `SavedSituation`: `STABLE_BETA`; `LastMapState`: `UNAVAILABLE` |
+| `Mode` | `WorldMode` int | обязательно | `0` `NewMap`, `1` `SavedSituation`, `2` `LastMapState` (`LastSituation` — устаревший псевдоним с тем же значением 2). | да; для `LastMapState` нужны `MapIdentity` и `laststn.osn` карты (`OL_E_MAP_NOT_FOUND`, `OL_E_SITUATION_NOT_FOUND`) | `NewMap`, `SavedSituation`: `STABLE_BETA`; `LastMapState`: `EXPERIMENTAL` |
 | `MapIdentity` | `OptionalValue<string>` | `Unset` | Для `NewMap`: обязательно, в форме `maps\<dir>\global.cfg` (без учёта регистра, `/` допускается, без `..`) и установлено. Для `SavedSituation` игнорируется (карту задаёт файл `.osn`). | да (передача при запуске) | `STABLE_BETA` |
 | `SituationIdentity` | `OptionalValue<string>` | `Unset` | Для `SavedSituation`: обязательно, идентификатор установленной ситуации `situations\...\<file>.osn` (в том виде, в каком его возвращают `DiscoverAsync(Situations)` / `/list:situations`). | да (передача при запуске) | `STABLE_BETA` |
 | `PresentedEntrypointIndex` | `OptionalValue<int>` | `Unset` | Для `NewMap` без `EntrypointIdentity`: обязательно, `>= 0`, индекс в списке точек входа карты, который показывает OMSI. Если не задано, передаётся плагину как `-1`. | да (передача при запуске) | `STABLE_BETA` |
-| `EntrypointIdentity` | `OptionalValue<string>` | `Unset` | Необработанная метка точки входа или идентификатор из обнаружения контента. Если задано, план становится неисполнимым (`world.entrypoint-identity`, `RUNTIME_PARTIAL`, `OL_E_CAPABILITY_UNAVAILABLE`). | передаётся | `PARTIAL` |
+| `EntrypointIdentity` | `OptionalValue<string>` | `Unset` | Точная (с учётом регистра) метка точки входа или идентификатор из обнаружения контента. Планировщик определяет по нему метку, которую показывает OMSI, и при запуске выбирается эта метка (`world.entrypoint-identity`); запись, которую OMSI не показывает, отклоняется (`OL_E_ENTRYPOINT_NOT_PRESENTED`), как и неизвестная (`OL_E_ENTRYPOINT_NOT_FOUND`). | передаётся | `RUNTIME_VALIDATION_REQUIRED` |
 | `Entrypoint` | `EntrypointSpec` (только для чтения) | вычисляется | `Mode` = `Identity`, если задан `EntrypointIdentity`, иначе `PresentedIndex`, если задан индекс, иначе `Unset`; `PresentedIndex`, `Identity` повторяют входные значения. | производное | `STABLE_BETA` |
 
 ### `DateSpec`, `TimeSpec`, `YearSpec`
 
 | Свойство | Тип | По умолчанию | Допустимые значения | Использование | Стабильность |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | `DateTimeMode` int | обязательно (`Year`: `0`, если запись равна null) | `0` `Unset`, `1` `Explicit`, `2` `System`. | `Explicit`/`System` → запись `unsupported` (`world.explicit-date`, `world.explicit-time`, `world.explicit-year`, `STATICALLY_PARTIAL`) и `OL_E_CAPABILITY_UNAVAILABLE`. Режимы также копируются в данные передачи при запуске, которые плагин отклоняет, если режим не `Unset` (до этого дело не доходит, потому что план неисполним). | `PARTIAL` |
-| `Value` | `OptionalValue<SemanticDate>` / `OptionalValue<SemanticTime>` / `OptionalValue<int>` | `Unset` | `SemanticDate`: `Year`, `Month` 1..12, `Day` 1..31; `SemanticTime`: `Hour` 0..23, `Minute` 0..59, `Second` 0..59. Должно быть задано, если `Mode` равен `Explicit` (иначе `OL_E_DATE_TIME_APPLY_FAILED`), и не должно быть задано, если `Mode` не равен `Explicit` (`OL_E_INVALID_ARGUMENT`). `YearSpec.Value` не проверяется. | только проверяется | `PARTIAL` |
+| `Mode` | `DateTimeMode` int | обязательно (`Year`: `0`, если запись равна null) | `0` `Unset`, `1` `Explicit`, `2` `System`. | NEW_MAP: `Explicit` использует `Value`, `System` — часы ПК на момент планирования сеанса; `Unset` сохраняет собственное значение OMSI (её параметры и форма Start). Контроллер превращает запрос в стартовые часы OMSI (год, день года, час, минута, секунда; возможности `world.explicit-date`, `world.explicit-time`, `world.explicit-year`), данные передачи при запуске (версия 7) несут их, а плагин записывает их непосредственно перед `NewSituation` OMSI, поэтому OMSI выводит сезон и календарь из запрошенной даты до загрузки карты. После запуска читаются идущие часы; несовпадение или использование OMSI фиксированного времени запуска завершает запуск с `OL_E_DATE_TIME_APPLY_FAILED`. `SavedSituation`: режим, отличный от `Unset`, — `OL_E_CAPABILITY_UNAVAILABLE` (у ситуации своё время). | `EXPERIMENTAL` |
+| `Value` | `OptionalValue<SemanticDate>` / `OptionalValue<SemanticTime>` / `OptionalValue<int>` | `Unset` | `SemanticDate`: реальная календарная дата (`Day` допустим для месяца и года); `SemanticTime`: `Hour` 0..23, `Minute` 0..59, `Second` 0..59; годы 1900..2200. `YearSpec` задаёт год (и год `Date`, если заданы оба). 31 декабря високосного года отклоняется: календарь OMSI не может представить день 366. Недопустимые значения: `OL_E_DATE_TIME_APPLY_FAILED`. Должно быть задано, если `Mode` равен `Explicit`, и не задано в остальных случаях (`OL_E_INVALID_ARGUMENT`). | да | `EXPERIMENTAL` |
 
 ### `WeatherSpec`
 
 | Свойство | Тип | По умолчанию | Допустимые значения | Использование | Стабильность |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | `WeatherMode` int | `0`, если запись равна null | `0` `Unset`, `1` `Preset`, `2` `Icao`, `3` `RealCurrent`. | Любой режим, кроме `Unset` → запись `weather` как неподдерживаемой возможности и `OL_E_CAPABILITY_UNAVAILABLE`. | `PARTIAL` |
-| `Preset` | `OptionalValue<string>` | `Unset` | Имя пресета (не проверяется). | передаётся | `PARTIAL` |
-| `Icao` | `OptionalValue<string>` | `Unset` | Код ICAO (не проверяется). | передаётся | `PARTIAL` |
+| `Mode` | `WeatherMode` int | `0`, если запись равна null | `0` `Unset`, `1` `Preset`, `2` `Icao`, `3` `RealCurrent`. | Любой режим, кроме `Unset`, требует `world.weather`; плагин применяет его сразу после запуска мира (в любом режиме мира; он переопределяет погоду сохранённой ситуации). Ошибка завершает запуск с `OL_E_WEATHER_APPLY_FAILED`. | `EXPERIMENTAL` |
+| `Preset` | `OptionalValue<string>` | `Unset` | Файл из каталога `weather` установки, по имени или `weather\<name>.owt`; проверяется при планировании (`OL_E_WEATHER_INVALID`). | данные передачи | `EXPERIMENTAL` |
+| `Icao` | `OptionalValue<string>` | `Unset` | Четыре буквы или цифры (иначе `OL_E_WEATHER_INVALID`); используется режимом `Icao`. | данные передачи | `EXPERIMENTAL` |
 
 <a id="playervehiclespec-inside-playervehicle"></a>
 ### `PlayerVehicleSpec` (внутри `PlayerVehicle`)
@@ -163,7 +166,7 @@
 | `Registration` | `OptionalValue<string>` | `Unset` | Любая строка. | `OL_E_CAPABILITY_UNAVAILABLE` | `PARTIAL` |
 | `Enabled` | bool (только для чтения) | вычисляется | `true`, если задан `Model`. В данных передачи при запуске как `PlayerVehicleEnabled` передаётся значение `PlayerVehicle.IsSet`. | производное | `PARTIAL` |
 
-`PlayerVehicle` с `Presence` 1 и всеми незаданными полями принимается и ни на что не влияет. Любое заданное поле в этой сборке делает план неисполнимым (`STATICALLY_PARTIAL`).
+`PlayerVehicle` с `Presence` 1 и всеми незаданными полями принимается и ни на что не влияет. Любое заданное поле в этой сборке делает план неисполнимым (`UNAVAILABLE`).
 
 ### `EnvironmentSpec`
 
@@ -213,17 +216,18 @@
 
 | Свойство | Тип | По умолчанию | Допустимые значения | Использование | Стабильность |
 | --- | --- | --- | --- | --- | --- |
-| `RestoreConfiguration` | bool | `true` | любые | Не используется: файлы, которыми владеет сеанс, всегда восстанавливаются точно. | `PARTIAL` (передаётся, сейчас ни на что не влияет) |
+| `RestoreConfiguration` | bool | `true` | только `true` | Точное восстановление обязательно: `false` отклоняется с `OL_E_INVALID_ARGUMENT`. | `STABLE_BETA` |
 | `SuppressStaleClosecheckWarning` | bool | `true` | любые | `true`: файл `closecheck`, существующий до сеанса, безвозвратно удаляется при запуске (диагностическое сообщение `closecheck.stale-removed` с его SHA-256; при сбое — `OL_E_CLOSECHECK_REMOVE_FAILED`). `false`: существующий `closecheck` не трогается и не считается удалением сеанса. Файл `closecheck`, который OMSI записывает во время сеанса, всегда удаляется при восстановлении. | `STABLE_BETA` |
 | `StartupTimeoutSeconds` | int | `180` | 1..600 (иначе `ArgumentOutOfRangeException` из `StartSessionAsync`; флаг CLI `/startup-timeout` требует 1..600; профили требуют > 0). Бюджет времени от запуска супервизора до состояния `Running`; по его истечении сеанс завершается сбоем с `OL_E_STARTUP_TIMEOUT` (плагин запущен) или `OL_E_PLUGIN_NOT_LOADED`. | да | `STABLE_BETA` |
-| `ShutdownTimeoutSeconds` | int | `30` | любое целое (флаг CLI `/shutdown-timeout` 1..600) | Не используется: супервизор сразу завершает OMSI через `TerminateProcess`; кооперативного ожидания завершения нет. | `PARTIAL` (передаётся, сейчас ни на что не влияет) |
+| `ShutdownTimeoutSeconds` | int | `30` | 1..600 (флаг CLI `/shutdown-timeout`) | При `CooperativeShutdown`: время, которое получает OMSI, чтобы выйти самостоятельно, прежде чем её завершат принудительно. Без него OMSI завершается сразу. | `EXPERIMENTAL` |
+| `CooperativeShutdown` | bool | `false` | любое (флаг CLI `/cooperative-shutdown`) | `true`: завершение работающего сеанса просит OMSI выйти через её собственную процедуру выхода (`TForm_main.CloseOMSI`: сохраняются параметры и `laststn.osn` карты, плагины финализируются) вместо принудительного завершения; по истечении `ShutdownTimeoutSeconds` процесс завершается принудительно (`OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE`). Восстановление выполняется после выхода, поэтому файлы, которыми владеет сеанс, по-прежнему возвращаются к исходным байтам. | `EXPERIMENTAL` |
 
 ### `InputSpec`
 
 | Свойство | Тип | По умолчанию | Использование | Стабильность |
 | --- | --- | --- | --- | --- |
-| `KeyboardDocument` | `OptionalValue<string>` | `Unset` | Если задано → `input.keyboard` как неподдерживаемая возможность (`STATICALLY_PARTIAL`) и `OL_E_CAPABILITY_UNAVAILABLE`. Выполнение PATCH/REPLACE для клавиатуры не реализовано. | `PARTIAL` |
-| `ControllerDocument` | `OptionalValue<string>` | `Unset` | Если задано → `input.controller` как неподдерживаемая возможность и `OL_E_CAPABILITY_UNAVAILABLE`. | `PARTIAL` |
+| `KeyboardDocument` | `OptionalValue<string>` | `Unset` | Путь (абсолютный или относительный к установке) к файлу клавиатуры в формате OMSI. Сеанс использует его вместо `Inputs\keyboard.cfg` (overlay транзакции: файл установки в конце побайтово восстанавливается). Файл должен существовать, быть не более 1 MiB и содержать хотя бы одну привязку `[entry]`; иначе `OL_E_INVALID_ARGUMENT`. | `EXPERIMENTAL` |
+| `ControllerDocument` | `OptionalValue<string>` | `Unset` | Путь к файлу контроллера в формате OMSI, который на время сеанса используется вместо `Inputs\gamectrler.cfg` таким же образом. Он должен содержать хотя бы одно устройство `[ctrl]`; иначе `OL_E_INVALID_ARGUMENT`. | `EXPERIMENTAL` |
 
 ### `DiagnosticsSpec`
 
@@ -233,8 +237,8 @@
 | `Verbose` | bool | `false` | Не используется. | `PARTIAL` |
 | `OmsiLogAll` | bool | `false` | Не используется. | `PARTIAL` |
 | `ProcessTrace` | bool | `false` | Не используется. | `PARTIAL` |
-| `PluginTrace` | bool | `false` | Не используется. | `PARTIAL` |
-| `NativeTrace` | bool | `false` | Не используется. | `PARTIAL` |
+| `PluginTrace` | bool | `false` | Флаг данных передачи при запуске: плагин записывает события `plugin.trace.operation` (операция, исход, код, длительность в микросекундах) для каждой runtime-операции; они попадают в `<root>\.omsilaunch\diagnostics\<sessionId>-host.log` через кольцо телеметрии. | `EXPERIMENTAL` |
+| `NativeTrace` | bool | `false` | Флаг данных передачи при запуске: нативный слой сообщает каждую установку и снятие хука (`native.trace`: граница, владелец, цель, результат) в ту же трассировку хоста. | `EXPERIMENTAL` |
 
 Флаги CLI `/log`, `/logall`, `/omsi-logall`, `/verbose`, `/trace`, `/trace-process`, `/trace-plugin`, `/trace-native` заполняют эти логические значения (`/logall` устанавливает `Verbose`, `ProcessTrace`, `PluginTrace`, `NativeTrace`); они объединяются со значениями спецификации через логическое ИЛИ.
 
@@ -254,6 +258,22 @@
 | `Mode` | `InternetTexturesMode` int | `0` (`Native`) | `0` `Native`: ничего не меняется. `1` `Disabled`: плагин подавляет встроенный в процесс загрузчик OMSI (телеметрия `internet-textures.suppressed` / `internet-textures.suppression.failed`). `2` `Override`: профиль `.itx` накладывается как overlay в виде `Texture\standard.itx`; его целевые файлы и `Texture\standard.ipr` становятся удалениями сеанса. | да | `Native`: `STABLE_BETA`; `Disabled`, `Override`: `EXPERIMENTAL` |
 | `OverrideProfilePath` | `OptionalValue<string>` | `Unset` | Обязательно для `Override` (`OL_E_ITX_PROFILE_REQUIRED`). Текстовый файл с парами строк: абсолютный URL `http`/`https`, затем целевой путь относительно корневого каталога установки, который содержит компонент `Texture\`, не является корневым, не содержит `..`, не начинается с `\` и не проходит через junction/symlink (`OL_E_ITX_PROFILE_INVALID`, `OL_E_ITX_TARGET_OUTSIDE_TEXTURE_PATH`). См. [правила путей](#path-rules). | да | `EXPERIMENTAL` |
 
+### `HofManagementSpec`
+
+| Свойство | Тип | По умолчанию | Допустимые значения | Используется | Стабильность |
+| --- | --- | --- | --- | --- | --- |
+| `Operations` | массив `HofOperationSpec` | нет | Применяются по порядку; о разрешении, правилах конфликтов и ограничениях см. [управление HOF](hof-management.md). | да | `STABLE_BETA` |
+
+Члены `HofOperationSpec`: `SourceKind` (`HofSourceKind`, int), `Source` (строка), `TargetVehicles` (массив идентичностей ТС или каталогов ниже `Vehicles\`, не менее одного), `Mode` (`HofApplyMode`, int, по умолчанию `0` `Add`), `Files` (массив имён файлов `.hof` или null для всех). Проблемы — это диагностические сообщения плана `OL_E_HOF_*`.
+
+### `RuntimeModulesSpec`
+
+| Свойство | Тип | По умолчанию | Допустимые значения | Используется | Стабильность |
+| --- | --- | --- | --- | --- | --- |
+| `Enable` | массив идентификаторов модулей | нет | Идентификаторы модулей, установленных ниже `plugins\OmsiLaunch.Modules`; см. [runtime-модули](../../../reference/runtime-modules.md). Запрошенный модуль, который не удаётся загрузить, — диагностическое сообщение плана `OL_E_MODULE_*` (план неисполним). | да | `EXPERIMENTAL` |
+| `Disable` | массив идентификаторов модулей или null | нет | Не допускает в сеанс модуль по умолчанию, модуль из содержимого или из файла параметров (диагностическое сообщение плана `module.disabled`). Модуль, одновременно включённый и отключённый, — `OL_E_MODULE_SETTING_INVALID`. Метод доступа только для чтения `EffectiveDisable`. | да | `EXPERIMENTAL` |
+| `Settings` | объект со строками или null | нет | `"<module id>.<key>": "<value>"`. Имеет приоритет над файлом параметров `.omsilaunch\modules.ini` и значением по умолчанию из манифеста. Неверное значение или ключ, которого модуль не объявляет, — `OL_E_MODULE_SETTING_INVALID` (план неисполним); параметры модуля, который сеанс не загружает, — `OL_W_MODULE_SETTING_IGNORED`. Эффективные значения находятся в `PlannedModule.Settings`. Метод доступа только для чтения `EffectiveSettings`. | да | `EXPERIMENTAL` |
+
 ### `SessionProfileMetadata`
 
 | Свойство | Тип | Использование | Стабильность |
@@ -268,6 +288,8 @@
 | `WorldMode` | `NewMap` = 0, `SavedSituation` = 1, `LastMapState` = 2, `LastSituation` = 2 (устаревший псевдоним; это собственная ветвь OMSI для состояния последней карты, а никогда не самый новый файл `.osn`) |
 | `DateTimeMode` | `Unset` = 0, `Explicit` = 1, `System` = 2 |
 | `WeatherMode` | `Unset` = 0, `Preset` = 1, `Icao` = 2, `RealCurrent` = 3 |
+| `HofSourceKind` | `Collection` = 0, `Directory` = 1, `Vehicle` = 2, `File` = 3 |
+| `HofApplyMode` | `Add` = 0, `Mirror` = 1 |
 | `SplashMode` | `Unset` = 0, `Native` = 0 (псевдоним), `Managed` = 1 |
 | `InternetTexturesMode` | `Native` = 0, `Disabled` = 1, `Override` = 2 |
 | `Presence` | `Unset` = 0, `Set` = 1 |
@@ -292,8 +314,8 @@
 | `OL_E_SITUATION_MAP_NOT_FOUND` | `SavedSituation`: карта, указанная внутри `.osn`, не установлена | `SessionPlanner` |
 | `OL_E_UNSUPPORTED_OPERATING_SYSTEM` | не Windows 10+ на x64 ОС с x64-процессом хоста (`runtime.current-windows-x64`) | `SessionPlanner` |
 | `OL_E_INSTALLATION_NOT_WRITABLE` | корневой каталог отсутствует, установлен атрибут «только для чтения» или нет подкаталога `plugins\` (`transaction.exact-restore`) | `SessionPlanner` |
-| `OL_E_UNSUPPORTED_BUILD` | `Omsi.exe` отсутствует, или его размер/SHA-256 не совпадает ни с отпечатком профиля (`692EBFBF...`, 8 503 440 байт), ни с хешем из списка разрешённых (`omsi.profile.OMSI23004`) | `SessionPlanner` |
-| `OL_E_CAPABILITY_UNAVAILABLE` | `World.Mode` = `LastMapState`; задан `EntrypointIdentity`; режим `Date`/`Time`/`Year` не `Unset`; режим `Weather` не `Unset`; задано любое поле `PlayerVehicle`; задан `Input.KeyboardDocument` или `Input.ControllerDocument` | `SessionPlanner` |
+| `OL_E_UNSUPPORTED_BUILD` | Не установка OMSI 2: `Omsi.exe` отсутствует, не является 32-разрядным образом PE x86, нет версии OMSI 2 (2.x) или нет каталога `maps\` / `Vehicles\` (`omsi.omsi2`). Хеш критерием не является. | `SessionPlanner` |
+| `OL_E_CAPABILITY_UNAVAILABLE` | задан `EntrypointIdentity`; режим `Date`/`Time`/`Year` не `Unset` при `SavedSituation`; режим `Weather` не `Unset`; задано любое поле `PlayerVehicle` | `SessionPlanner` |
 | `OL_E_VEHICLE_NOT_FOUND`, `OL_E_REPAINT_NOT_FOUND`, `OL_E_HOF_NOT_FOUND` | `PlayerVehicle.Model` / `Repaint` / `Hof` не установлен (в дополнение к `OL_E_CAPABILITY_UNAVAILABLE`) | `SessionPlanner` |
 | `OL_E_UNKNOWN_SETTING`, `OL_E_SETTING_NOT_WRITABLE` | ключ `Environment`, которого нет в каталоге / который недоступен для записи | `SessionPlanner` |
 | `OL_E_SESSION_PRESENTATION_INVALID` | при построении плана заставки/ITX возникло исключение; сообщение содержит `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`, `OL_E_SPLASH_ASSET_MISSING`, `OL_E_SPLASH_FORMAT_UNSUPPORTED`, `OL_E_ITX_PROFILE_REQUIRED`, `OL_E_ITX_PROFILE_MISSING`, `OL_E_ITX_PROFILE_INVALID` или `OL_E_ITX_TARGET_OUTSIDE_TEXTURE_PATH` | `SessionPlanner` |
@@ -315,7 +337,7 @@
 5. `/date`, `/time`, `/year`, `/weather*` переопределяют основу, если указаны (`system` выбирает `DateTimeMode.System`).
 6. `/no-vehicle` сбрасывает `PlayerVehicle`; отдельные флаги `/vehicle`, `/repaint`, `/hof`, `/fleet`, `/registration` переопределяют отдельные поля ТС игрока из основы.
 7. Записи `/set:<key>=<value>` добавляются в `Environment.General` (ключ проверяется, значение — нет); остальные семь групп берутся из основы без изменений.
-8. `/startup-timeout` и `/shutdown-timeout` переопределяют основу, только если указаны; иначе действуют значение из спецификации, затем из профиля, затем значения по умолчанию 180 s / 30 s. `ShutdownTimeoutSeconds` для супервизора имеет статус `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT` (принимается для совместимости, сейчас ни на что не влияет).
+8. `/startup-timeout` и `/shutdown-timeout` переопределяют основу, только если указаны; иначе действуют значение из спецификации, затем из профиля, затем значения по умолчанию 180 s / 30 s. `ShutdownTimeoutSeconds` действует вместе с `/cooperative-shutdown` (который объединяется через OR со значением из спецификации).
 9. `/splash`, `/splash-language`, `/splash-assets`, `/internet-textures`, `/internet-textures-profile` переопределяют основу, если указаны; `SuppressTrayIcon` берётся только из основы.
 10. Флаги диагностики объединяются с основой через логическое ИЛИ.
 
@@ -337,14 +359,6 @@
 
 | Поле | Текущее действие | Стабильность |
 | --- | --- | --- |
-| `Installation.ExpectedExecutableSha256` | нет (хост сверяет хеш `Omsi.exe` с профилем сборки) | `PARTIAL` |
-| `Behavior.RestoreConfiguration` | нет (восстановление выполняется всегда) | `PARTIAL` |
-| `Behavior.ShutdownTimeoutSeconds` | нет (принудительное завершение; `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT`) | `PARTIAL` |
-| `Diagnostics.*` | нет (трассировка хоста записывается всегда) | `PARTIAL` |
-| `Input.KeyboardDocument`, `Input.ControllerDocument` | если задано, план неисполним | `PARTIAL` |
-| `Date`, `Time`, `Year` (режим, отличный от `Unset`) | план неисполним (`STATICALLY_PARTIAL`) | `PARTIAL` |
-| `Weather` (режим, отличный от `Unset`) | план неисполним (`STATICALLY_PARTIAL`) | `PARTIAL` |
-| `PlayerVehicle.*` (любое заданное поле) | контент разрешается для диагностики, план неисполним (`STATICALLY_PARTIAL`) | `PARTIAL` |
-| `World.EntrypointIdentity` | план неисполним (`RUNTIME_PARTIAL`) | `PARTIAL` |
-| `World.Mode` = `LastMapState` / `LastSituation` | план неисполним (`UNSUPPORTED_FOR_CURRENT_PROFILE`) | `UNAVAILABLE` |
+| `Diagnostics.Log`, `Verbose`, `OmsiLogAll`, `ProcessTrace` | нет (трассировка хоста записывается всегда) | `PARTIAL` |
+| `PlayerVehicle.*` (любое заданное поле) | контент разрешается для диагностики, план неисполним (`UNAVAILABLE`) | `PARTIAL` |
 | `SessionProfile` | только диагностика происхождения | `STABLE_BETA` |

@@ -1,7 +1,7 @@
 # Inventaris van de publieke API
 
-<!-- l10n: source=reference/public-api-inventory.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/public-api-inventory.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/public-api-inventory.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina wordt door `tests/OmsiLaunch.DocumentationTests` gegenereerd uit de gecompileerde assemblies (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); de documentatiecontrole faalt zodra ze niet meer overeenkomt met de code. Ze vermeldt elk geëxporteerd type van `OmsiLaunch.Api`, `OmsiLaunch.Core` en `OmsiLaunch.Process` met de stabiliteit en de signatuur van elk publiek lid. Semantiek, voorwaarden, fouten en voorbeelden staan op de pagina die in elke kop wordt genoemd (standaard: [publieke API](public-api.md)). Stabiliteitsniveaus: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (om technische redenen publiek, geen integratie-oppervlak), `UNAVAILABLE` (zie [publieke API](public-api.md#stability-vocabulary)). Door de compiler gegenereerde recordleden (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`) zijn weggelaten.
 
@@ -45,6 +45,8 @@ Enumeratie (`byte`) in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: 
 | waarde | `Registrations = 6` |
 | waarde | `Addons = 7` |
 | waarde | `Entrypoints = 8` |
+| waarde | `SessionProfiles = 9` |
+| waarde | `RuntimeModules = 10` |
 
 ### `D3DDeviceState`
 
@@ -231,6 +233,48 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [launc
 | eigenschap | `IReadOnlyDictionary<string, OptionalValue<string>> Keyboard { get; init; }` |
 | eigenschap | `IReadOnlyDictionary<string, OptionalValue<string>> Controllers { get; init; }` |
 
+### `HofApplyMode`
+
+Enumeratie (`byte`) in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| waarde | `Add = 0` |
+| waarde | `Mirror = 1` |
+
+### `HofManagementSpec`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `HofManagementSpec(IReadOnlyList<HofOperationSpec> Operations)` |
+| eigenschap | `IReadOnlyList<HofOperationSpec> Operations { get; init; }` |
+
+### `HofOperationSpec`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `HofOperationSpec(HofSourceKind SourceKind, string Source, IReadOnlyList<string> TargetVehicles, HofApplyMode Mode = Add, IReadOnlyList<string> Files = null)` |
+| eigenschap | `HofSourceKind SourceKind { get; init; }` |
+| eigenschap | `string Source { get; init; }` |
+| eigenschap | `IReadOnlyList<string> TargetVehicles { get; init; }` |
+| eigenschap | `HofApplyMode Mode { get; init; }` |
+| eigenschap | `IReadOnlyList<string> Files { get; init; }` |
+
+### `HofSourceKind`
+
+Enumeratie (`byte`) in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| waarde | `Collection = 0` |
+| waarde | `Directory = 1` |
+| waarde | `Vehicle = 2` |
+| waarde | `File = 3` |
+
 ### `IOmsiLaunch`
 
 Interface in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
@@ -242,6 +286,8 @@ Interface in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-ap
 | methode | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | methode | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | methode | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| methode | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| methode | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | methode | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | methode | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | methode | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -305,11 +351,12 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [launc
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30)` |
+| constructor | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30, bool CooperativeShutdown = false)` |
 | eigenschap | `bool RestoreConfiguration { get; init; }` |
 | eigenschap | `bool SuppressStaleClosecheckWarning { get; init; }` |
 | eigenschap | `int StartupTimeoutSeconds { get; init; }` |
 | eigenschap | `int ShutdownTimeoutSeconds { get; init; }` |
+| eigenschap | `bool CooperativeShutdown { get; init; }` |
 
 ### `LaunchDiagnostic`
 
@@ -328,7 +375,7 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [launc
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null)` |
+| constructor | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null, HofManagementSpec HofManagement = null, RuntimeModulesSpec Modules = null)` |
 | eigenschap | `InstallationSpec Installation { get; init; }` |
 | eigenschap | `WorldSpec World { get; init; }` |
 | eigenschap | `DateSpec Date { get; init; }` |
@@ -343,6 +390,10 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [launc
 | eigenschap | `SessionPresentationSpec Presentation { get; init; }` |
 | eigenschap | `InternetTexturesSpec InternetTextures { get; init; }` |
 | eigenschap | `SessionProfileMetadata SessionProfile { get; init; }` |
+| eigenschap | `HofManagementSpec HofManagement { get; init; }` |
+| eigenschap | `RuntimeModulesSpec Modules { get; init; }` |
+| eigenschap | `HofManagementSpec EffectiveHofManagement { get; }` |
+| eigenschap | `RuntimeModulesSpec EffectiveModules { get; }` |
 | eigenschap | `YearSpec EffectiveYear { get; }` |
 | eigenschap | `WeatherSpec EffectiveWeather { get; }` |
 | eigenschap | `InputSpec EffectiveInput { get; }` |
@@ -371,6 +422,44 @@ Record struct in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [launc
 | eigenschap | `bool IsSet { get; }` |
 | statische eigenschap | `OptionalValue<T> Unset { get; }` |
 | statische methode | `OptionalValue<T> Set(T value)` |
+
+### `PlannedModule`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| constante | `string Eligible = "ELIGIBLE"` |
+| constante | `string Rejected = "REJECTED"` |
+| constante | `string ActivationRequested = "requested"` |
+| constante | `string ActivationSettingsFile = "settings-file"` |
+| constante | `string ActivationContent = "content"` |
+| constante | `string ActivationDefault = "default"` |
+| eigenschap | `string Id { get; init; }` |
+| eigenschap | `string Version { get; init; }` |
+| eigenschap | `string Status { get; init; }` |
+| eigenschap | `bool Requested { get; init; }` |
+| eigenschap | `string FailurePolicy { get; init; }` |
+| eigenschap | `IReadOnlyList<string> Operations { get; init; }` |
+| eigenschap | `string Code { get; init; }` |
+| eigenschap | `string Reason { get; init; }` |
+| eigenschap | `string ManifestSha256 { get; init; }` |
+| eigenschap | `string Activation { get; init; }` |
+| eigenschap | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| eigenschap | `bool IsEligible { get; }` |
+| eigenschap | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+
+### `PlannedModuleSetting`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `PlannedModuleSetting(string Key, string Value, string Source)` |
+| eigenschap | `string Key { get; init; }` |
+| eigenschap | `string Value { get; init; }` |
+| eigenschap | `string Source { get; init; }` |
 
 ### `PlannedMutation`
 
@@ -424,7 +513,7 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [capab
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null)` |
+| constructor | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null, IReadOnlyList<PublicRuntimeOperation> Operations = null, string NativeCapability = null, string EvidenceNote = null)` |
 | eigenschap | `string Id { get; init; }` |
 | eigenschap | `string Family { get; init; }` |
 | eigenschap | `PublicCapabilityClassification Classification { get; init; }` |
@@ -436,6 +525,11 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [capab
 | eigenschap | `string RuntimeValidation { get; init; }` |
 | eigenschap | `string Description { get; init; }` |
 | eigenschap | `IReadOnlyList<string> HandleTypes { get; init; }` |
+| eigenschap | `IReadOnlyList<PublicRuntimeOperation> Operations { get; init; }` |
+| eigenschap | `string NativeCapability { get; init; }` |
+| eigenschap | `string EvidenceNote { get; init; }` |
+| eigenschap | `IReadOnlyList<PublicRuntimeOperation> EffectiveOperations { get; }` |
+| eigenschap | `IReadOnlyList<string> NativeCapabilities { get; }` |
 
 ### `PublicCapabilityKind`
 
@@ -457,9 +551,16 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [ca
 | constante | `string ProtocolVersion = "0.1"` |
 | statisch veld | `IReadOnlyList<PublicCapabilityDescriptor> All` |
 | statische eigenschap | `IReadOnlyCollection<string> PublicRuntimeOperationIds { get; }` |
+| statische eigenschap | `IReadOnlyList<PublicRuntimeOperation> RuntimeOperations { get; }` |
+| statische eigenschap | `IReadOnlyDictionary<string, string> CliRoutes { get; }` |
+| statische methode | `PublicCapabilityDescriptor Get(string id)` |
 | statische methode | `IReadOnlyList<PublicRuntimeArgumentDescriptor> GetRuntimeArguments(string operation)` |
 | statische methode | `bool IsInternalResultKey(string key)` |
+| statische methode | `bool IsModuleOperation(string operation)` |
 | statische methode | `bool IsPublicRuntimeOperation(string operation)` |
+| statische methode | `string NativeCapabilityOf(string operation)` |
+| statische methode | `bool TryGet(string id, out PublicCapabilityDescriptor descriptor)` |
+| statische methode | `bool TryGetOperation(string operation, out PublicCapabilityDescriptor capability, out PublicRuntimeOperation descriptor)` |
 | statische methode | `PublicRuntimeArgumentValidation ValidateRuntimeArguments(string operation, IReadOnlyDictionary<string, string> arguments)` |
 
 ### `PublicErrorCategory`
@@ -488,12 +589,19 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [er
 | constante | `string WINDOWS_HOST_MISSING = "OL_E_WINDOWS_HOST_MISSING"` |
 | constante | `string WINDOWS_HOST_START_FAILED = "OL_E_WINDOWS_HOST_START_FAILED"` |
 | constante | `string BUILD_VALIDATION_FAILED = "OL_E_BUILD_VALIDATION_FAILED"` |
+| constante | `string CAPABILITY_UNRESOLVED = "OL_E_CAPABILITY_UNRESOLVED"` |
 | constante | `string UNSUPPORTED_BUILD = "OL_E_UNSUPPORTED_BUILD"` |
 | constante | `string UNSUPPORTED_OPERATING_SYSTEM = "OL_E_UNSUPPORTED_OPERATING_SYSTEM"` |
 | constante | `string UNSUPPORTED_OS_ARCHITECTURE = "OL_E_UNSUPPORTED_OS_ARCHITECTURE"` |
 | constante | `string ENTRYPOINT_NOT_FOUND = "OL_E_ENTRYPOINT_NOT_FOUND"` |
 | constante | `string ENTRYPOINT_REQUIRED = "OL_E_ENTRYPOINT_REQUIRED"` |
+| constante | `string ENTRYPOINT_NOT_PRESENTED = "OL_E_ENTRYPOINT_NOT_PRESENTED"` |
 | constante | `string HOF_NOT_FOUND = "OL_E_HOF_NOT_FOUND"` |
+| constante | `string HOF_CONFLICT = "OL_E_HOF_CONFLICT"` |
+| constante | `string HOF_INVALID = "OL_E_HOF_INVALID"` |
+| constante | `string HOF_PATH_ESCAPE = "OL_E_HOF_PATH_ESCAPE"` |
+| constante | `string HOF_SOURCE_NOT_FOUND = "OL_E_HOF_SOURCE_NOT_FOUND"` |
+| constante | `string HOF_TARGET_NOT_FOUND = "OL_E_HOF_TARGET_NOT_FOUND"` |
 | constante | `string MAP_NOT_FOUND = "OL_E_MAP_NOT_FOUND"` |
 | constante | `string NOT_FOUND = "OL_E_NOT_FOUND"` |
 | constante | `string REPAINT_NOT_FOUND = "OL_E_REPAINT_NOT_FOUND"` |
@@ -541,6 +649,8 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [er
 | constante | `string PROCESS_WAIT_FAILED = "OL_E_PROCESS_WAIT_FAILED"` |
 | constante | `string CAMERA_PRESET_FAMILY_UNSUPPORTED = "OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED"` |
 | constante | `string DATE_TIME_APPLY_FAILED = "OL_E_DATE_TIME_APPLY_FAILED"` |
+| constante | `string WEATHER_INVALID = "OL_E_WEATHER_INVALID"` |
+| constante | `string WEATHER_APPLY_FAILED = "OL_E_WEATHER_APPLY_FAILED"` |
 | constante | `string MAKEVEHICLE_BUS_NOT_FOUND = "OL_E_MAKEVEHICLE_BUS_NOT_FOUND"` |
 | constante | `string MAKEVEHICLE_DELTA_MULTIPLE = "OL_E_MAKEVEHICLE_DELTA_MULTIPLE"` |
 | constante | `string MAKEVEHICLE_DELTA_ZERO = "OL_E_MAKEVEHICLE_DELTA_ZERO"` |
@@ -581,6 +691,7 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [er
 | constante | `string RUNTIME_STRING_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND"` |
 | constante | `string RUNTIME_VALUE_INVALID = "OL_E_RUNTIME_VALUE_INVALID"` |
 | constante | `string RUNTIME_VALUE_OUT_OF_RANGE = "OL_E_RUNTIME_VALUE_OUT_OF_RANGE"` |
+| constante | `string RUNTIME_CURSOR_INVALID = "OL_E_RUNTIME_CURSOR_INVALID"` |
 | constante | `string RUNTIME_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_VARIABLE_NOT_FOUND"` |
 | constante | `string RUNTIME_VARIABLE_UNAVAILABLE = "OL_E_RUNTIME_VARIABLE_UNAVAILABLE"` |
 | constante | `string TIME_APPLY_FAILED = "OL_E_TIME_APPLY_FAILED"` |
@@ -606,6 +717,25 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [er
 | constante | `string STARTUP_TIMEOUT = "OL_E_STARTUP_TIMEOUT"` |
 | constante | `string START_SESSION = "OL_E_START_SESSION"` |
 | constante | `string WORLD_START_FAILED = "OL_E_WORLD_START_FAILED"` |
+| constante | `string MODULE_MANIFEST_INVALID = "OL_E_MODULE_MANIFEST_INVALID"` |
+| constante | `string MODULE_NOT_FOUND = "OL_E_MODULE_NOT_FOUND"` |
+| constante | `string MODULE_INTEGRITY = "OL_E_MODULE_INTEGRITY"` |
+| constante | `string MODULE_PROTOCOL_UNSUPPORTED = "OL_E_MODULE_PROTOCOL_UNSUPPORTED"` |
+| constante | `string MODULE_CAPABILITY_UNRESOLVED = "OL_E_MODULE_CAPABILITY_UNRESOLVED"` |
+| constante | `string MODULE_CONTENT_BINDING = "OL_E_MODULE_CONTENT_BINDING"` |
+| constante | `string MODULE_COMPONENT_UNSUPPORTED = "OL_E_MODULE_COMPONENT_UNSUPPORTED"` |
+| constante | `string MODULE_LOAD_FAILED = "OL_E_MODULE_LOAD_FAILED"` |
+| constante | `string MODULE_PHASE_FAILED = "OL_E_MODULE_PHASE_FAILED"` |
+| constante | `string MODULE_PHASE_TIMEOUT = "OL_E_MODULE_PHASE_TIMEOUT"` |
+| constante | `string MODULE_DISABLED = "OL_E_MODULE_DISABLED"` |
+| constante | `string MODULE_NOT_LOADED = "OL_E_MODULE_NOT_LOADED"` |
+| constante | `string MODULE_OPERATION_UNKNOWN = "OL_E_MODULE_OPERATION_UNKNOWN"` |
+| constante | `string MODULE_OPERATION_FAILED = "OL_E_MODULE_OPERATION_FAILED"` |
+| constante | `string MODULE_CLEANUP_INCOMPLETE = "OL_E_MODULE_CLEANUP_INCOMPLETE"` |
+| constante | `string MODULE_SESSION_FAILED = "OL_E_MODULE_SESSION_FAILED"` |
+| constante | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
+| constante | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
+| constante | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
 | constante | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | constante | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | constante | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -625,7 +755,13 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [er
 | constante | `string RESTORE_DEFERRED = "OL_E_RESTORE_DEFERRED"` |
 | constante | `string RESTORE_FAILED = "OL_E_RESTORE_FAILED"` |
 | constante | `string RESTORE_FOREIGN_FILE_RETAINED = "OL_W_RESTORE_FOREIGN_FILE_RETAINED"` |
+| constante | `string BUILD_UNRECOGNIZED = "OL_W_BUILD_UNRECOGNIZED"` |
+| constante | `string COOPERATIVE_SHUTDOWN_UNAVAILABLE = "OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE"` |
+| constante | `string CAPABILITY_PENDING = "OL_W_CAPABILITY_PENDING"` |
+| constante | `string MODULE_NOT_LOADED_WARNING = "OL_W_MODULE_NOT_LOADED"` |
+| constante | `string MODULE_SETTING_IGNORED = "OL_W_MODULE_SETTING_IGNORED"` |
 | statisch veld | `IReadOnlyList<PublicErrorDescriptor> All` |
+| statische methode | `string FromMessage(string message)` |
 
 ### `PublicErrorDescriptor`
 
@@ -636,6 +772,19 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [error
 | constructor | `PublicErrorDescriptor(string Code, string Category)` |
 | eigenschap | `string Code { get; init; }` |
 | eigenschap | `string Category { get; init; }` |
+
+### `PublicEvidence`
+
+Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constante | `string RuntimeValidated = "RUNTIME_VALIDATED"` |
+| constante | `string StaticallyValidated = "STATICALLY_VALIDATED"` |
+| constante | `string Partial = "PARTIAL"` |
+| constante | `string RuntimeValidationRequired = "RUNTIME_VALIDATION_REQUIRED"` |
+| constante | `string Unavailable = "UNAVAILABLE"` |
+| statisch veld | `IReadOnlyList<string> All` |
 
 ### `PublicExitCode`
 
@@ -653,6 +802,18 @@ Enumeratie (`int`) in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [
 | waarde | `OperationRejected = 7` |
 | waarde | `TransactionRecoveryFailed = 8` |
 | waarde | `InternalError = 10` |
+
+### `PublicMutationPolicy`
+
+Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constante | `string None = "none"` |
+| constante | `string OmsiState = "omsi-state"` |
+| constante | `string SessionResource = "session-resource"` |
+| constante | `string SessionPolicy = "session-policy"` |
+| statisch veld | `IReadOnlyList<string> All` |
 
 ### `PublicRuntimeArgumentDescriptor`
 
@@ -675,6 +836,20 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 | eigenschap | `bool Accepted { get; init; }` |
 | eigenschap | `string ErrorCode { get; init; }` |
 | eigenschap | `string Message { get; init; }` |
+
+### `PublicRuntimeOperation`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `PublicRuntimeOperation(string Id, string NativeCapability, IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments, IReadOnlyList<string> CliRoutes, bool Paged = false, string MutationPolicy = "none")` |
+| eigenschap | `string Id { get; init; }` |
+| eigenschap | `string NativeCapability { get; init; }` |
+| eigenschap | `IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments { get; init; }` |
+| eigenschap | `IReadOnlyList<string> CliRoutes { get; init; }` |
+| eigenschap | `bool Paged { get; init; }` |
+| eigenschap | `string MutationPolicy { get; init; }` |
 
 ### `RecoveryStatus`
 
@@ -733,11 +908,60 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data)` |
+| constructor | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data, long? SessionTickMilliseconds = default)` |
 | eigenschap | `string Type { get; init; }` |
 | eigenschap | `DateTimeOffset TimestampUtc { get; init; }` |
 | eigenschap | `long Sequence { get; init; }` |
 | eigenschap | `IReadOnlyDictionary<string, string> Data { get; init; }` |
+| eigenschap | `long? SessionTickMilliseconds { get; init; }` |
+
+### `RuntimeModuleSettingSummary`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `RuntimeModuleSettingSummary(string Key, string Type, string Default, bool AllowsAuto = false, string Minimum = null, string Maximum = null, IReadOnlyList<string> Choices = null, string Flag = null, string Description = null)` |
+| eigenschap | `string Key { get; init; }` |
+| eigenschap | `string Type { get; init; }` |
+| eigenschap | `string Default { get; init; }` |
+| eigenschap | `bool AllowsAuto { get; init; }` |
+| eigenschap | `string Minimum { get; init; }` |
+| eigenschap | `string Maximum { get; init; }` |
+| eigenschap | `IReadOnlyList<string> Choices { get; init; }` |
+| eigenschap | `string Flag { get; init; }` |
+| eigenschap | `string Description { get; init; }` |
+
+### `RuntimeModuleSummary`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `RuntimeModuleSummary(string Id, string Version, string Name, string Activation, bool IsValid, IReadOnlyList<string> Operations, string ContentBindingMap = null, string ErrorCode = null, string ErrorMessage = null, IReadOnlyList<RuntimeModuleSettingSummary> Settings = null)` |
+| eigenschap | `string Id { get; init; }` |
+| eigenschap | `string Version { get; init; }` |
+| eigenschap | `string Name { get; init; }` |
+| eigenschap | `string Activation { get; init; }` |
+| eigenschap | `bool IsValid { get; init; }` |
+| eigenschap | `IReadOnlyList<string> Operations { get; init; }` |
+| eigenschap | `string ContentBindingMap { get; init; }` |
+| eigenschap | `string ErrorCode { get; init; }` |
+| eigenschap | `string ErrorMessage { get; init; }` |
+| eigenschap | `IReadOnlyList<RuntimeModuleSettingSummary> Settings { get; init; }` |
+
+### `RuntimeModulesSpec`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyList<string> Disable = null, IReadOnlyDictionary<string, string> Settings = null)` |
+| eigenschap | `IReadOnlyList<string> Enable { get; init; }` |
+| eigenschap | `IReadOnlyList<string> Disable { get; init; }` |
+| eigenschap | `IReadOnlyDictionary<string, string> Settings { get; init; }` |
+| eigenschap | `IReadOnlyList<string> EffectiveDisable { get; }` |
+| eigenschap | `IReadOnlyDictionary<string, string> EffectiveSettings { get; }` |
 
 ### `RuntimePlatformInfo`
 
@@ -799,7 +1023,7 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable)` |
+| constructor | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable, IReadOnlyList<PlannedModule> PlannedModules = null)` |
 | eigenschap | `Guid SessionId { get; init; }` |
 | eigenschap | `string BuildProfileId { get; init; }` |
 | eigenschap | `LaunchSpec Spec { get; init; }` |
@@ -812,6 +1036,8 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 | eigenschap | `IReadOnlyList<PlannedMutation> PlannedMutations { get; init; }` |
 | eigenschap | `IReadOnlyList<LaunchDiagnostic> Diagnostics { get; init; }` |
 | eigenschap | `bool IsRunnable { get; init; }` |
+| eigenschap | `IReadOnlyList<PlannedModule> PlannedModules { get; init; }` |
+| eigenschap | `IReadOnlyList<PlannedModule> EffectivePlannedModules { get; }` |
 
 ### `SessionPresentationSpec`
 
@@ -840,6 +1066,35 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [launc
 | eigenschap | `int PresetIndex { get; init; }` |
 | eigenschap | `string PresetName { get; init; }` |
 | eigenschap | `string PackagePath { get; init; }` |
+
+### `SessionProfilePresetSummary`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `SessionProfilePresetSummary(int Index, string Id, string Name)` |
+| eigenschap | `int Index { get; init; }` |
+| eigenschap | `string Id { get; init; }` |
+| eigenschap | `string Name { get; init; }` |
+
+### `SessionProfileSummary`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `SessionProfileSummary(string Id, string Name, string Version, string Author, IReadOnlyList<string> CompatibleMaps, string MapIdentity, IReadOnlyList<SessionProfilePresetSummary> Presets, bool IsValid, string ErrorCode, string ErrorMessage)` |
+| eigenschap | `string Id { get; init; }` |
+| eigenschap | `string Name { get; init; }` |
+| eigenschap | `string Version { get; init; }` |
+| eigenschap | `string Author { get; init; }` |
+| eigenschap | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
+| eigenschap | `string MapIdentity { get; init; }` |
+| eigenschap | `IReadOnlyList<SessionProfilePresetSummary> Presets { get; init; }` |
+| eigenschap | `bool IsValid { get; init; }` |
+| eigenschap | `string ErrorCode { get; init; }` |
+| eigenschap | `string ErrorMessage { get; init; }` |
 
 ### `SessionState`
 
@@ -890,13 +1145,38 @@ Enumeratie (`byte`) in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: 
 | waarde | `Native = 0` |
 | waarde | `Managed = 1` |
 
+### `StartDateTime`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `StartDateTime(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)` |
+| eigenschap | `int? Year { get; init; }` |
+| eigenschap | `int? DayOfYear { get; init; }` |
+| eigenschap | `int? Hour { get; init; }` |
+| eigenschap | `int? Minute { get; init; }` |
+| eigenschap | `int? Second { get; init; }` |
+| eigenschap | `bool IsEmpty { get; }` |
+
+### `StartWeather`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `StartWeather(WeatherMode Mode, string Preset = "", string Icao = "")` |
+| eigenschap | `WeatherMode Mode { get; init; }` |
+| eigenschap | `string Preset { get; init; }` |
+| eigenschap | `string Icao { get; init; }` |
+
 ### `StartupHandoff`
 
 Sealed record in `OmsiLaunch.Api`. Stabiliteit: `INTERNAL`. Semantiek: [public-api](public-api.md).
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "")` |
+| constructor | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "", IReadOnlyList<StartupModule> Modules = null, bool PluginTrace = false, bool NativeTrace = false, StartDateTime Start = null, StartWeather Weather = null)` |
 | eigenschap | `Guid SessionId { get; init; }` |
 | eigenschap | `string BuildProfileId { get; init; }` |
 | eigenschap | `WorldMode WorldMode { get; init; }` |
@@ -908,6 +1188,11 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `INTERNAL`. Semantiek: [public-a
 | eigenschap | `DateTimeMode TimeMode { get; init; }` |
 | eigenschap | `string EntrypointIdentity { get; init; }` |
 | eigenschap | `string SituationIdentity { get; init; }` |
+| eigenschap | `IReadOnlyList<StartupModule> Modules { get; init; }` |
+| eigenschap | `bool PluginTrace { get; init; }` |
+| eigenschap | `bool NativeTrace { get; init; }` |
+| eigenschap | `StartDateTime Start { get; init; }` |
+| eigenschap | `StartWeather Weather { get; init; }` |
 
 ### `StartupHandoffWire`
 
@@ -916,9 +1201,39 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `INTERNAL`. Semantiek: [publi
 | Lid | Signatuur |
 | --- | --- |
 | constante | `uint Magic = 1330402120` |
-| constante | `ushort Version = 4` |
+| constante | `ushort Version = 7` |
+| constante | `int MaxModules = 64` |
 | statische methode | `byte[] Serialize(StartupHandoff value)` |
 | statische methode | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
+
+### `StartupModule`
+
+Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| eigenschap | `string RelativeDirectory { get; init; }` |
+| eigenschap | `string ManifestSha256 { get; init; }` |
+| eigenschap | `string Settings { get; init; }` |
+
+### `TelemetryRingWire`
+
+Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `INTERNAL`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constante | `uint Magic = 1381256271` |
+| constante | `int Version = 1` |
+| constante | `int SlotCount = 64` |
+| constante | `int SlotSize = 2048` |
+| constante | `int HeaderSize = 64` |
+| constante | `int Capacity = 131136` |
+| constante | `int MaxPayload = 2036` |
+| statische methode | `void Initialize(MemoryMappedViewAccessor view)` |
+| statische methode | `bool IsRing(MemoryMappedViewAccessor view)` |
+| statische methode | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long, long> ReadSince(MemoryMappedViewAccessor view, long after)` |
+| statische methode | `bool Write(MemoryMappedViewAccessor view, byte[] payload)` |
 
 ### `TimeSpec`
 
@@ -989,6 +1304,15 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `PARTIAL`. Semantiek: [launchspe
 
 ## `OmsiLaunch.Core`
 
+### `HofPlanningException`
+
+Sealed klasse in `OmsiLaunch.Core`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constructor | `HofPlanningException(string code, string message)` |
+| eigenschap | `string Code { get; }` |
+
 ### `LaunchValidation`
 
 Statische klasse in `OmsiLaunch.Core`. Stabiliteit: `INTERNAL`. Semantiek: [public-api](public-api.md).
@@ -996,7 +1320,16 @@ Statische klasse in `OmsiLaunch.Core`. Stabiliteit: `INTERNAL`. Semantiek: [publ
 | Lid | Signatuur |
 | --- | --- |
 | statische methode | `bool IsMapIdentity(string value)` |
+| statische methode | `bool IsSha256(string value)` |
 | statische methode | `IReadOnlyList<LaunchDiagnostic> Validate(LaunchSpec spec)` |
+
+### `ModuleDataStore`
+
+Statische klasse in `OmsiLaunch.Core`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| statische methode | `bool Clear(string installationRoot, string moduleId)` |
 
 ### `OmsiLaunchRuntimePaths`
 
@@ -1021,6 +1354,8 @@ Sealed klasse in `OmsiLaunch.Core`. Stabiliteit: `STABLE_BETA`. Semantiek: [publ
 | methode | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | methode | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | methode | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| methode | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| methode | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | methode | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | methode | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | methode | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -1048,7 +1383,7 @@ Sealed record in `OmsiLaunch.Core`. Stabiliteit: `EXPERIMENTAL`. Semantiek: [ses
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior)` |
+| constructor | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior, IReadOnlyList<HofOperationSpec> Hofs, RuntimeModulesSpec Modules = null)` |
 | eigenschap | `int Index { get; init; }` |
 | eigenschap | `string Id { get; init; }` |
 | eigenschap | `string Name { get; init; }` |
@@ -1056,6 +1391,8 @@ Sealed record in `OmsiLaunch.Core`. Stabiliteit: `EXPERIMENTAL`. Semantiek: [ses
 | eigenschap | `SessionPresentationSpec Presentation { get; init; }` |
 | eigenschap | `InternetTexturesSpec InternetTextures { get; init; }` |
 | eigenschap | `LaunchBehaviorSpec Behavior { get; init; }` |
+| eigenschap | `IReadOnlyList<HofOperationSpec> Hofs { get; init; }` |
+| eigenschap | `RuntimeModulesSpec Modules { get; init; }` |
 
 ### `SessionPlanner`
 
@@ -1074,8 +1411,11 @@ Statische klasse in `OmsiLaunch.Core`. Stabiliteit: `EXPERIMENTAL`. Semantiek: [
 | --- | --- |
 | constante | `string Schema = "omsilaunch.session-profile/v1"` |
 | constante | `long MaxBytes = 262144` |
+| constante | `int MinPresetIndex = 1` |
+| constante | `int MaxPresetIndex = 99` |
 | statisch veld | `IReadOnlyDictionary<string, IReadOnlyList<string>> SchemaKeys` |
 | statische methode | `LaunchSpec Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` |
+| statische methode | `IReadOnlyList<SessionProfileSummary> Discover(string installationRoot)` |
 | statische methode | `SessionProfilePackage Load(string installationRoot, string id, int presetIndex)` |
 | statische methode | `void ValidateCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode)` |
 
@@ -1100,6 +1440,24 @@ Sealed record in `OmsiLaunch.Core`. Stabiliteit: `EXPERIMENTAL`. Semantiek: [ses
 | eigenschap | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
 | eigenschap | `ProfileNew New { get; init; }` |
 | eigenschap | `ProfilePreset Preset { get; init; }` |
+
+### `StartDateTimeResolver`
+
+Statische klasse in `OmsiLaunch.Core`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constante | `int MinimumYear = 1900` |
+| constante | `int MaximumYear = 2200` |
+| statische methode | `StartDateTime Resolve(LaunchSpec spec, DateTime now, out string error)` |
+
+### `StartWeatherResolver`
+
+Statische klasse in `OmsiLaunch.Core`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| statische methode | `StartWeather Resolve(LaunchSpec spec, out string error)` |
 
 ## `OmsiLaunch.Process`
 
@@ -1135,7 +1493,7 @@ Sealed klasse in `OmsiLaunch.Process`. Stabiliteit: `INTERNAL`. Semantiek: [publ
 | eigenschap | `string Name { get; }` |
 | statische methode | `CurrentTelemetryStore Create(Guid sessionId)` |
 | methode | `void Dispose()` |
-| methode | `ValueTuple<int, string>? ReadLatest()` |
+| methode | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long> ReadNew()` |
 
 ### `CurrentWindowsX64Platform`
 
@@ -1196,6 +1554,22 @@ Sealed klasse in `OmsiLaunch.Process`. Stabiliteit: `INTERNAL`. Semantiek: [publ
 | eigenschap | `int ThreadId { get; }` |
 | eigenschap | `ProcessIdentity Identity { get; }` |
 | methode | `void Dispose()` |
+
+### `ModuleSessionProcess`
+
+Sealed klasse in `OmsiLaunch.Process`. Stabiliteit: `STABLE_BETA`. Semantiek: [public-api](public-api.md).
+
+| Lid | Signatuur |
+| --- | --- |
+| constante | `int MaxLineBytes = 65536` |
+| eigenschap | `int ProcessId { get; }` |
+| eigenschap | `bool HasExited { get; }` |
+| eigenschap | `int? ExitCode { get; }` |
+| methode | `void Dispose()` |
+| methode | `void Kill()` |
+| statische methode | `ModuleSessionProcess Start(string executable, string workingDirectory, Guid sessionId, Action<string> onLine)` |
+| methode | `bool TryWriteLine(string line)` |
+| methode | `bool WaitForExit(TimeSpan timeout)` |
 
 ### `OmsiProcessState`
 

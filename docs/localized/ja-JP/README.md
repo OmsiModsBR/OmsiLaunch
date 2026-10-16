@@ -1,9 +1,9 @@
 # OmsiLaunch ドキュメント
 
-<!-- l10n: source=README.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../README.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../README.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-これは、ハードニング後のベースラインである OmsiLaunch `0.1.0-beta3` の規範となる英語ドキュメントです。OmsiLaunch は、ただ 1 つの OMSI 2 ビルド（プロファイル `Omsi23004_692EBFBF`）を対象に、プログラム可能な起動、セッションの所有、およびランタイム制御を提供します。`docs/` 配下のすべてのページは現在のコードの動作を記述しています。ページとコードが食い違う場合はコードが優先され、そのページがバグとなります。
+これは、ハードニング後のベースラインである OmsiLaunch `0.1.0-beta4` の規範となる英語ドキュメントです。OmsiLaunch は、インストールされた OMSI 2 に対して、プログラム可能な起動、セッションの所有、およびランタイム制御を提供します。各ネイティブケイパビリティはビルドごとに解決され検証されます（[互換性](reference/compatibility.md)を参照）。`docs/` 配下のすべてのページは現在のコードの動作を記述しています。ページとコードが食い違う場合はコードが優先され、そのページがバグとなります。
 
 全体を通じて使用する安定性の用語: `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`、`UNAVAILABLE`。解析はされるものの何の効果もないフラグは `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT` と表記されます。[ランタイム検証ステータス](status/runtime-validation-status.md)にそう記載されていない限り、ランタイム検証済みとは呼びません。
 
@@ -27,6 +27,8 @@
 | [CLI リファレンス](reference/cli.md) | `OmsiLaunch.exe` / `OmsiLaunchW.exe` のすべてのフラグ、コマンドワード、階層ルート。 |
 | [CLI の使用例](reference/cli-examples.md) | よくある作業のための、コピー＆ペーストで使えるコマンドライン。 |
 | [LaunchSpec リファレンス](reference/launchspec.md) | `LaunchSpec` のすべてのプロパティと列挙値、`/spec` の JSON 読み込み規則。 |
+| [HOF 管理](reference/hof-management.md) | セッションスコープの HOF のコピーと車両フォルダーへのミラーリング: ソース、ターゲット、競合、復元。 |
+| [ランタイムモジュール](../../reference/runtime-modules.md) | セッションとともに OMSI 内で動作するモジュール: マニフェスト、信頼、ライフサイクル、失敗ポリシー、操作。 |
 | [セッションプロファイルリファレンス](reference/session-profiles.md) | `profile.yaml` のスキーマ `omsilaunch.session-profile/v1`、キー、上限、優先順位。 |
 | [公開 API リファレンス](reference/public-api.md) | `IOmsiLaunch`、公開レコードと列挙型、メンバーごとの安定性。 |
 | [公開 API インベントリ](reference/public-api-inventory.md) | すべての公開型とメンバーをシグネチャと安定性付きで列挙した自動生成リスト。 |
@@ -45,14 +47,15 @@
 | [既知の制限事項](reference/known-limitations.md) | このベータで非対応、部分的、または受容済みリスクであるもの。 |
 | [ランタイム検証ステータス](status/runtime-validation-status.md) | OMSI 上で実行されたもの、オフラインでのみ実行されたもの、まだ実際のセッションを必要とするもの。 |
 
-メンテナー向けに引き続き規範となるルートレベルのページ:
-[`README.md`](../../../README.md)、[`PUBLIC-API.md`](../../../PUBLIC-API.md)、
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md)、
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md)、
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md)、
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md)、
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md)、
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md)。これらは要約であり、詳細なリファレンスは上記のページです。過去のページは[ドキュメントマニフェスト](../../DOCUMENTATION-MANIFEST.md)に一覧があります。
+メンテナー向けに引き続き規範となるページ: リポジトリの
+[`README.md`](../../../README.md)、`docs/specs` 配下の仕様
+（[`PUBLIC-API.md`](../../specs/PUBLIC-API.md)、
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md)、
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md)、
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)）、および
+`docs/project` 配下のプロジェクトページ（[`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md)、
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md)、
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)）。これらは要約であり、詳細なリファレンスは上記のページです。過去のページは[ドキュメントマニフェスト](../../DOCUMENTATION-MANIFEST.md)に一覧があります。
 
 <a id="how-this-documentation-is-kept-in-sync"></a>
 ## このドキュメントを同期させる仕組み
@@ -76,4 +79,4 @@
 <a id="translations"></a>
 ## 翻訳
 
-`docs\localized\<locale>\` には、この `0.1.0-beta3` ドキュメントの `pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW`、`ja-JP` 向けの完全な翻訳が収められています。ページ一式、ロケールのルート、および意図的に翻訳しないページは [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md) に一覧があります。翻訳では英語版ページのすべてのコマンド、フラグ、識別子、エラーコード、例を変更せずに保持し、`docs.localization` ゲートがそれを検査します。規範となる情報源は引き続き英語版ページです。翻訳が英語版と食い違う場合は、英語版ページとコードが正であり、その翻訳がバグとなります。
+`docs\localized\<locale>\` には、この `0.1.0-beta4` ドキュメントの `pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW`、`ja-JP` 向けの完全な翻訳が収められています。ページ一式、ロケールのルート、および意図的に翻訳しないページは [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md) に一覧があります。翻訳では英語版ページのすべてのコマンド、フラグ、識別子、エラーコード、例を変更せずに保持し、`docs.localization` ゲートがそれを検査します。規範となる情報源は引き続き英語版ページです。翻訳が英語版と食い違う場合は、英語版ページとコードが正であり、その翻訳がバグとなります。

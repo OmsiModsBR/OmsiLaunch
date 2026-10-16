@@ -1,9 +1,9 @@
 # Примеры CLI
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/cli-examples.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Перевод [исходной страницы на английском языке](../../../reference/cli-examples.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-Минимальные корректные вызовы `OmsiLaunch.exe` для OmsiLaunch `0.1.0-beta3`, каждый с ожидаемым кодом выхода процесса и пояснением, что изменяется и что восстанавливается. Если не указано иное, каждый пример выполняется из корневого каталога установки OMSI (`<OMSI_PATH>`); синтаксис определён в [справочнике по CLI](cli.md), коды выхода — в разделе [коды выхода](exit-codes.md). К любой команде можно добавить `--json`, чтобы получить структурированный конверт.
+Минимальные корректные вызовы `OmsiLaunch.exe` для OmsiLaunch `0.1.0-beta4`, каждый с ожидаемым кодом выхода процесса и пояснением, что изменяется и что восстанавливается. Если не указано иное, каждый пример выполняется из корневого каталога установки OMSI (`<OMSI_PATH>`); синтаксис определён в [справочнике по CLI](cli.md), коды выхода — в разделе [коды выхода](exit-codes.md). К любой команде можно добавить `--json`, чтобы получить структурированный конверт.
 
 <a id="conventions"></a>
 ## Соглашения
@@ -21,7 +21,7 @@
 ```text
 OmsiLaunch.exe /version
 ```
-Код выхода `0`. Выводит `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family`. Ничего не изменяет.
+Код выхода `0`. Выводит `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family`. Ничего не изменяет.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Код выхода `0` (`2`, если отсутствует `handle`, `name` или `value`). Изменяет одну числовую переменную скрипта этого транспортного средства. Не откатывается.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Код выхода `7`. Всегда отклоняется с `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; ничего не изменяется.
+Код выхода `0`. Записывает исходную запись погоды OMSI и прекращает обновления живой METAR; из неё OMSI выводит туман, освещение, фактический ветер и влажность при следующем такте обновления погоды без паузы. Каждое значение проверяется до какой-либо записи (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, код выхода `7`). Производный ключ, такой как `relative_humidity`, возвращает `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` и указывает ключ, который следует задать вместо него. Не откатывается. EXPERIMENTAL: проверка в runtime ожидается.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Код выхода `0`. Переключает на живую погоду METAR для этой станции; OMSI загружает её при следующем обновлении погоды. EXPERIMENTAL: проверка в runtime ожидается.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Код выхода `0`. `scripts string set` проходит через собственный `SetStringVariable` OMSI и возвращает прочитанное обратно значение; имя, которое скрипт ТС не объявляет, возвращает `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (код выхода `7`). `scripts trigger` вызывает триггер так же, как это делают обработчики ввода OMSI (`1` нажатие, `0` отпускание); скрипт ТС выполняет его сразу. Имена триггеров и переменных определяются каждой моделью ТС; приведённые выше — примеры. Не откатывается. EXPERIMENTAL: проверка в runtime ожидается.
 
 <a id="spawn"></a>
 ## Создание (spawn)

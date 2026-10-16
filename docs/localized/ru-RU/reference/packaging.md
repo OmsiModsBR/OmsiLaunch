@@ -1,9 +1,9 @@
 # Упаковка и структура релиза
 
-<!-- l10n: source=reference/packaging.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/packaging.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+> Перевод [исходной страницы на английском языке](../../../reference/packaging.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-На этой странице описан релизный пакет OmsiLaunch `0.1.0-beta3`: что создаёт `tools\New-ReleasePackage.ps1`, поля `release-manifest.json`, как контроллер использует манифест во время работы для проверки замыкания постоянного плагина (набора его файлов), как пакет устанавливается в корневой каталог установки OMSI и удаляется из него, что содержит каталог `.omsilaunch` после использования, а также скрипты проверки (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Идентичность продукта берётся из `OmsiLaunch.Version.props`. Шаги установки для пользователей приведены на странице [установка](../getting-started/installation.md); роль замыкания плагина во время работы описана на странице [постоянный плагин](../concepts/permanent-plugin.md).
+На этой странице описан релизный пакет OmsiLaunch `0.1.0-beta4`: что создаёт `tools\New-ReleasePackage.ps1`, поля `release-manifest.json`, как контроллер использует манифест во время работы для проверки замыкания постоянного плагина (набора его файлов), как пакет устанавливается в корневой каталог установки OMSI и удаляется из него, что содержит каталог `.omsilaunch` после использования, а также скрипты проверки (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Идентичность продукта берётся из `OmsiLaunch.Version.props`. Шаги установки для пользователей приведены на странице [установка](../getting-started/installation.md); роль замыкания плагина во время работы описана на странице [постоянный плагин](../concepts/permanent-plugin.md).
 
 <a id="product-identity-omsilaunchversionprops"></a>
 ## Идентичность продукта (`OmsiLaunch.Version.props`)
@@ -12,13 +12,13 @@
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | `product` в манифесте, `ProductName` в Windows |
 | `OmsiLaunchCompanyName` | `LMonteiro` | `CompanyName` в Windows |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro` | `LegalCopyright` в Windows |
-| `OmsiLaunchProductVersion` | `0.1.0-beta3` | `product_version` в манифесте, `ProductVersion` в Windows, информационная версия сборки (`/version`), имя публичного ZIP |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | `LegalCopyright` в Windows |
+| `OmsiLaunchProductVersion` | `0.1.0-beta4` | `product_version` в манифесте, `ProductVersion` в Windows, информационная версия сборки (`/version`), имя публичного ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Основа версии управляемых сборок |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Версия сборки и версия файла Windows |
 | `OmsiLaunchPackageAlias` | `current` | `package_alias` в манифесте, имя промежуточного каталога и ZIP-псевдонима |
 
-`Directory.Build.props` устанавливает `InformationalVersion` равным `OmsiLaunchProductVersion` без ревизии исходного кода, поэтому `OmsiLaunch.exe /version` выводит ровно `0.1.0-beta3`.
+`Directory.Build.props` устанавливает `InformationalVersion` равным `OmsiLaunchProductVersion` без ревизии исходного кода, поэтому `OmsiLaunch.exe /version` выводит ровно `0.1.0-beta4`.
 
 <a id="build-toolsnew-releasepackageps1"></a>
 ## Сборка (`tools\New-ReleasePackage.ps1`)
@@ -46,7 +46,7 @@
 | каждый файл в `docs\`, кроме `docs\localized\` (английская документация, та же структура каталогов) | `.omsilaunch\docs\` (поэтому существует `.omsilaunch\docs\reference\cli.md` — путь, который выводит справка CLI; аудит документации BUG-08). Ссылки из `docs\README.md` на сводки в корне репозитория (`PUBLIC-API.md` и другие) работают только в исходном репозитории. |
 | `docs\localized\LOCALIZATION-MANIFEST.md` и `docs\localized\<locale>\**` для каждой локали, указанной в этом манифесте (`pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` и `ja-JP`) | `.omsilaunch\docs\localized\` (та же структура); отсутствие указанной локали прерывает скрипт |
 
-Затем скрипт вычисляет хеш каждого размещённого файла, записывает `release-manifest.json` в корень пакета в кодировке UTF-8 **без** BOM (результат больше не зависит от редакции PowerShell), запускает `Test-ReleasePackageIntegrity.ps1` для промежуточного каталога, повторно сравнивает каждый размещённый файл плагина и `OmsiLaunch.Native.x86.dll` с результатом сборки, сжимает промежуточный каталог, **распаковывает архив в новый временный каталог и проверяет распакованное замыкание по тому же манифесту** (манифест в архиве должен быть побайтово идентичен проверенному), затем публикует промежуточный каталог как `OmsiLaunch-current`, архив — как `OmsiLaunch-current.zip`, копирует его в `OmsiLaunch-<product_version>.zip` (`OmsiLaunch-0.1.0-beta3.zip`) и записывает `OmsiLaunch-0.1.0-beta3.zip.sha256`, содержащий `<SHA-256>  <file name>`. Отсутствие любого артефакта прерывает скрипт. Скрипт не выполняет сборку; сначала следует запустить `Invoke-OfflineValidation.ps1` (или отдельные шаги `dotnet build` / MSBuild).
+Затем скрипт вычисляет хеш каждого размещённого файла, записывает `release-manifest.json` в корень пакета в кодировке UTF-8 **без** BOM (результат больше не зависит от редакции PowerShell), запускает `Test-ReleasePackageIntegrity.ps1` для промежуточного каталога, повторно сравнивает каждый размещённый файл плагина и `OmsiLaunch.Native.x86.dll` с результатом сборки, сжимает промежуточный каталог, **распаковывает архив в новый временный каталог и проверяет распакованное замыкание по тому же манифесту** (манифест в архиве должен быть побайтово идентичен проверенному), затем публикует промежуточный каталог как `OmsiLaunch-current`, архив — как `OmsiLaunch-current.zip`, копирует его в `OmsiLaunch-<product_version>.zip` (`OmsiLaunch-0.1.0-beta4.zip`) и записывает `OmsiLaunch-0.1.0-beta4.zip.sha256`, содержащий `<SHA-256>  <file name>`. Отсутствие любого артефакта прерывает скрипт. Скрипт не выполняет сборку; сначала следует запустить `Invoke-OfflineValidation.ps1` (или отдельные шаги `dotnet build` / MSBuild).
 
 <a id="package-layout"></a>
 ## Структура пакета
@@ -72,7 +72,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 .omsilaunch\
   assets\splash\{PTB,ENG,DEU,FRA}.bmp   640x480 24-bit managed splash assets
   docs\                               English documentation (README.md, getting-started\, reference\, concepts\, status\, ...)
-  docs\localized\<locale>\             translations of the 0.1.0-beta3 pages (not normative)
+  docs\localized\<locale>\             translations of the 0.1.0-beta4 pages (not normative)
   examples\release-session.example.json
   examples\session-profiles\rmg-leste\profile.yaml
 ```
@@ -84,11 +84,11 @@ plugins\                             the permanent plugin closure (9 files, all 
 | Поле | Тип | Значение |
 |---|---|---|
 | `product` | строка | `OmsiLaunch` |
-| `product_version` | строка | `0.1.0-beta3` |
+| `product_version` | строка | `0.1.0-beta4` |
 | `package_alias` | строка | `current` |
 | `control_protocol` | строка | `0.1`; должно совпадать с `PublicCapabilityRegistry.ProtocolVersion` |
-| `target_profile` | строка | `Omsi23004_692EBFBF`, единственный поддерживаемый профиль сборки |
-| `supported_executable_hashes` | string[] | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (проверено в runtime) и `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` (Steam LAA, `pending_beta_field_validation`) |
+| `requirement` | строка | `OMSI 2` |
+| `known_layouts` | object[] | `build_id` и `code_sha256` каждой известной раскладки (`Omsi23004`, `13ec110a...c028`); быстрый путь, а не требование |
 | `configuration` | строка | `Release` или `Debug` |
 | `generated_utc` | строка | Время сборки в формате ISO-8601 |
 | `files[]` | object[] | `path` (прямые косые черты, относительно корня пакета), `bytes`, `sha256` (шестнадцатеричные цифры в верхнем регистре) для каждого файла пакета |
@@ -111,7 +111,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 <a id="installation-into-the-omsi-root"></a>
 ## Установка в корневой каталог OMSI
 
-1. Проверьте архив: сравните `OmsiLaunch-0.1.0-beta3.zip` с `OmsiLaunch-0.1.0-beta3.zip.sha256`.
+1. Проверьте архив: сравните `OmsiLaunch-0.1.0-beta4.zip` с `OmsiLaunch-0.1.0-beta4.zip.sha256`.
 2. Распакуйте архив **непосредственно в корневой каталог установки OMSI** (каталог, содержащий `Omsi.exe`). При этом размещаются корневые файлы, `plugins\OmsiLaunch.*` (рядом со сторонними плагинами, если они есть) и `.omsilaunch\`.
 3. Оставьте `release-manifest.json` рядом с `OmsiLaunch.exe`: он включает проверку целостности плагина по манифесту. Манифест и двоичные файлы должны быть из одного пакета: новые двоичные файлы поверх более старого манифеста (или наоборот) приводят к тому, что каждый запуск завершается ошибкой `OL_E_PERMANENT_PLUGIN_HASH_MISMATCH`. `Test-ReleasePresentation.ps1 -InstallPackage` теперь копирует манифест вместе с файлами продукта; раньше он его пропускал, из-за чего рядом с более новыми двоичными файлами оставался старый манифест (Round A RA-007).
 4. Проверьте согласованность в режиме только для чтения с помощью `tools\Test-ReleasePackageIntegrity.ps1 -PackagePath <zip> -InstallationRoot <root>`: `installation_comparison.coherent_with_package` должно быть `true`.

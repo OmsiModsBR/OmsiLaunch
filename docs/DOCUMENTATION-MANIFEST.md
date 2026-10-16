@@ -1,6 +1,6 @@
 # Documentation Manifest
 
-Source map for the OmsiLaunch `0.1.0-beta3` documentation. Every page listed as
+Source map for the OmsiLaunch `0.1.0-beta4` documentation. Every page listed as
 `WRITTEN_THIS_ROUND` exists under `docs/`, is normative, English only, and is
 checked by `tests/OmsiLaunch.DocumentationTests`. No page is promised that does
 not exist.
@@ -26,6 +26,8 @@ not exist.
 | [`reference/errors.md`](reference/errors.md) | Every `OL_E_*` / `OL_W_*` code | Integrators, users | `src/OmsiLaunch.Api/PublicErrorCodes.cs` | WRITTEN_THIS_ROUND |
 | [`concepts/session-lifecycle.md`](concepts/session-lifecycle.md) | `SessionState` transitions, stop semantics | Integrators | `src/OmsiLaunch.Core/OmsiLaunchService.cs`, `tools/OmsiLaunch.Cli/OwnerSession.cs` | WRITTEN_THIS_ROUND |
 | [`reference/session-profiles.md`](reference/session-profiles.md) | `omsilaunch.session-profile/v1` schema, keys, precedence | Users, map authors | `src/OmsiLaunch.Core/SessionProfiles.cs` | WRITTEN_THIS_ROUND |
+| [`reference/hof-management.md`](reference/hof-management.md) | Session HOF management: sources, targets, add/mirror, conflicts, restore | Users, map authors, integrators | `src/OmsiLaunch.Core/HofPlanner.cs` | WRITTEN_BETA4 |
+| [`reference/runtime-modules.md`](reference/runtime-modules.md) | Runtime Modules v1: manifest, trust and integrity, lifecycle, failure policies, operations, contracts | Integrators, module authors | `src/OmsiLaunch.Runtime.Modules/` | WRITTEN_BETA4 |
 | [`concepts/transactions-and-recovery.md`](concepts/transactions-and-recovery.md) | Journal, backups, restore, deletions, crash recovery | Integrators, maintainers | `src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`, `src/OmsiLaunch.Core/OmsiLaunchService.cs` | WRITTEN_THIS_ROUND |
 | [`concepts/permanent-plugin.md`](concepts/permanent-plugin.md) | `plugins\OmsiLaunch.*` closure and manifest integrity | Maintainers | `src/OmsiLaunch.Process/RuntimeDeployment.cs` | WRITTEN_THIS_ROUND |
 | [`reference/capabilities.md`](reference/capabilities.md) | Capability catalog and public runtime operation ids | Integrators | `src/OmsiLaunch.Api/PublicCapabilityRegistry.cs` | WRITTEN_THIS_ROUND |
@@ -56,5 +58,5 @@ contain only a redirect notice and a short summary.
 
 | Path | Status |
 |---|---|
-| `localized/<locale>/` (`pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` and `ja-JP`) and [`localized/LOCALIZATION-MANIFEST.md`](localized/LOCALIZATION-MANIFEST.md) | TRANSLATION of the `0.1.0-beta3` English pages; not normative (the English page wins); checked by the `docs.localization` gate |
+| `localized/<locale>/` (`pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` and `ja-JP`) and [`localized/LOCALIZATION-MANIFEST.md`](localized/LOCALIZATION-MANIFEST.md) | TRANSLATION of the `0.1.0-beta4` English pages; not normative (the English page wins); checked by the `docs.localization` gate |
 | `examples/session-profiles/rmg-leste/profile.yaml` | Example asset referenced by the session-profile reference |

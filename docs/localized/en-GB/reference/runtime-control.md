@@ -1,7 +1,7 @@
 # Runtime Control
 
-<!-- l10n: source=reference/runtime-control.md -->
-> British English edition of the [canonical page](../../../reference/runtime-control.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=reference/runtime-control.md source-sha256=b79a9850e602d765b5b38aa36000259df855a06801f97d18558f1cf962b396d5 -->
+> British English edition of the [canonical page](../../../reference/runtime-control.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 Runtime control is the set of read, write and action operations that OmsiLaunch executes inside a running OMSI session. This page explains the three ways to reach it (owner API, CLI client, local control plane), how requests travel from the caller to the plugin and back, how handles and request identities work, what timeouts apply, what is deliberately not journalled, and the argument and result conventions, with a worked example for each family. The operation inventory itself, with arguments, result keys and errors, is in [capabilities](capabilities.md). Sources: `OmsiLaunchService.ExecuteRuntimeAsync`, `CurrentRuntimeCommandStore` (`src/OmsiLaunch.Process/RuntimeDeployment.cs`), `CurrentRuntimeCommandMailbox` and `CurrentRuntimeControl` (`src/OmsiLaunch.Plugin/CurrentRuntimeControl.cs`), `LocalControlPlane` and `CliInput` (`tools/OmsiLaunch.Cli/`).
 
@@ -36,7 +36,7 @@ Rules that make the channel robust:
 | Session binding | The plugin ignores (and clears) a request whose session GUID is not its own; the host rejects a response whose session or request id does not match (`OL_E_RUNTIME_RESPONSE_INVALID`). |
 | Timeout | When the deadline passes the host resets the slot to idle and throws `TimeoutException("OL_E_RUNTIME_REQUEST_TIMEOUT")`. |
 | Late response | The plugin publishes a response only if the slot still holds its request id; a response to an abandoned request is dropped. If one nevertheless lands, the next host request finds a stale `responded` slot, discards it, and proceeds; if that stale response carries the **same** request id as the new request, the host throws `OL_E_RUNTIME_REQUEST_ID_REUSED`. Callers must therefore never reuse a request id within a session. |
-| Size | A request larger than the slot is rejected before staging (`ArgumentOutOfRangeException`). A bounded list result that does not fit is shortened by the plugin (last rows dropped, `truncated=true`, smaller `returned_count`); any other oversized response is replaced by a typed `OL_E_RUNTIME_RESPONSE_TOO_LARGE` error. |
+| Size | A request larger than the slot is rejected before staging (`ArgumentOutOfRangeException`). A list page that does not fit is shortened by the plugin (last rows dropped, `truncated=true`, smaller `returned_count`, `next_cursor` at the first dropped row); any other oversized response is replaced by a typed `OL_E_RUNTIME_RESPONSE_TOO_LARGE` error. |
 | Channel closed | After the session ends, `OL_E_RUNTIME_CHANNEL_CLOSED`. |
 
 Request ids are `ulong` chosen by the caller. The CLI uses fixed ranges: `10_001` for `/runtime:`, `50_001+` for forwarded control-plane requests, `1+` for the read batch, `20_000+` for the D3D batch, `30_000+` for `D3DRuntimeApi`. Integrators should use a monotonically increasing counter per session.
@@ -64,7 +64,7 @@ Runtime mutations change OMSI's memory only. **They are not recorded in the tran
 
 - Arguments are string key/value pairs. On the CLI, `--key=value` after the command words becomes a runtime argument (`OmsiLaunch.exe vehicles get --handle=rv-000001`); `/runtime-arg:key=value` is the equivalent for `/runtime:<op>`. Numbers use the invariant culture (`.` decimal separator); booleans are `true`/`false`.
 - Command words map to operation ids through `CliInput.HierarchicalRoutes` (for example `time get` -> `time.read`, `vehicles summary` -> `road-vehicles.read`, `scripts variable set` -> `vehicle.variable.set`). The full route table is in the [CLI reference](cli.md). D3D operations have no command-word route; use `/runtime:d3d.status` or `/runtime:d3d.texture.create --width=8 --height=8 --format=A8R8G8B8`.
-- Results are flat string dictionaries. Lists use `<row>.<n>.<field>` keys (`vehicle.0.handle`, `track.3.filename`, `name.12`) with `count`, and where bounded, `returned_count` and `truncated`.
+- Results are flat string dictionaries. Lists use `<row>.<n>.<field>` keys (`vehicle.0.handle`, `track.3.filename`, `name.12`) with the page fields `count`, `returned_count`, `truncated` and `next_cursor` (see [pagination](capabilities.md#pagination)).
 - Failures carry `Succeeded=false`, an `OL_E_` `ErrorCode` and, for plugin-side failures, `detail` (and `native_status` for D3D, `exception` for unexpected faults).
 
 ### CLI envelope (`--json`)
@@ -107,7 +107,7 @@ All CLI examples assume an owner is running for the installation that contains `
 | --- | --- | --- |
 | Session | `OmsiLaunch.exe session status --json` | Reads `SessionId`, `State`, diagnostics and the bounded runtime event list. |
 | Time | `OmsiLaunch.exe time get` then `OmsiLaunch.exe time set --hour=7 --minute=30` | Reads the clock; sets it through the profiled `SetTime` and returns the read-back. |
-| Weather | `OmsiLaunch.exe weather get` and `OmsiLaunch.exe weather actual get` | Reads current and actual/ICAO weather state. `OmsiLaunch.exe weather set --wind_speed=1` returns `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`. |
+| Weather | `OmsiLaunch.exe weather get` and `OmsiLaunch.exe weather actual get` | Reads current and actual/ICAO weather state. `OmsiLaunch.exe weather set --wind_speed=5` sets manual weather (OMSI's source record; live METAR stops) and `OmsiLaunch.exe weather metar set --icao=EDDF` switches to live METAR weather. Both are EXPERIMENTAL until runtime validated. |
 | Map | `OmsiLaunch.exe map get` | Map identity, name, description, tile count, year range and traffic side. |
 | Camera | `OmsiLaunch.exe camera set --field_of_view=50` then `OmsiLaunch.exe camera lock --family=0 --preset=1` and `OmsiLaunch.exe camera unlock` | Writes FOV; pins the driver family with preset 1 (requires a player vehicle, for example a saved situation); releases the policy. |
 | Vehicles | `OmsiLaunch.exe vehicles summary`, `OmsiLaunch.exe vehicles list`, `OmsiLaunch.exe vehicles get --handle=rv-000001` | Counts; handles; one snapshot. |
@@ -115,7 +115,7 @@ All CLI examples assume an owner is running for the installation that contains `
 | Player | `OmsiLaunch.exe player get` | `present=false` in a headless start, otherwise the player snapshot. |
 | Humans | `OmsiLaunch.exe humans summary`, `OmsiLaunch.exe humans list`, `OmsiLaunch.exe humans get --handle=hb-000001` | Counts; handles; one snapshot. |
 | Timetable | `OmsiLaunch.exe timetable get`, `OmsiLaunch.exe timetable tracks list`, `OmsiLaunch.exe timetable logs list` | Manager counts; bounded track rows; timetable logs. |
-| Scripts | `OmsiLaunch.exe scripts variable list --handle=rv-000001`, `OmsiLaunch.exe scripts variable get --handle=rv-000001 --name=Refresh_Strings`, `OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --value=1`, `OmsiLaunch.exe scripts string get --handle=rv-000001 --name=act_route` | Numeric variable list/read/write; string variable read. |
+| Scripts | `OmsiLaunch.exe scripts variable list --handle=rv-000001`, `OmsiLaunch.exe scripts variable get --handle=rv-000001 --name=Refresh_Strings`, `OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --value=1`, `OmsiLaunch.exe scripts string get --handle=rv-000001 --name=act_route`, `OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110`, `OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1` | Numeric variable list/read/write; string variable read/write; script and sound triggers (string writes and triggers are EXPERIMENTAL until runtime validated). |
 | Constants and curves | `OmsiLaunch.exe constants list --handle=rv-000001`, `OmsiLaunch.exe constants get --handle=rv-000001 --name=antrieb_getr_version`, `OmsiLaunch.exe curves list --handle=rv-000001`, `OmsiLaunch.exe curves evaluate --handle=rv-000001 --name=retarder_stufe1 --x=0.5` | Vehicle constants and curve evaluation. Names are model-specific: use the names returned by the `list` command (these were listed for the player bus of `situations\Linie 5.osn`). |
 | HOF | `OmsiLaunch.exe hof get --handle=rv-000001` | HOF metadata of the vehicle definition. |
 | Drivers and tickets | `OmsiLaunch.exe drivers list`, `OmsiLaunch.exe tickets get` | Driver records; ticket pack. |

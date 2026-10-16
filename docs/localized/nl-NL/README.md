@@ -1,12 +1,12 @@
 # OmsiLaunch-documentatie
 
-<!-- l10n: source=README.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../README.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../README.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
-Dit is de normatieve Engelstalige documentatie van OmsiLaunch `0.1.0-beta3`, de
+Dit is de normatieve Engelstalige documentatie van OmsiLaunch `0.1.0-beta4`, de
 basislijn na de hardeningronde. OmsiLaunch biedt programmeerbaar starten,
-sessie-eigendom en runtimebesturing voor precies één OMSI 2-build, profiel
-`Omsi23004_692EBFBF`. Elke pagina onder `docs/` beschrijft wat de huidige code
+sessie-eigendom en runtimebesturing voor een geïnstalleerde OMSI 2; elke native capability
+wordt per build opgelost en geverifieerd (zie [compatibiliteit](reference/compatibility.md)). Elke pagina onder `docs/` beschrijft wat de huidige code
 doet; als een pagina en de code van elkaar afwijken, is de code leidend en is de pagina een bug.
 
 Stabiliteitsbegrippen die overal worden gebruikt: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`,
@@ -35,6 +35,8 @@ runtime-gevalideerd genoemd tenzij de
 | [CLI-referentie](reference/cli.md) | Elke vlag, elk opdrachtwoord en elke hiërarchische route van `OmsiLaunch.exe` / `OmsiLaunchW.exe`. |
 | [CLI-voorbeelden](reference/cli-examples.md) | Opdrachtregels om te kopiëren en te plakken voor veelvoorkomende taken. |
 | [LaunchSpec-referentie](reference/launchspec.md) | Elke `LaunchSpec`-eigenschap en elke enumwaarde, JSON-laadregels voor `/spec`. |
+| [HOF-beheer](reference/hof-management.md) | HOF-kopie en -mirror per sessie naar voertuigmappen: bronnen, doelen, conflicten, herstel. |
+| [Runtimemodules](../../reference/runtime-modules.md) | Modules die met een sessie in OMSI draaien: manifest, vertrouwen, levenscyclus, faalbeleid, operaties. |
 | [Referentie sessieprofielen](reference/session-profiles.md) | `profile.yaml`-schema `omsilaunch.session-profile/v1`, sleutels, limieten, voorrang. |
 | [Referentie publieke API](reference/public-api.md) | `IOmsiLaunch`, publieke records en enums, stabiliteit per member. |
 | [Inventaris publieke API](reference/public-api-inventory.md) | Gegenereerde lijst van elk publiek type en elke member met signatuur en stabiliteit. |
@@ -53,14 +55,15 @@ runtime-gevalideerd genoemd tenzij de
 | [Bekende beperkingen](reference/known-limitations.md) | Wat in deze bèta niet ondersteund, gedeeltelijk of een geaccepteerd risico is. |
 | [Runtimevalidatiestatus](status/runtime-validation-status.md) | Wat onder OMSI is uitgevoerd, wat alleen offline is uitgevoerd, wat nog een echte sessie nodig heeft. |
 
-Pagina's in de hoofdmap die voor beheerders normatief blijven:
-[`README.md`](../../../README.md), [`PUBLIC-API.md`](../../../PUBLIC-API.md),
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md),
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md),
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md),
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md),
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md),
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md). Zij vatten samen; de
+Pagina's die voor beheerders normatief blijven: de
+[`README.md`](../../../README.md) van de repository, de specificaties onder `docs/specs`
+([`PUBLIC-API.md`](../../specs/PUBLIC-API.md),
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md),
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md),
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)) en de projectpagina's onder
+`docs/project` ([`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md),
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md),
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)). Zij vatten samen; de
 pagina's hierboven vormen de gedetailleerde referentie. Historische pagina's staan in het
 [documentatiemanifest](../../DOCUMENTATION-MANIFEST.md).
 
@@ -92,7 +95,7 @@ het gedrag nog steeds verkeerd beschrijven; meld dat als een bug in die pagina.
 <a id="translations"></a>
 ## Vertalingen
 
-`docs\localized\<locale>\` bevat volledige vertalingen van deze `0.1.0-beta3`-documentatie
+`docs\localized\<locale>\` bevat volledige vertalingen van deze `0.1.0-beta4`-documentatie
 voor `pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` en `ja-JP`. De paginaset, de locale-hoofdmappen en de
 pagina's die bewust niet worden vertaald, staan in
 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md).

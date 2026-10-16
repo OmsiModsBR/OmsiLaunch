@@ -2,7 +2,9 @@
 #include <wchar.h>
 #include <stdint.h>
 #include <new>
+#include <initializer_list>
 #include <d3d9.h>
+#include "NativeHooks.h"
 
 struct CanonicalMapDiagnostics {
     uintptr_t form;
@@ -132,12 +134,66 @@ struct NativeD3DTextureResult {
     unsigned long executionThreadId;
 };
 
+// Native target table. Every OMSI address, VMT slot and build-specific field
+// offset this boundary uses comes from here; none is compiled in. The managed
+// plugin resolves and verifies each target (OmsiLaunch.NativeResolution and
+// the build catalog) before any hook and passes the table once. An entry of 0
+// is unresolved: every operation that needs it fails closed.
+struct NativeTargetTable {
+    uint32_t version, size, imageBase, imageEnd;
+    uint32_t startFormShow, startFormHide, startButton1Click, startSituationSelectionChanged, startButtonDriverNewClick;
+    uint32_t setposFormShow, setposButton1Click;
+    uint32_t showModal, setVisible, radioSetChecked, uStrToLStr, getMem;
+    uint32_t closeMap, newSituation, calcAiSum, setAiVehicles, setTime, initializeScheduledAi;
+    uint32_t makeVehicle, placeRandomBus, copyTempList, tempRvListCreate, downloadInternetTextures;
+    uint32_t siteShowModalSetVisible, siteNewSituationAskForPosition;
+    uint32_t vmtStart, vmtSetpos, vmtTempRvList, vmtListBox;
+    uint32_t slotStartShowModal, slotSetposShowModal, slotListBoxGetItemIndex, slotListBoxSetItemIndex;
+    uint32_t gStartForm, gSetposForm, gSelectedMap, gProgMan, gProgManLive, gMap, gRawEntrypoints, gRawEntrypointIndex;
+    uint32_t gStartTransition, gAiConfig, gRoadVehicles, gRoadVehicleTypes, gD3DDevice;
+    uint32_t oSituationControl, oMapStrings, oMapCompanions, oSituationCollection, oModeNewMap, oModeSelectedMap, oModeSavedSituation;
+    uint32_t oSetposListBox, oSetposButton, oSetposAskForPosition, oSetposSelectedText, oModalResult, oListBoxItems;
+    uint32_t oProgManCriticalSection, oRawEntrypointStride, oRawEntrypointName, oRoadVehicleItems, oMemArrayData, oMemArrayCount;
+    // Version 2: the start clock (start date/time of a NEW_MAP session).
+    uint32_t gStartYear, gStartDayOfYear, gStartHour, gStartMinute, gStartSecond, gTimeDayOfYear, gTimeYear, gTimeHour, gTimeMinute;
+    uint32_t gFixedTimeFlag, gFixedTimeMode, gTimeHold, siteNewSituationStartTimeCopy;
+    // The last map state (/last).
+    uint32_t startRadioButton1Click, startComboBox1Change, oModeLastState, oMapCombo;
+    // Cooperative exit.
+    uint32_t mainCloseOmsi, gMainForm, gExitDone;
+    // Weather strings.
+    uint32_t lStrAsg, refreshWeather, gWeather, gActualWeather, vmtWeather, vmtActuWeather, oWeatherCloudType, oWeatherCloudTypeNum, oActuWeatherIcao;
+    // Vehicle scripts.
+    uint32_t vmtRoadVehicleInst, setStringVariable, triggerXml, soundTrigger, slotTriggerXml, slotSoundTrigger;
+    // Start weather.
+    uint32_t loadWeather, oActuWeatherActive, oActuWeatherLastDownloaded, oActuWeatherInvalidIcao, oActuWeatherProcess;
+};
+constexpr uint32_t NativeTargetTableVersion = 2;
+NativeTargetTable gNative{};
+volatile LONG gTargetsConfigured = 0;
+
+// Accepted once, before any hook is installed. Returns 1 when accepted.
+extern "C" __declspec(dllexport) int __cdecl NativeConfigureTargets(const NativeTargetTable* table) {
+    if (table == nullptr || table->version != NativeTargetTableVersion || table->size != sizeof(NativeTargetTable) ||
+        table->imageBase == 0 || table->imageEnd <= table->imageBase) return 0;
+    if (InterlockedCompareExchange(&gTargetsConfigured, 1, 0) != 0) return 0;
+    gNative = *table;
+    return 1;
+}
+
+// True when every listed table entry is resolved.
+bool Have(std::initializer_list<uint32_t> entries) {
+    if (gTargetsConfigured == 0) return false;
+    for (auto entry : entries) if (entry == 0) return false;
+    return true;
+}
+
+// Delphi RTL ABI (Classes.TStrings virtual method table of the compiler that
+// built OMSI), not an OMSI build layout: TStrings.Get and TStrings.GetCount.
+constexpr uint32_t TStringsGetVmtOffset = 0x0C;
+constexpr uint32_t TStringsGetCountVmtOffset = 0x14;
+
 namespace {
-constexpr uintptr_t OmsiBase = 0x00400000;
-constexpr uintptr_t OmsiEnd = 0x00C2B000;
-// OmsiGlobals.Map for Omsi23004_692EBFBF. Keep this synchronized with the
-// managed build profile; 0x00859D94 is not an OmsiMap slot in this build.
-constexpr uintptr_t OmsiMapGlobal = 0x00861588;
 
 bool Readable(const void* pointer, size_t bytes);
 bool PlausibleOmsiObject(void* object);
@@ -214,25 +270,6 @@ volatile int gRequestedPresentedIndex = 1;
 const wchar_t* gRequestedEntrypointIdentity = nullptr;
 EntrypointDiagnostics gLastEntrypointDiagnostics{};
 
-constexpr uintptr_t StartFormSlot = 0x008612F8;
-constexpr uintptr_t StartFormVmt = 0x006759C8;
-constexpr uintptr_t StartShowModalSlot = 0x00675AE8;
-constexpr uintptr_t StartShowModalTarget = 0x00551D18;
-constexpr uintptr_t ShowModalVisualCall = 0x00551C2F;
-constexpr uintptr_t ShowModalVisualTarget = 0x0054CCA8;
-constexpr uintptr_t StartFormShow = 0x00676FC4;
-constexpr uintptr_t StartFormHide = 0x006785B4;
-constexpr uintptr_t StartButtonDriverNewClick = 0x00676884;
-constexpr uintptr_t StartSituationSelectionChanged = 0x00679250;
-constexpr uintptr_t StartButton1Click = 0x006768F8;
-constexpr uintptr_t RadioSetChecked = 0x0059BE58;
-constexpr size_t StartModeNewMapOffset = 0x434;
-constexpr size_t StartModeSelectedMapOffset = 0x438;
-constexpr size_t StartModeSavedSituationOffset = 0x43C;
-constexpr size_t StartSituationControlOffset = 0x3E4;
-constexpr size_t StartSituationCollectionOffset = 0x3F8;
-constexpr size_t StartModalResultOffset = 0x2C0;
-constexpr size_t ItemIndexSetterVmtOffset = 0xFC;
 volatile int gHeadlessStartPending = 0;
 volatile int gHeadlessStartConsumed = 0;
 volatile int gHeadlessFormShowExecuted = 0;
@@ -242,10 +279,11 @@ volatile int gHeadlessModalResult = 0;
 bool ReadStartForm(void** output) {
     if (output == nullptr) return false;
     *output = nullptr;
-    auto slot = reinterpret_cast<void**>(StartFormSlot);
+    if (!Have({ gNative.gStartForm, gNative.vmtStart })) return false;
+    auto slot = reinterpret_cast<void**>(gNative.gStartForm);
     if (!Readable(slot, sizeof(void*)) || *slot == nullptr || !Readable(*slot, sizeof(void*))) return false;
     auto form = *slot;
-    if (*reinterpret_cast<uintptr_t*>(form) != StartFormVmt) return false;
+    if (*reinterpret_cast<uintptr_t*>(form) != gNative.vmtStart) return false;
     *output = form;
     return true;
 }
@@ -253,7 +291,8 @@ bool ReadStartForm(void** output) {
 bool ResolveSituationIndex(void* form, const wchar_t* requestedSituation, int* indexOutput) {
     if (form == nullptr || requestedSituation == nullptr || *requestedSituation == L'\0' || indexOutput == nullptr) return false;
     *indexOutput = -1;
-    auto situations = *reinterpret_cast<wchar_t***>(reinterpret_cast<unsigned char*>(form) + StartSituationCollectionOffset);
+    if (!Have({ gNative.oSituationCollection })) return false;
+    auto situations = *reinterpret_cast<wchar_t***>(reinterpret_cast<unsigned char*>(form) + gNative.oSituationCollection);
     if (situations == nullptr || !Readable(situations - 1, sizeof(int))) return false;
     const int count = *(reinterpret_cast<int*>(situations) - 1);
     if (count <= 0 || count > 4096 || !Readable(situations, static_cast<size_t>(count) * sizeof(wchar_t*))) return false;
@@ -268,11 +307,12 @@ bool ResolveSituationIndex(void* form, const wchar_t* requestedSituation, int* i
 }
 
 bool SetRadioChecked(void* radio, bool checked) {
-    if (radio == nullptr || !Readable(radio, sizeof(uintptr_t))) return false;
+    if (radio == nullptr || !Readable(radio, sizeof(uintptr_t)) || !Have({ gNative.radioSetChecked })) return false;
+    const uintptr_t target = gNative.radioSetChecked;
     __asm {
         mov eax, radio
         mov dl, checked
-        mov ecx, RadioSetChecked
+        mov ecx, target
         call ecx
     }
     return true;
@@ -280,10 +320,12 @@ bool SetRadioChecked(void* radio, bool checked) {
 
 bool SetSituationItemIndex(void* selector, int index) {
     if (selector == nullptr || index < 0 || !Readable(selector, sizeof(uintptr_t))) return false;
+    if (!Have({ gNative.vmtListBox, gNative.slotListBoxSetItemIndex })) return false;
     const auto vmt = *reinterpret_cast<uintptr_t*>(selector);
-    if (!Readable(reinterpret_cast<void*>(vmt + ItemIndexSetterVmtOffset), sizeof(uintptr_t))) return false;
-    const auto setter = *reinterpret_cast<uintptr_t*>(vmt + ItemIndexSetterVmtOffset);
-    if (setter < OmsiBase || setter >= OmsiEnd) return false;
+    const uintptr_t setterOffset = gNative.slotListBoxSetItemIndex - gNative.vmtListBox;
+    if (!Readable(reinterpret_cast<void*>(vmt + setterOffset), sizeof(uintptr_t))) return false;
+    const auto setter = *reinterpret_cast<uintptr_t*>(vmt + setterOffset);
+    if (setter < gNative.imageBase || setter >= gNative.imageEnd) return false;
     __asm {
         mov eax, selector
         mov edx, index
@@ -296,7 +338,7 @@ bool SetSituationItemIndex(void* selector, int index) {
 void InvokeStartModeChanged(void* form) {
     __asm {
         mov eax, form
-        mov ecx, StartButtonDriverNewClick
+        mov ecx, gNative.startButtonDriverNewClick
         call ecx
     }
 }
@@ -305,7 +347,7 @@ void InvokeSituationSelectionChanged(void* form) {
     __asm {
         mov eax, form
         mov edx, form
-        mov ecx, StartSituationSelectionChanged
+        mov ecx, gNative.startSituationSelectionChanged
         call ecx
     }
 }
@@ -313,19 +355,15 @@ void InvokeSituationSelectionChanged(void* form) {
 void InvokeStartButton1Click(void* form) {
     __asm {
         mov eax, form
-        mov ecx, StartButton1Click
+        mov ecx, gNative.startButton1Click
         call ecx
     }
 }
 
+// The askForPosition branch of TProgMan.NewSituation; its guard bytes were
+// verified by the resolver before the table was accepted.
 bool IsKnownNewSituation() {
-    static const unsigned char expected[] = {
-        0x80, 0x7D, 0x08, 0x00, 0x74, 0x3B,
-        0xA1, 0x34, 0x8F, 0x85, 0x00, 0x8B, 0x00,
-        0xE8, 0xF5, 0x46, 0xD2, 0xFF, 0x85, 0xC0,
-        0x7E, 0x2B
-    };
-    return memcmp(reinterpret_cast<const void*>(0x006E60F5), expected, sizeof(expected)) == 0;
+    return Have({ gNative.siteNewSituationAskForPosition, gNative.newSituation });
 }
 
 bool SetVmtSlot(uintptr_t slot, uintptr_t value) {
@@ -349,44 +387,58 @@ bool SetCodeBytes(uintptr_t address, const unsigned char* bytes, size_t size) {
     return true;
 }
 
-bool RestoreHeadlessVisualCall() {
-    static const unsigned char original[] = { 0xE8, 0x74, 0xB0, 0xFF, 0xFF };
-    return SetCodeBytes(ShowModalVisualCall, original, sizeof(original));
+// True when a 5-byte call at site reaches target (E8 rel32).
+bool CallReaches(uintptr_t site, uintptr_t target) {
+    if (site == 0 || target == 0 || !Readable(reinterpret_cast<void*>(site), 5) || *reinterpret_cast<unsigned char*>(site) != 0xE8) return false;
+    return site + 5 + *reinterpret_cast<LONG*>(site + 1) == target;
 }
 
-constexpr uintptr_t DownloadInternetTextures = 0x006E7164;
-static const unsigned char DownloadInternetTexturesPrologue[] = { 0x55, 0x8B, 0xEC, 0xB9, 0x15 };
+// The original call bytes are captured when the patch is installed.
+unsigned char gVisualCallOriginal[5]{};
+volatile LONG gVisualCallSaved = 0;
+
+bool RestoreHeadlessVisualCall() {
+    if (gVisualCallSaved == 0) return true;
+    if (!SetCodeBytes(gNative.siteShowModalSetVisible, gVisualCallOriginal, sizeof(gVisualCallOriginal))) return false;
+    gVisualCallSaved = 0;
+    return true;
+}
+
+unsigned char gInternetTexturesOriginal[5]{};
 static volatile LONG gInternetTexturesSuppressed = 0;
 
 bool InstallInternetTexturesSuppression() {
-    if (!Readable(reinterpret_cast<void*>(DownloadInternetTextures), sizeof(DownloadInternetTexturesPrologue)) ||
-        memcmp(reinterpret_cast<const void*>(DownloadInternetTextures), DownloadInternetTexturesPrologue, sizeof(DownloadInternetTexturesPrologue)) != 0) return false;
+    const uintptr_t target = gNative.downloadInternetTextures;
+    if (!Have({ target }) || gInternetTexturesSuppressed != 0 || !Readable(reinterpret_cast<void*>(target), sizeof(gInternetTexturesOriginal))) return false;
+    memcpy(gInternetTexturesOriginal, reinterpret_cast<const void*>(target), sizeof(gInternetTexturesOriginal));
     const unsigned char replacement[] = { 0xC3, 0x90, 0x90, 0x90, 0x90 };
-    if (!SetCodeBytes(DownloadInternetTextures, replacement, sizeof(replacement))) return false;
+    if (!SetCodeBytes(target, replacement, sizeof(replacement))) return false;
     gInternetTexturesSuppressed = 1;
     return true;
 }
 
 void RestoreInternetTexturesSuppression() {
     if (InterlockedExchange(&gInternetTexturesSuppressed, 0) != 0)
-        SetCodeBytes(DownloadInternetTextures, DownloadInternetTexturesPrologue, sizeof(DownloadInternetTexturesPrologue));
+        SetCodeBytes(gNative.downloadInternetTextures, gInternetTexturesOriginal, sizeof(gInternetTexturesOriginal));
 }
 
 bool InstallHeadlessVisualCall() {
-    static const unsigned char original[] = { 0xE8, 0x74, 0xB0, 0xFF, 0xFF };
-    if (!Readable(reinterpret_cast<void*>(ShowModalVisualCall), sizeof(original)) ||
-        memcmp(reinterpret_cast<const void*>(ShowModalVisualCall), original, sizeof(original)) != 0) return false;
-    unsigned char replacement[sizeof(original)]{};
+    const uintptr_t site = gNative.siteShowModalSetVisible;
+    if (!CallReaches(site, gNative.setVisible)) return false;
+    memcpy(gVisualCallOriginal, reinterpret_cast<const void*>(site), sizeof(gVisualCallOriginal));
+    gVisualCallSaved = 1;
+    unsigned char replacement[sizeof(gVisualCallOriginal)]{};
     replacement[0] = 0xE8;
-    const auto next = ShowModalVisualCall + sizeof(replacement);
+    const auto next = site + sizeof(replacement);
     const auto target = reinterpret_cast<uintptr_t>(&HeadlessStartShowThunk);
     const LONG relative = static_cast<LONG>(target - next);
     memcpy(replacement + 1, &relative, sizeof(relative));
-    return SetCodeBytes(ShowModalVisualCall, replacement, sizeof(replacement));
+    if (!SetCodeBytes(site, replacement, sizeof(replacement))) { gVisualCallSaved = 0; return false; }
+    return true;
 }
 
 void RestoreHeadlessStartHooks() {
-    SetVmtSlot(StartShowModalSlot, StartShowModalTarget);
+    SetVmtSlot(gNative.slotStartShowModal, gNative.showModal);
     RestoreHeadlessVisualCall();
     gHeadlessStartPending = 0;
     gHeadlessStartConsumed = 0;
@@ -394,24 +446,24 @@ void RestoreHeadlessStartHooks() {
     gHeadlessFormShowExecuted = 0;
 }
 
+// Live-state check of the headless-start targets (the table was verified
+// statically; this confirms the live form and the unpatched slot and call).
 bool HeadlessFingerprint(void** form) {
+    if (!Have({ gNative.slotStartShowModal, gNative.showModal, gNative.siteShowModalSetVisible, gNative.setVisible, gNative.startFormShow, gNative.startFormHide })) return false;
     if (!ReadStartForm(form)) return false;
-    if (!Readable(reinterpret_cast<void*>(StartShowModalSlot), sizeof(uintptr_t)) ||
-        *reinterpret_cast<uintptr_t*>(StartShowModalSlot) != StartShowModalTarget) return false;
-    static const unsigned char visualCall[] = { 0xE8, 0x74, 0xB0, 0xFF, 0xFF };
-    return Readable(reinterpret_cast<void*>(ShowModalVisualCall), sizeof(visualCall)) &&
-        memcmp(reinterpret_cast<const void*>(ShowModalVisualCall), visualCall, sizeof(visualCall)) == 0;
+    if (!Readable(reinterpret_cast<void*>(gNative.slotStartShowModal), sizeof(uintptr_t)) ||
+        *reinterpret_cast<uintptr_t*>(gNative.slotStartShowModal) != gNative.showModal) return false;
+    return CallReaches(gNative.siteShowModalSetVisible, gNative.setVisible);
 }
 
-// Current PluginRuntime invokes only closed, profile-owned native operations.
-// Build validation is intentionally separate from RuntimePlatform selection.
+// Headless-start readiness of the live Start form (capability boot.headless-start).
 extern "C" __declspec(dllexport) int __cdecl NativeValidateBuild() {
     void* form = nullptr;
     return HeadlessFingerprint(&form) ? 1 : 0;
 }
 
 extern "C" __declspec(dllexport) int __cdecl NativeSuppressInternetTextures() {
-    return NativeValidateBuild() && InstallInternetTexturesSuppression() ? 1 : 0;
+    return InstallInternetTexturesSuppression() ? 1 : 0;
 }
 
 extern "C" __declspec(dllexport) void __cdecl NativeRestoreInternetTextures() { RestoreInternetTexturesSuppression(); }
@@ -424,7 +476,7 @@ extern "C" __declspec(dllexport) void __cdecl NativeInstallMainThreadGateway() {
 extern "C" __declspec(dllexport) int __cdecl NativeArmHeadlessStart() {
     void* form = nullptr;
     if (!HeadlessFingerprint(&form)) return 0;
-    if (!SetVmtSlot(StartShowModalSlot, reinterpret_cast<uintptr_t>(&HeadlessStartShowModalStub))) return 0;
+    if (!SetVmtSlot(gNative.slotStartShowModal, reinterpret_cast<uintptr_t>(&HeadlessStartShowModalStub))) return 0;
     gHeadlessStartPending = 1;
     gHeadlessStartConsumed = 0;
     gHeadlessFormShowExecuted = 0;
@@ -459,10 +511,11 @@ void __declspec(naked) HeadlessStartShowThunk() {
 void HeadlessStartShowThunkBody(void* self, unsigned char visibility) {
     void* current = nullptr;
     if (!gHeadlessStartConsumed || !gHeadlessStartPending || visibility != 1 || !ReadStartForm(&current) || current != self) {
+        const uintptr_t setVisible = gNative.setVisible;
         __asm {
             mov eax, self
             mov dl, visibility
-            mov ecx, 0054CCA8h
+            mov ecx, setVisible
             call ecx
         }
         return;
@@ -471,10 +524,11 @@ void HeadlessStartShowThunkBody(void* self, unsigned char visibility) {
     // Restore only after the live Tform_start has consumed the one-shot hook.
     RestoreHeadlessVisualCall();
     gHeadlessStartPending = 0;
+    const uintptr_t formShow = gNative.startFormShow;
     __asm {
         mov eax, self
         mov edx, self
-        mov ecx, 00676FC4h
+        mov ecx, formShow
         call ecx
     }
     gHeadlessFormShowExecuted = 1;
@@ -490,7 +544,7 @@ void HeadlessStartShowModalBody(void* self) {
 
     // The VMT hook is one-shot; arm the visibility call only inside this
     // exact Tform_start ShowModal invocation.
-    SetVmtSlot(StartShowModalSlot, StartShowModalTarget);
+    SetVmtSlot(gNative.slotStartShowModal, gNative.showModal);
     gHeadlessStartConsumed = 1;
     if (!InstallHeadlessVisualCall()) {
         gHeadlessStartConsumed = 0;
@@ -499,18 +553,20 @@ void HeadlessStartShowModalBody(void* self) {
         gHeadlessModalResult = 2;
         return;
     }
+    const uintptr_t showModal = gNative.showModal;
     __asm {
         mov eax, self
-        mov ecx, 00551D18h
+        mov ecx, showModal
         call ecx
         mov gHeadlessModalResult, eax
     }
 
     if (gHeadlessFormShowExecuted) {
+        const uintptr_t formHide = gNative.startFormHide;
         __asm {
             mov eax, self
             mov edx, self
-            mov ecx, StartFormHide
+            mov ecx, formHide
             call ecx
         }
         gHeadlessFormShowExecuted = 0;
@@ -524,10 +580,11 @@ void RestoreSetposSlot() {
 }
 
 void CallFormShow(void* self) {
+    const uintptr_t formShow = gNative.setposFormShow;
     __asm {
         mov eax, self
         mov edx, self
-        mov ecx, 0067A6F0h
+        mov ecx, formShow
         call ecx
     }
 }
@@ -536,14 +593,16 @@ int ListBoxItemsCount(void* listBox, void** itemsOut) {
     int result = -1;
     if (itemsOut == nullptr) return result;
     *itemsOut = nullptr;
-    if (listBox == nullptr || !Readable(listBox, 0x28C)) return result;
-    auto items = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(listBox) + 0x288);
+    if (listBox == nullptr || !Have({ gNative.oListBoxItems }) || !Readable(listBox, gNative.oListBoxItems + sizeof(void*))) return result;
+    auto items = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(listBox) + gNative.oListBoxItems);
     if (!PlausibleOmsiObject(items)) return result;
     *itemsOut = items;
+    const uint32_t getCount = TStringsGetCountVmtOffset;
     __asm {
         mov eax, items
         mov edx, [eax]
-        call dword ptr [edx+14h]
+        add edx, getCount
+        call dword ptr [edx]
         mov result, eax
     }
     return result;
@@ -551,21 +610,27 @@ int ListBoxItemsCount(void* listBox, void** itemsOut) {
 
 int ListBoxItemIndex(void* listBox) {
     int result = -1;
+    if (!Have({ gNative.vmtListBox, gNative.slotListBoxGetItemIndex })) return result;
+    const uint32_t getter = gNative.slotListBoxGetItemIndex - gNative.vmtListBox;
     __asm {
         mov eax, listBox
         mov edx, [eax]
-        call dword ptr [edx+0F8h]
+        add edx, getter
+        call dword ptr [edx]
         mov result, eax
     }
     return result;
 }
 
 bool SetListBoxItemIndex(void* listBox, int index) {
+    if (!Have({ gNative.vmtListBox, gNative.slotListBoxSetItemIndex })) return false;
+    const uint32_t setter = gNative.slotListBoxSetItemIndex - gNative.vmtListBox;
     __asm {
         mov eax, listBox
         mov edx, index
         mov ecx, [eax]
-        call dword ptr [ecx+0FCh]
+        add ecx, setter
+        call dword ptr [ecx]
     }
     return true;
 }
@@ -573,14 +638,17 @@ bool SetListBoxItemIndex(void* listBox, int index) {
 bool GetListBoxItemText(void* listBox, int index, wchar_t** text) {
     if (text == nullptr) return false;
     *text = nullptr;
-    auto items = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(listBox) + 0x288);
+    if (!Have({ gNative.oListBoxItems })) return false;
+    auto items = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(listBox) + gNative.oListBoxItems);
     if (!PlausibleOmsiObject(items)) return false;
+    const uint32_t get = TStringsGetVmtOffset;
     __asm {
         mov eax, items
         mov edx, index
         lea ecx, text
         mov edi, [eax]
-        call dword ptr [edi+0Ch]
+        add edi, get
+        call dword ptr [edi]
     }
     return *text != nullptr;
 }
@@ -589,14 +657,15 @@ bool ApplySelectedEntrypoint(void* setpos, EntrypointDiagnostics* diagnostics, i
     if (setpos == nullptr || diagnostics == nullptr) return false;
     diagnostics->setposSelf = reinterpret_cast<uintptr_t>(setpos);
     diagnostics->setposVmt = *reinterpret_cast<uintptr_t*>(setpos);
-    if (diagnostics->setposVmt != 0x00679EB8 || *reinterpret_cast<unsigned char*>(reinterpret_cast<unsigned char*>(setpos) + 0x3A0) != 1) {
+    if (!Have({ gNative.vmtSetpos, gNative.oSetposAskForPosition, gNative.oSetposListBox, gNative.oSetposButton, gNative.oSetposSelectedText, gNative.setposButton1Click }) ||
+        diagnostics->setposVmt != gNative.vmtSetpos || *reinterpret_cast<unsigned char*>(reinterpret_cast<unsigned char*>(setpos) + gNative.oSetposAskForPosition) != 1) {
         diagnostics->status = 2;
         return false;
     }
 
     CallFormShow(setpos);
     diagnostics->formShowCalled = 1;
-    auto listBox = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(setpos) + 0x398);
+    auto listBox = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(setpos) + gNative.oSetposListBox);
     diagnostics->listBox = reinterpret_cast<uintptr_t>(listBox);
     if (!PlausibleOmsiObject(listBox)) {
         diagnostics->status = 3;
@@ -617,7 +686,9 @@ bool ApplySelectedEntrypoint(void* setpos, EntrypointDiagnostics* diagnostics, i
         for (int index = 0; index < presentedCount; ++index) {
             wchar_t* text = nullptr;
             if (!GetListBoxItemText(listBox, index, &text) || text == nullptr) continue;
-            if (lstrcmpiW(text, gRequestedEntrypointIdentity) != 0) continue;
+            // Exact and case-sensitive, as OMSI's own de-duplication (UStrEqual)
+            // builds this list: two labels differing only by case are both presented.
+            if (wcscmp(text, gRequestedEntrypointIdentity) != 0) continue;
             if (resolvedIndex >= 0) {
                 diagnostics->status = 19; // Identity is ambiguous in this map's presented list.
                 return false;
@@ -652,30 +723,37 @@ bool ApplySelectedEntrypoint(void* setpos, EntrypointDiagnostics* diagnostics, i
     // The VMT item-text getter is not stable across all VCL listbox backing
     // implementations. This profiled form field is the selected Unicode text.
     if (diagnostics->presentedName[0] == L'\0') {
-        auto selectedText = *reinterpret_cast<wchar_t**>(reinterpret_cast<unsigned char*>(setpos) + 0x3A4);
+        auto selectedText = *reinterpret_cast<wchar_t**>(reinterpret_cast<unsigned char*>(setpos) + gNative.oSetposSelectedText);
         ReadUnicodeString(selectedText, diagnostics->presentedName, _countof(diagnostics->presentedName));
     }
 
-    auto button = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(setpos) + 0x390);
+    auto button = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(setpos) + gNative.oSetposButton);
     if (!PlausibleOmsiObject(button)) {
         diagnostics->status = 11;
         return false;
     }
+    const uintptr_t buttonClick = gNative.setposButton1Click;
     __asm {
         mov eax, setpos
         mov edx, button
-        mov ecx, 0067A2E8h
+        mov ecx, buttonClick
         call ecx
     }
     diagnostics->buttonCalled = 1;
-    auto rawIndexGlobal = reinterpret_cast<int**>(0x00858A50);
+    if (!Have({ gNative.gRawEntrypointIndex })) {
+        diagnostics->status = 12;
+        return false;
+    }
+    auto rawIndexGlobal = reinterpret_cast<int**>(gNative.gRawEntrypointIndex);
     if (!Readable(rawIndexGlobal, sizeof(void*)) || *rawIndexGlobal == nullptr || !Readable(*rawIndexGlobal, sizeof(int))) {
         diagnostics->status = 12;
         return false;
     }
     diagnostics->rawIndex = **rawIndexGlobal;
-    auto rawGlobal = reinterpret_cast<void**>(0x00858F34);
-    auto rawHolder = (Readable(rawGlobal, sizeof(void*)) ? *rawGlobal : nullptr);
+    // Raw entrypoint identity decoding is diagnostic only; it is skipped when
+    // its record layout is not verified for this build.
+    auto rawGlobal = reinterpret_cast<void**>(gNative.gRawEntrypoints);
+    auto rawHolder = (Have({ gNative.gRawEntrypoints, gNative.oRawEntrypointStride, gNative.oRawEntrypointName }) && Readable(rawGlobal, sizeof(void*)) ? *rawGlobal : nullptr);
     auto raw = (rawHolder != nullptr && Readable(rawHolder, sizeof(void*)))
         ? *reinterpret_cast<void**>(rawHolder)
         : nullptr;
@@ -689,23 +767,10 @@ bool ApplySelectedEntrypoint(void* setpos, EntrypointDiagnostics* diagnostics, i
         if (diagnostics->rawIndex < 0 || diagnostics->rawIndex >= rawCount || diagnostics->rawIndex >= 4096) {
             diagnostics->rawDiagnosticStatus = 2;
         } else {
-            auto rawRecord = reinterpret_cast<unsigned char*>(raw) + diagnostics->rawIndex * 0x30;
-            auto rawName = *reinterpret_cast<wchar_t**>(rawRecord + 0x2C);
+            auto rawRecord = reinterpret_cast<unsigned char*>(raw) + diagnostics->rawIndex * gNative.oRawEntrypointStride;
+            auto rawName = *reinterpret_cast<wchar_t**>(rawRecord + gNative.oRawEntrypointName);
             diagnostics->identityDecodeStatus = ReadUnicodeString(rawName, diagnostics->rawName, _countof(diagnostics->rawName)) ? 1 : 0;
         }
-    }
-    auto mapGlobal = reinterpret_cast<void**>(OmsiMapGlobal);
-    auto map = (Readable(mapGlobal, sizeof(void*)) ? *mapGlobal : nullptr);
-    if (PlausibleOmsiObject(map) && Readable(map, 0x144)) {
-        auto mapBytes = reinterpret_cast<unsigned char*>(map);
-        diagnostics->map124 = *reinterpret_cast<float*>(mapBytes + 0x124);
-        diagnostics->map128 = *reinterpret_cast<float*>(mapBytes + 0x128);
-        diagnostics->map12C = *reinterpret_cast<float*>(mapBytes + 0x12C);
-        diagnostics->map130 = *reinterpret_cast<float*>(mapBytes + 0x130);
-        diagnostics->map134 = *reinterpret_cast<float*>(mapBytes + 0x134);
-        diagnostics->map138 = *reinterpret_cast<float*>(mapBytes + 0x138);
-        diagnostics->map13C = *reinterpret_cast<float*>(mapBytes + 0x13C);
-        diagnostics->map140 = *reinterpret_cast<float*>(mapBytes + 0x140);
     }
     diagnostics->status = 0;
     return true;
@@ -736,39 +801,28 @@ void DirectSetPosStubBody(void* self) {
 bool PlausibleOmsiObject(void* object) {
     if (!Readable(object, sizeof(void*))) return false;
     const auto vmt = *reinterpret_cast<uintptr_t*>(object);
-    return vmt >= OmsiBase && vmt < OmsiEnd && Readable(reinterpret_cast<void*>(vmt), sizeof(void*));
+    return vmt >= gNative.imageBase && vmt < gNative.imageEnd && Readable(reinterpret_cast<void*>(vmt), sizeof(void*));
 }
 
 void* ResolveObject(uintptr_t globalAddress) {
+    if (globalAddress == 0) return nullptr;
     auto global = reinterpret_cast<void***>(globalAddress);
     if (!Readable(global, sizeof(void**)) || *global == nullptr || !Readable(*global, sizeof(void*))) return nullptr;
     return **global;
 }
 
 namespace {
-constexpr uintptr_t MakeVehicleProgManLiveSlot = 0x00862F28;
-constexpr uintptr_t MakeVehicleRoadVehiclesSlot = 0x00861508;
-constexpr uintptr_t MakeVehicleRoadVehicleTypesSlot = 0x008615A8;
-constexpr uintptr_t MakeVehicleTempListVmt = 0x0074802C;
-constexpr uintptr_t MakeVehicleCreate = 0x0074A0E0;
-constexpr uintptr_t MakeVehicleCall = 0x0070A250;
-constexpr uintptr_t MakeVehicleCopy = 0x0074A240;
-constexpr uintptr_t PlaceRandomBusCall = 0x00708F8C;
-constexpr uintptr_t DelphiGetMem = 0x00404614;
-constexpr size_t MakeVehicleCriticalSectionOffset = 0x1B4;
-constexpr size_t RoadVehicleItemsOffset = 0x28;
-constexpr size_t PointerListDataOffset = 0x04;
-constexpr size_t PointerListCountOffset = 0x08;
 constexpr int MaximumRoadVehicles = 10000;
 
 bool SnapshotRoadVehicles(void* roadVehicles, uintptr_t** items, int* count) {
     if (items == nullptr || count == nullptr || !PlausibleOmsiObject(roadVehicles)) return false;
     *items = nullptr;
     *count = 0;
-    auto wrapper = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(roadVehicles) + RoadVehicleItemsOffset);
-    if (wrapper == nullptr || !Readable(wrapper, 0x0C)) return false;
-    const int itemCount = *reinterpret_cast<int*>(reinterpret_cast<unsigned char*>(wrapper) + PointerListCountOffset);
-    auto data = *reinterpret_cast<uintptr_t**>(reinterpret_cast<unsigned char*>(wrapper) + PointerListDataOffset);
+    if (!Have({ gNative.oRoadVehicleItems, gNative.oMemArrayData, gNative.oMemArrayCount })) return false;
+    auto wrapper = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(roadVehicles) + gNative.oRoadVehicleItems);
+    if (wrapper == nullptr || !Readable(wrapper, (gNative.oMemArrayData > gNative.oMemArrayCount ? gNative.oMemArrayData : gNative.oMemArrayCount) + 4)) return false;
+    const int itemCount = *reinterpret_cast<int*>(reinterpret_cast<unsigned char*>(wrapper) + gNative.oMemArrayCount);
+    auto data = *reinterpret_cast<uintptr_t**>(reinterpret_cast<unsigned char*>(wrapper) + gNative.oMemArrayData);
     if (itemCount < 0 || itemCount > MaximumRoadVehicles || (itemCount > 0 && (data == nullptr || !Readable(data, static_cast<size_t>(itemCount) * sizeof(uintptr_t))))) return false;
     auto copy = itemCount == 0 ? nullptr : new (std::nothrow) uintptr_t[itemCount];
     if (itemCount > 0 && copy == nullptr) return false;
@@ -792,7 +846,8 @@ char* AllocateMakeVehiclePath(const wchar_t* value) {
     const int bytes = WideCharToMultiByte(1252, WC_NO_BEST_FIT_CHARS, value, -1, nullptr, 0, nullptr, nullptr);
     if (bytes <= 1) return nullptr;
     const int allocation = bytes + 12;
-    const auto header = reinterpret_cast<unsigned char*>(static_cast<uintptr_t>(BorlandFastCall(DelphiGetMem, 1, 1, allocation)));
+    if (!Have({ gNative.getMem })) return nullptr;
+    const auto header = reinterpret_cast<unsigned char*>(static_cast<uintptr_t>(BorlandFastCall(static_cast<int>(gNative.getMem), 1, 1, allocation)));
     if (header == nullptr || !Readable(header, static_cast<size_t>(allocation))) return nullptr;
     BOOL usedDefault = FALSE;
     if (WideCharToMultiByte(1252, WC_NO_BEST_FIT_CHARS, value, -1, reinterpret_cast<char*>(header + 12), bytes, nullptr, &usedDefault) == 0 || usedDefault != FALSE) return nullptr;
@@ -813,11 +868,12 @@ extern "C" __declspec(dllexport) int __cdecl NativeMakeVehicleBasic(
     if (diagnostics == nullptr) return 1;
     ZeroMemory(diagnostics, sizeof(*diagnostics));
     diagnostics->status = 1;
-    if (busIdentity == nullptr || *busIdentity == L'\0' || !NativeValidateBuild()) return diagnostics->status;
+    if (busIdentity == nullptr || *busIdentity == L'\0' ||
+        !Have({ gNative.gProgManLive, gNative.gRoadVehicles, gNative.gRoadVehicleTypes, gNative.vmtTempRvList, gNative.tempRvListCreate, gNative.makeVehicle, gNative.copyTempList, gNative.getMem, gNative.oProgManCriticalSection })) return diagnostics->status;
 
-    auto progMan = *reinterpret_cast<void**>(MakeVehicleProgManLiveSlot);
-    auto roadVehicles = *reinterpret_cast<void**>(MakeVehicleRoadVehiclesSlot);
-    auto roadVehicleTypes = *reinterpret_cast<void**>(MakeVehicleRoadVehicleTypesSlot);
+    auto progMan = *reinterpret_cast<void**>(gNative.gProgManLive);
+    auto roadVehicles = *reinterpret_cast<void**>(gNative.gRoadVehicles);
+    auto roadVehicleTypes = *reinterpret_cast<void**>(gNative.gRoadVehicleTypes);
     diagnostics->progMan = reinterpret_cast<uintptr_t>(progMan);
     diagnostics->roadVehicles = reinterpret_cast<uintptr_t>(roadVehicles);
     diagnostics->roadVehicleTypes = reinterpret_cast<uintptr_t>(roadVehicleTypes);
@@ -829,7 +885,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeMakeVehicleBasic(
     char* path = AllocateMakeVehiclePath(busIdentity);
     if (path == nullptr) { delete[] before; diagnostics->status = 5; return diagnostics->status; }
 
-    auto criticalSection = reinterpret_cast<CRITICAL_SECTION*>(reinterpret_cast<unsigned char*>(progMan) + MakeVehicleCriticalSectionOffset);
+    auto criticalSection = reinterpret_cast<CRITICAL_SECTION*>(reinterpret_cast<unsigned char*>(progMan) + gNative.oProgManCriticalSection);
     if (!Readable(criticalSection, sizeof(CRITICAL_SECTION))) { delete[] before; diagnostics->status = 6; return diagnostics->status; }
     diagnostics->criticalSection = reinterpret_cast<uintptr_t>(criticalSection);
     int temporaryList = 0;
@@ -837,10 +893,10 @@ extern "C" __declspec(dllexport) int __cdecl NativeMakeVehicleBasic(
     __try {
         EnterCriticalSection(criticalSection);
         lockHeld = true;
-        temporaryList = BorlandFastCall(MakeVehicleCreate, 2, 2, MakeVehicleTempListVmt, 1);
+        temporaryList = BorlandFastCall(static_cast<int>(gNative.tempRvListCreate), 2, 2, gNative.vmtTempRvList, 1);
         diagnostics->temporaryList = static_cast<uintptr_t>(temporaryList);
         if (temporaryList == 0 || !PlausibleOmsiObject(reinterpret_cast<void*>(static_cast<uintptr_t>(temporaryList)))) { diagnostics->status = 7; __leave; }
-        diagnostics->rawReturn = BorlandFastCall(MakeVehicleCall, 3, 25,
+        diagnostics->rawReturn = BorlandFastCall(static_cast<int>(gNative.makeVehicle), 3, 25,
             progMan, temporaryList, roadVehicleTypes,
             0, 0, 0, 0, 0, 0, 0,
             -1, 1, 0, 2, 0,
@@ -848,7 +904,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeMakeVehicleBasic(
             0, 0, 0, path);
         // CopyTempListIntoMainList owns the temp-list finalization for this
         // exact build. Do not add a destructor or FreeMem call here.
-        diagnostics->copyReturn = BorlandFastCall(MakeVehicleCopy, 2, 2, roadVehicles, temporaryList);
+        diagnostics->copyReturn = BorlandFastCall(static_cast<int>(gNative.copyTempList), 2, 2, roadVehicles, temporaryList);
         temporaryList = 0;
     } __finally {
         if (lockHeld) LeaveCriticalSection(criticalSection);
@@ -878,14 +934,14 @@ extern "C" __declspec(dllexport) int __cdecl NativeMakeVehicleBasic(
 extern "C" __declspec(dllexport) int __cdecl NativePlaceRandomBus(
     int aiType, int group, int type, int scheduled, int tour, int line,
     int* rawReturn, int* beforeCount, int* afterCount) {
-    if (rawReturn == nullptr || beforeCount == nullptr || afterCount == nullptr || !NativeValidateBuild()) return 1;
+    if (rawReturn == nullptr || beforeCount == nullptr || afterCount == nullptr || !Have({ gNative.gProgManLive, gNative.gRoadVehicles, gNative.placeRandomBus })) return 1;
     *rawReturn = 0; *beforeCount = 0; *afterCount = 0;
-    auto progMan = *reinterpret_cast<void**>(MakeVehicleProgManLiveSlot);
-    auto roadVehicles = *reinterpret_cast<void**>(MakeVehicleRoadVehiclesSlot);
+    auto progMan = *reinterpret_cast<void**>(gNative.gProgManLive);
+    auto roadVehicles = *reinterpret_cast<void**>(gNative.gRoadVehicles);
     if (!PlausibleOmsiObject(progMan) || !PlausibleOmsiObject(roadVehicles)) return 2;
     uintptr_t* before = nullptr;
     if (!SnapshotRoadVehicles(roadVehicles, &before, beforeCount)) return 3;
-    const int result = BorlandFastCall(PlaceRandomBusCall, 3, 11,
+    const int result = BorlandFastCall(static_cast<int>(gNative.placeRandomBus), 3, 11,
         progMan, aiType, group, 0, 0, 1, type, scheduled != 0, 0, tour, line);
     delete[] before;
     uintptr_t* after = nullptr;
@@ -909,13 +965,8 @@ bool ReadUnicodeString(wchar_t* value, wchar_t* output, int capacity) {
 // Tform_start is an auto-created form in this known build. The slot is
 // validated at runtime; no heap pointer is persisted.
 void* ResolveStartForm() {
-    auto slot = reinterpret_cast<void**>(0x008612F8);
-    if (!Readable(slot, sizeof(void*))) return nullptr;
-    void* form = *slot;
-    if (!Readable(form, sizeof(void*))) return nullptr;
-    const auto vmt = *reinterpret_cast<uintptr_t*>(form);
-    return vmt == 0x006759C8 && Readable(reinterpret_cast<void*>(vmt), sizeof(void*))
-        ? form : nullptr;
+    void* form = nullptr;
+    return ReadStartForm(&form) ? form : nullptr;
 }
 
 bool ResolveMapSource(const wchar_t* requestedMap, void** formOutput, wchar_t** sourceOutput, wchar_t* decoded, int capacity,
@@ -933,9 +984,9 @@ bool ResolveMapSource(const wchar_t* requestedMap, void** formOutput, wchar_t** 
         diagnostics->entrySummary[0] = L'\0';
         diagnostics->failedIndex = -1;
     }
-    if (form == nullptr) return false;
-    auto strings = *reinterpret_cast<wchar_t***>(reinterpret_cast<unsigned char*>(form) + 0x3F0);
-    auto companions = *reinterpret_cast<int**>(reinterpret_cast<unsigned char*>(form) + 0x3F4);
+    if (form == nullptr || !Have({ gNative.oMapStrings, gNative.oMapCompanions })) return false;
+    auto strings = *reinterpret_cast<wchar_t***>(reinterpret_cast<unsigned char*>(form) + gNative.oMapStrings);
+    auto companions = *reinterpret_cast<int**>(reinterpret_cast<unsigned char*>(form) + gNative.oMapCompanions);
     if (diagnostics != nullptr) {
         diagnostics->stringArray = reinterpret_cast<uintptr_t>(strings);
         diagnostics->companionArray = reinterpret_cast<uintptr_t>(companions);
@@ -989,9 +1040,6 @@ bool ResolveMapSource(const wchar_t* requestedMap, void** formOutput, wchar_t** 
 
 }
 
-extern "C" __declspec(dllexport) int __cdecl NativeAssignCanonicalMapDetailed(
-    wchar_t* selectedMap, int selectedMapCapacity, CanonicalMapDiagnostics* diagnostics);
-
 void ClearCanonicalMapDiagnostics(CanonicalMapDiagnostics* diagnostics) {
     if (diagnostics != nullptr) {
         ZeroMemory(diagnostics, sizeof(*diagnostics));
@@ -1039,40 +1087,8 @@ void CaptureRawString(void* value, unsigned int* header, unsigned char* bytes) {
         memcpy(bytes, data, 64);
 }
 
-extern "C" __declspec(dllexport) void __cdecl NativeClose(void* self) {
-    // Delphi register convention: Self is supplied in EAX; target is fingerprint-gated.
-    __asm {
-        mov eax, self
-        mov ecx, 008298A4h
-        call ecx
-    }
-}
-
-// 0=found, 1=form unresolved, 2=source collection unresolved, 3=not found.
-extern "C" __declspec(dllexport) int __cdecl NativeResolveCanonicalMapSource(
-    void** form, wchar_t* sourcePath, int sourcePathCapacity) {
-    if (form == nullptr || sourcePath == nullptr || sourcePathCapacity < 2) return 1;
-    wchar_t* source = nullptr;
-    if (ResolveStartForm() == nullptr) return 1;
-    if (!ResolveMapSource(L"maps\\Grundorf\\global.cfg", form, &source, sourcePath, sourcePathCapacity)) {
-        auto start = ResolveStartForm();
-        if (start == nullptr) return 1;
-        auto strings = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(start) + 0x3F0);
-        auto companions = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(start) + 0x3F4);
-        if (strings == nullptr || companions == nullptr) return 2;
-        return 3;
-    }
-    return 0;
-}
-
 extern "C" __declspec(dllexport) int __cdecl NativeAssignMapDetailed(
     const wchar_t* requestedMap, wchar_t* selectedMap, int selectedMapCapacity, CanonicalMapDiagnostics* diagnostics);
-
-// Compatibility wrapper for the original Grundorf lab operation.
-extern "C" __declspec(dllexport) int __cdecl NativeAssignCanonicalMap(
-    wchar_t* selectedMap, int selectedMapCapacity) {
-    return NativeAssignMapDetailed(L"maps\\Grundorf\\global.cfg", selectedMap, selectedMapCapacity, nullptr);
-}
 
 extern "C" __declspec(dllexport) int __cdecl NativeAssignMapDetailed(
     const wchar_t* requestedMap, wchar_t* selectedMap, int selectedMapCapacity, CanonicalMapDiagnostics* diagnostics) {
@@ -1092,8 +1108,10 @@ extern "C" __declspec(dllexport) int __cdecl NativeAssignMapDetailed(
         CaptureRawString(source, diagnostics->sourceHeader, diagnostics->sourceBytes);
     }
 
-    auto destinationSlot = reinterpret_cast<wchar_t***>(0x008591A4);
+    if (!Have({ gNative.gSelectedMap, gNative.uStrToLStr })) return 3;
+    auto destinationSlot = reinterpret_cast<wchar_t***>(gNative.gSelectedMap);
     if (!Readable(destinationSlot, sizeof(wchar_t**)) || *destinationSlot == nullptr) return 3;
+    const uintptr_t assignAnsi = gNative.uStrToLStr;
     if (diagnostics != nullptr) {
         diagnostics->destinationSlot = reinterpret_cast<uintptr_t>(destinationSlot);
         diagnostics->destinationVariable = reinterpret_cast<uintptr_t>(*destinationSlot);
@@ -1109,8 +1127,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeAssignMapDetailed(
         mov eax, [eax]
         mov edx, source
         xor ecx, ecx
-        mov ebx, 004092CCh
-        call ebx
+        call assignAnsi
     }
     if (diagnostics != nullptr) diagnostics->helperCalled = 1;
 
@@ -1130,11 +1147,6 @@ extern "C" __declspec(dllexport) int __cdecl NativeAssignMapDetailed(
     return 0;
 }
 
-extern "C" __declspec(dllexport) int __cdecl NativeAssignCanonicalMapDetailed(
-    wchar_t* selectedMap, int selectedMapCapacity, CanonicalMapDiagnostics* diagnostics) {
-    return NativeAssignMapDetailed(L"maps\\Grundorf\\global.cfg", selectedMap, selectedMapCapacity, diagnostics);
-}
-
 // 0=ready, 1=ProgMan unresolved, 2=selected map unresolved, 3=map mismatch,
 // 4=world already active, 5=AI config owner unresolved.
 extern "C" __declspec(dllexport) int __cdecl NativeResolveWorld(
@@ -1144,18 +1156,19 @@ extern "C" __declspec(dllexport) int __cdecl NativeResolveWorld(
     *aiConfig = nullptr;
     selectedMap[0] = L'\0';
 
-    void* resolvedProgMan = ResolveObject(0x00858BDC);
+    if (!Have({ gNative.gProgMan, gNative.gSelectedMap, gNative.gMap, gNative.gAiConfig })) return 1;
+    void* resolvedProgMan = ResolveObject(gNative.gProgMan);
     if (!PlausibleOmsiObject(resolvedProgMan)) return 1;
 
-    auto mapSlotGlobal = reinterpret_cast<wchar_t***>(0x008591A4);
+    auto mapSlotGlobal = reinterpret_cast<wchar_t***>(gNative.gSelectedMap);
     if (!Readable(mapSlotGlobal, sizeof(wchar_t**)) || *mapSlotGlobal == nullptr || !Readable(*mapSlotGlobal, sizeof(wchar_t*))) return 2;
     auto mapData = reinterpret_cast<unsigned char*>(**mapSlotGlobal);
     if (!ReadAnsiStringBounded(mapData, selectedMap, selectedMapCapacity, nullptr, nullptr, nullptr) ||
         expectedMap == nullptr || _wcsicmp(selectedMap, expectedMap) != 0) return 3;
 
-    if (ResolveObject(OmsiMapGlobal) != nullptr) return 4;
+    if (ResolveObject(gNative.gMap) != nullptr) return 4;
 
-    void* resolvedAiConfig = ResolveObject(0x0085912C);
+    void* resolvedAiConfig = ResolveObject(gNative.gAiConfig);
     if (!PlausibleOmsiObject(resolvedAiConfig)) return 5;
 
     *progMan = resolvedProgMan;
@@ -1163,32 +1176,14 @@ extern "C" __declspec(dllexport) int __cdecl NativeResolveWorld(
     return 0;
 }
 
-extern "C" __declspec(dllexport) int __cdecl NativeResolveCanonicalWorld(
-    void** progMan, void** aiConfig, wchar_t* selectedMap, int selectedMapCapacity) {
-    return NativeResolveWorld(progMan, aiConfig, selectedMap, selectedMapCapacity,
-        L"maps\\Grundorf\\global.cfg");
-}
-
 extern "C" __declspec(dllexport) void __cdecl NativeWorldCloseMap(void* progMan) {
+    const uintptr_t target = gNative.closeMap;
+    if (target == 0) return;
     __asm {
         mov eax, progMan
-        mov ecx, 006E57B0h
+        mov ecx, target
         call ecx
     }
-}
-
-extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituation(void* progMan) {
-    unsigned char success = 0;
-    __asm {
-        push 1
-        mov eax, progMan
-        xor edx, edx
-        mov cl, 1
-        mov ebx, 006E5C0Ch
-        call ebx
-        mov success, al
-    }
-    return success;
 }
 
 extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
@@ -1196,8 +1191,13 @@ extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
     if (diagnostics == nullptr) return 0;
     ZeroMemory(diagnostics, sizeof(*diagnostics));
     gRequestedPresentedIndex = presentedIndex;
-    const uintptr_t slotAddress = 0x00679FD8;
-    auto setposGlobal = reinterpret_cast<void**>(0x00859BC8);
+    if (!Have({ gNative.slotSetposShowModal, gNative.gSetposForm, gNative.vmtSetpos, gNative.showModal, gNative.newSituation })) {
+        diagnostics->status = 1;
+        diagnostics->preflightStatus = 1;
+        return 0;
+    }
+    const uintptr_t slotAddress = gNative.slotSetposShowModal;
+    auto setposGlobal = reinterpret_cast<void**>(gNative.gSetposForm);
     diagnostics->newSituationFingerprintOk = IsKnownNewSituation() ? 1 : 0;
     diagnostics->setposGlobalReadable = Readable(setposGlobal, sizeof(void*)) ? 1 : 0;
     diagnostics->setposSlotReadable = diagnostics->setposGlobalReadable && *setposGlobal != nullptr &&
@@ -1212,7 +1212,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
         diagnostics->preflightStatus = 2;
         return 0;
     }
-    // NewSituation resolves 0x00859BC8 to the global form slot, then reads the live form object.
+    // NewSituation resolves the SetPos global to the form slot, then reads the live form object.
     auto setposSlot = *setposGlobal;
     auto setpos = *reinterpret_cast<void**>(setposSlot);
     diagnostics->setposObjectReadable = setpos != nullptr && Readable(setpos, sizeof(void*)) ? 1 : 0;
@@ -1225,17 +1225,17 @@ extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
     diagnostics->setposSelf = reinterpret_cast<uintptr_t>(setpos);
     diagnostics->setposVmt = vmt;
     diagnostics->slotAddress = slotAddress;
-    if (vmt != 0x00679EB8 || slotAddress != vmt + 0x120 ||
+    if (vmt != gNative.vmtSetpos ||
         !Readable(reinterpret_cast<void*>(slotAddress), sizeof(uintptr_t)) ||
-        *reinterpret_cast<uintptr_t*>(slotAddress) != 0x00551D18) {
+        *reinterpret_cast<uintptr_t*>(slotAddress) != gNative.showModal) {
         diagnostics->status = 2;
         diagnostics->originalTarget = Readable(reinterpret_cast<void*>(slotAddress), sizeof(uintptr_t))
             ? *reinterpret_cast<uintptr_t*>(slotAddress) : 0;
         return 0;
     }
-    diagnostics->originalTarget = 0x00551D18;
+    diagnostics->originalTarget = gNative.showModal;
     gSetposSlot = slotAddress;
-    gSetposOriginal = 0x00551D18;
+    gSetposOriginal = gNative.showModal;
     gEntrypointDiagnostics = diagnostics;
     gEntrypointInvocationCount = 0;
     gEntrypointSuccess = 0;
@@ -1247,14 +1247,14 @@ extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
         return 0;
     }
     unsigned char success = 0;
+    const uintptr_t newSituation = gNative.newSituation;
     __try {
         __asm {
             push 1
             mov eax, progMan
             xor edx, edx
             mov cl, 1
-            mov ebx, 006E5C0Ch
-            call ebx
+            call newSituation
             mov success, al
         }
     } __finally {
@@ -1264,7 +1264,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
     }
     diagnostics->invocationCount = gEntrypointInvocationCount;
     diagnostics->slotRestored = Readable(reinterpret_cast<void*>(slotAddress), sizeof(uintptr_t)) &&
-        *reinterpret_cast<uintptr_t*>(slotAddress) == 0x00551D18 ? 1 : 0;
+        *reinterpret_cast<uintptr_t*>(slotAddress) == gNative.showModal ? 1 : 0;
     if (!diagnostics->slotRestored) {
         diagnostics->status = 17;
         return 0;
@@ -1275,26 +1275,32 @@ extern "C" __declspec(dllexport) int __cdecl NativeWorldNewSituationDirect(
 }
 
 extern "C" __declspec(dllexport) void __cdecl NativeWorldCalcAiSum(void* aiConfig) {
+    const uintptr_t target = gNative.calcAiSum;
+    if (target == 0) return;
     __asm {
         mov eax, aiConfig
-        mov ecx, 00720F74h
+        mov ecx, target
         call ecx
     }
 }
 
 extern "C" __declspec(dllexport) void __cdecl NativeWorldSetAiVehicles(void* progMan) {
+    const uintptr_t target = gNative.setAiVehicles;
+    if (target == 0) return;
     __asm {
         mov eax, progMan
-        mov ecx, 00709350h
+        mov ecx, target
         call ecx
     }
 }
 
 extern "C" __declspec(dllexport) void __cdecl NativeWorldSetTime(void* progMan) {
+    const uintptr_t target = gNative.setTime;
+    if (target == 0) return;
     __asm {
         mov eax, progMan
         mov dl, 1
-        mov ecx, 00707B94h
+        mov ecx, target
         call ecx
     }
 }
@@ -1302,38 +1308,101 @@ extern "C" __declspec(dllexport) void __cdecl NativeWorldSetTime(void* progMan) 
 // Applies OMSI's profiled TProgMan.SetTime after the in-process adapter
 // updates validated clock scalars, preserving dependent time invariants.
 extern "C" __declspec(dllexport) int __cdecl NativeRuntimeApplyTime() {
-    void* progMan = ResolveObject(0x00858BDC);
+    if (!Have({ gNative.gProgMan, gNative.setTime })) return 0;
+    void* progMan = ResolveObject(gNative.gProgMan);
     if (!PlausibleOmsiObject(progMan)) return 0;
     NativeWorldSetTime(progMan);
     return 1;
 }
 
 extern "C" __declspec(dllexport) void __cdecl NativeWorldInitializeScheduledAi(void* progMan) {
+    const uintptr_t target = gNative.initializeScheduledAi;
+    if (target == 0) return;
     __asm {
         mov eax, progMan
-        mov ecx, 0070D160h
+        mov ecx, target
         call ecx
     }
 }
 
 extern "C" __declspec(dllexport) void __cdecl NativeWorldFinalizeStart() {
-    auto transitionSlot = reinterpret_cast<unsigned char**>(0x00858DA8);
+    if (!Have({ gNative.gStartTransition, gNative.oModalResult })) return;
+    auto transitionSlot = reinterpret_cast<unsigned char**>(gNative.gStartTransition);
     if (Readable(transitionSlot, sizeof(unsigned char*)) && *transitionSlot != nullptr && Readable(*transitionSlot, 1)) {
         **transitionSlot = 0;
     }
     auto start = ResolveStartForm();
-    if (start != nullptr && Readable(reinterpret_cast<unsigned char*>(start) + 0x2C0, sizeof(unsigned long))) {
-        *reinterpret_cast<unsigned long*>(reinterpret_cast<unsigned char*>(start) + 0x2C0) = 1;
+    if (start != nullptr && Readable(reinterpret_cast<unsigned char*>(start) + gNative.oModalResult, sizeof(unsigned long))) {
+        *reinterpret_cast<unsigned long*>(reinterpret_cast<unsigned char*>(start) + gNative.oModalResult) = 1;
     }
 }
 
+// ---- start date/time (research report beta4-static start-date-time.md).
+// The values a NEW_MAP start asks for, set by the plugin before
+// NativeStartNewMap. NewSituation copies OMSI's start clock into its running
+// clock; writing the start clock right before it lets OMSI derive the season
+// and the map timeline from the requested date before the map loads.
+struct PendingStartTime { int present; int year, dayOfYear, hour, minute; float second; };
+PendingStartTime gPendingStartTime{};
+
+// present: 0x01 year, 0x02 day of year, 0x04 hour, 0x08 minute, 0x10 second.
+// Returns 1 when every target the request needs is resolved.
+extern "C" __declspec(dllexport) int __cdecl NativeSetStartDateTime(int present, int year, int dayOfYear, int hour, int minute, int second) {
+    if ((present & ~0x1F) != 0 || (present & 0x01 && (year < 1 || year > 9999)) || (present & 0x02 && (dayOfYear < 1 || dayOfYear > 365)) ||
+        (present & 0x04 && (hour < 0 || hour > 23)) || (present & 0x08 && (minute < 0 || minute > 59)) || (present & 0x10 && (second < 0 || second > 59))) return 0;
+    if (present != 0 && !Have({ gNative.gStartYear, gNative.gStartDayOfYear, gNative.gStartHour, gNative.gStartMinute, gNative.gStartSecond, gNative.gTimeDayOfYear,
+        gNative.gTimeYear, gNative.gTimeHour, gNative.gTimeMinute, gNative.gFixedTimeFlag, gNative.gFixedTimeMode, gNative.gTimeHold, gNative.siteNewSituationStartTimeCopy })) return 0;
+    gPendingStartTime = PendingStartTime{ present, year, dayOfYear, hour, minute, static_cast<float>(second) };
+    return 1;
+}
+
+namespace {
+
+// 0 written; 6 OMSI would not use the start clock (fixed-time flags or a held
+// clock): the request cannot apply.
+int ApplyStartDateTime() {
+    const auto& pending = gPendingStartTime;
+    if (pending.present == 0) return 0;
+    auto* fixedFlag = reinterpret_cast<unsigned char*>(gNative.gFixedTimeFlag);
+    auto* fixedMode = reinterpret_cast<uint32_t*>(gNative.gFixedTimeMode);
+    auto* hold = reinterpret_cast<unsigned char*>(gNative.gTimeHold);
+    if (!Readable(fixedFlag, 1) || !Readable(fixedMode, 4) || !Readable(hold, 1) || *fixedFlag != 0 || *fixedMode != 0 || *hold != 0) return 6;
+    auto write = [](uint32_t address, int value) { auto* target = reinterpret_cast<int*>(address); if (Readable(target, 4)) *target = value; };
+    // Year first, as OMSI's own preparation does.
+    if (pending.present & 0x01) write(gNative.gStartYear, pending.year);
+    if (pending.present & 0x02) write(gNative.gStartDayOfYear, pending.dayOfYear);
+    if (pending.present & 0x04) write(gNative.gStartHour, pending.hour);
+    if (pending.present & 0x08) write(gNative.gStartMinute, pending.minute);
+    if (pending.present & 0x10) { auto* second = reinterpret_cast<float*>(gNative.gStartSecond); if (Readable(second, 4)) *second = pending.second; }
+    return 0;
+}
+
+// After NewSituation and SetTime: the running clock holds the request (the
+// hour or minute may have advanced with the time that passed). 7 on mismatch.
+int VerifyStartDateTime() {
+    const auto& pending = gPendingStartTime;
+    if (pending.present == 0) return 0;
+    auto read = [](uint32_t address) { auto* source = reinterpret_cast<int*>(address); return Readable(source, 4) ? *source : -1; };
+    if ((pending.present & 0x01) && read(gNative.gTimeYear) != pending.year) return 7;
+    if ((pending.present & 0x02) && read(gNative.gTimeDayOfYear) != pending.dayOfYear) return 7;
+    auto* hour = reinterpret_cast<unsigned char*>(gNative.gTimeHour);
+    auto* minute = reinterpret_cast<unsigned char*>(gNative.gTimeMinute);
+    if ((pending.present & 0x04) && (!Readable(hour, 1) || (*hour != pending.hour && *hour != (pending.hour + 1) % 24))) return 7;
+    if ((pending.present & 0x08) && (!Readable(minute, 1) || (*minute != pending.minute && *minute != (pending.minute + 1) % 60))) return 7;
+    return 0;
+}
+
+} // namespace
+
 // Closed semantic operation used by PluginRuntime. No address, VMT slot, or
 // raw OMSI object is exposed outside this build-profile-gated native boundary.
-// Result: 0=success; non-zero values identify the first failed native stage.
+// Result: 0=success; non-zero values identify the first failed native stage
+// (6 and 7: the requested start date/time could not be applied).
 extern "C" __declspec(dllexport) int __cdecl NativeStartNewMap(
     const wchar_t* mapIdentity, int presentedIndex, const wchar_t* entrypointIdentity) {
     void* startForm = nullptr;
-    if (!ReadStartForm(&startForm) || !IsKnownNewSituation()) return 1;
+    if (!Have({ gNative.closeMap, gNative.calcAiSum, gNative.setAiVehicles, gNative.setTime, gNative.initializeScheduledAi, gNative.gStartTransition, gNative.oModalResult }) ||
+        !ReadStartForm(&startForm) || !IsKnownNewSituation()) return 1;
     if (mapIdentity == nullptr || (presentedIndex < 0 && (entrypointIdentity == nullptr || *entrypointIdentity == L'\0'))) return 2;
 
     wchar_t selected[512]{};
@@ -1343,6 +1412,8 @@ extern "C" __declspec(dllexport) int __cdecl NativeStartNewMap(
     void* aiConfig = nullptr;
     if (NativeResolveWorld(&progMan, &aiConfig, selected, static_cast<int>(_countof(selected)), mapIdentity) != 0) return 4;
     NativeWorldCloseMap(progMan);
+    const int startTime = ApplyStartDateTime();
+    if (startTime != 0) return startTime;
 
     EntrypointDiagnostics diagnostics{};
     gRequestedEntrypointIdentity = entrypointIdentity;
@@ -1354,6 +1425,9 @@ extern "C" __declspec(dllexport) int __cdecl NativeStartNewMap(
     NativeWorldSetAiVehicles(progMan);
     NativeWorldSetTime(progMan);
     NativeWorldInitializeScheduledAi(progMan);
+    const int verified = VerifyStartDateTime();
+    gPendingStartTime = PendingStartTime{};
+    if (verified != 0) return verified;
     NativeWorldFinalizeStart();
     return 0;
 }
@@ -1364,19 +1438,351 @@ extern "C" __declspec(dllexport) int __cdecl NativeStartNewMap(
 extern "C" __declspec(dllexport) int __cdecl NativeStartSavedSituation(const wchar_t* situationIdentity) {
     void* form = nullptr;
     int situationIndex = -1;
-    if (!ReadStartForm(&form) || !ResolveSituationIndex(form, situationIdentity, &situationIndex)) return 1;
+    if (!Have({ gNative.oModeNewMap, gNative.oModeSelectedMap, gNative.oModeSavedSituation, gNative.oSituationControl, gNative.oModalResult,
+               gNative.startSituationSelectionChanged, gNative.startButtonDriverNewClick, gNative.startButton1Click, gNative.radioSetChecked }) ||
+        !ReadStartForm(&form) || !ResolveSituationIndex(form, situationIdentity, &situationIndex)) return 1;
 
-    auto newMapMode = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + StartModeNewMapOffset);
-    auto selectedMapMode = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + StartModeSelectedMapOffset);
-    auto savedSituationMode = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + StartModeSavedSituationOffset);
-    auto selector = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + StartSituationControlOffset);
+    auto newMapMode = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + gNative.oModeNewMap);
+    auto selectedMapMode = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + gNative.oModeSelectedMap);
+    auto savedSituationMode = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + gNative.oModeSavedSituation);
+    auto selector = *reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(form) + gNative.oSituationControl);
     if (!SetRadioChecked(newMapMode, false) || !SetRadioChecked(selectedMapMode, false) || !SetRadioChecked(savedSituationMode, true) ||
         !SetSituationItemIndex(selector, situationIndex)) return 2;
 
     InvokeSituationSelectionChanged(form);
     InvokeStartModeChanged(form);
     InvokeStartButton1Click(form);
-    return *reinterpret_cast<int*>(reinterpret_cast<unsigned char*>(form) + StartModalResultOffset) == 1 ? 0 : 3;
+    return *reinterpret_cast<int*>(reinterpret_cast<unsigned char*>(form) + gNative.oModalResult) == 1 ? 0 : 3;
+}
+
+// LAST MAP STATE (/last), driven like a user would through the Start form's
+// own handlers (research report beta4-static entrypoint-last-player-vehicle.md
+// section 2): the last-state radio's click handler switches the mode and
+// rebuilds the map list (only maps with a laststn.osn), the map list selects
+// the requested map, and Button1Click loads <map folder>\laststn.osn.
+// 1 not available, 2 the map is not in the last-state list, 3 OMSI did not
+// accept the start.
+extern "C" __declspec(dllexport) int __cdecl NativeStartLastMapState(const wchar_t* mapIdentity) {
+    void* form = nullptr;
+    if (mapIdentity == nullptr || !Have({ gNative.startRadioButton1Click, gNative.startComboBox1Change, gNative.startButton1Click, gNative.oModeLastState,
+            gNative.oMapCombo, gNative.oMapStrings, gNative.oMapCompanions, gNative.oModalResult, gNative.vmtListBox, gNative.slotListBoxSetItemIndex }) ||
+        !ReadStartForm(&form)) return 1;
+    auto* base = reinterpret_cast<unsigned char*>(form);
+    auto radio = *reinterpret_cast<void**>(base + gNative.oModeLastState);
+    const uintptr_t radioClick = gNative.startRadioButton1Click;
+    if (radio == nullptr) return 1;
+    __asm {
+        mov eax, form
+        mov edx, radio
+        mov ecx, radioClick
+        call ecx
+    }
+    // The list now holds only the maps that have a last state.
+    auto strings = *reinterpret_cast<wchar_t***>(base + gNative.oMapStrings);
+    auto companions = *reinterpret_cast<int**>(base + gNative.oMapCompanions);
+    if (strings == nullptr || companions == nullptr || !Readable(strings - 1, sizeof(int)) || !Readable(companions - 1, sizeof(int))) return 2;
+    const int stringCount = *(reinterpret_cast<int*>(strings) - 1);
+    const int presentedCount = *(reinterpret_cast<int*>(companions) - 1);
+    if (stringCount <= 0 || stringCount > 4096 || presentedCount < 0 || presentedCount > stringCount ||
+        !Readable(strings, static_cast<size_t>(stringCount) * sizeof(wchar_t*)) || !Readable(companions, static_cast<size_t>(presentedCount) * sizeof(int))) return 2;
+    int presented = -1;
+    for (int p = 0; p < presentedCount && presented < 0; ++p) {
+        const int index = companions[p];
+        wchar_t path[512]{};
+        if (index >= 0 && index < stringCount && ReadUnicodeString(strings[index], path, static_cast<int>(_countof(path))) && _wcsicmp(path, mapIdentity) == 0) presented = p;
+    }
+    if (presented < 0) return 2;
+    auto combo = *reinterpret_cast<void**>(base + gNative.oMapCombo);
+    if (!SetSituationItemIndex(combo, presented)) return 2;
+    const uintptr_t comboChange = gNative.startComboBox1Change;
+    __asm {
+        mov eax, form
+        mov edx, combo
+        mov ecx, comboChange
+        call ecx
+    }
+    InvokeStartButton1Click(form);
+    return *reinterpret_cast<int*>(base + gNative.oModalResult) == 1 ? 0 : 3;
+}
+
+// ---- cooperative exit (research report beta4-static runtime-map-data-shutdown.md
+// section 5). OMSI's own TForm_main.CloseOMSI is what runs after a user
+// confirms quitting: it saves options.cfg and the map's laststn.osn, calls
+// every plugin's PluginFinalize, unloads the plugins and posts WM_QUIT. Every
+// route through Form_main.Close asks the user first, so none is used. The
+// call runs from a one-shot UI-thread timer of this (pinned) module, after the
+// runtime command that asked for it has answered, outside RenderFrame.
+namespace {
+UINT_PTR gExitTimer = 0;
+
+bool CooperativeExitAllowed() {
+    if (!Have({ gNative.mainCloseOmsi, gNative.gMainForm, gNative.gExitDone })) return false;
+    auto* mainForm = reinterpret_cast<void**>(gNative.gMainForm);
+    auto* done = reinterpret_cast<unsigned char*>(gNative.gExitDone);
+    return Readable(mainForm, sizeof(void*)) && *mainForm != nullptr && Readable(done, 1) && *done == 0;
+}
+
+void CALLBACK CooperativeExitTimer(HWND, UINT, UINT_PTR id, DWORD) {
+    KillTimer(nullptr, id);
+    gExitTimer = 0;
+    if (!CooperativeExitAllowed()) return;
+    void* mainForm = *reinterpret_cast<void**>(gNative.gMainForm);
+    const uintptr_t closeOmsi = gNative.mainCloseOmsi;
+    __asm {
+        mov eax, mainForm
+        mov ecx, closeOmsi
+        call ecx
+    }
+}
+} // namespace
+
+// ---- weather strings (research report beta4-static weather-and-delphi-strings.md
+// sections 2.3, 3 and 5.2). Numeric source fields are plain stores done by the
+// managed writer; the two AnsiString fields need OMSI's own @LStrAsg. The
+// source is a constant-shaped string (refCnt -1) on this stack: @LStrAsg
+// copies it into OMSI's heap and releases the old value, so OmsiLaunch never
+// allocates, frees or aliases an OMSI string. UI thread only.
+namespace {
+struct AnsiConstant {
+    uint16_t codePage;
+    uint16_t elementSize;
+    int32_t referenceCount;
+    int32_t length;
+    char chars[264];
+};
+
+// The UnicodeString counterpart (code page 1200, two-byte elements).
+struct UnicodeConstant {
+    uint16_t codePage;
+    uint16_t elementSize;
+    int32_t referenceCount;
+    int32_t length;
+    wchar_t chars[1028];
+};
+
+bool MakeUnicodeConstant(const wchar_t* text, int maxLength, UnicodeConstant& out) {
+    if (text == nullptr || maxLength <= 0 || maxLength >= static_cast<int>(sizeof(out.chars) / sizeof(wchar_t))) return false;
+    const int length = lstrlenW(text);
+    if (length <= 0 || length > maxLength) return false;
+    for (int index = 0; index < length; index++) out.chars[index] = text[index];
+    out.chars[length] = 0;
+    out.codePage = 1200;
+    out.elementSize = 2;
+    out.referenceCount = -1;
+    out.length = length;
+    return true;
+}
+
+// Code page 1252, as OMSI's own literals. False when empty, longer than
+// maxLength or not representable.
+bool MakeAnsiConstant(const wchar_t* text, int maxLength, AnsiConstant& out) {
+    if (text == nullptr || maxLength <= 0 || maxLength >= static_cast<int>(sizeof(out.chars))) return false;
+    const int wide = lstrlenW(text);
+    if (wide <= 0 || wide > maxLength) return false;
+    BOOL lossy = FALSE;
+    const int bytes = WideCharToMultiByte(1252, WC_NO_BEST_FIT_CHARS, text, wide, out.chars, static_cast<int>(sizeof(out.chars)) - 1, nullptr, &lossy);
+    if (bytes != wide || lossy) return false;
+    out.chars[bytes] = 0;
+    out.codePage = 1252;
+    out.elementSize = 1;
+    out.referenceCount = -1;
+    out.length = bytes;
+    return true;
+}
+
+void AssignAnsi(void* field, const AnsiConstant& source) {
+    const char* chars = source.chars;
+    const uintptr_t assign = gNative.lStrAsg;
+    __asm {
+        mov eax, field
+        mov edx, chars
+        mov ecx, assign
+        call ecx
+    }
+}
+
+// The instance a profiled global holds, when its class is exactly vmt.
+unsigned char* LiveInstance(uint32_t global, uint32_t vmt) {
+    auto* cell = reinterpret_cast<unsigned char**>(global);
+    if (!Readable(cell, sizeof(void*)) || *cell == nullptr || !Readable(*cell, sizeof(uint32_t))) return nullptr;
+    return *reinterpret_cast<uint32_t*>(*cell) == vmt ? *cell : nullptr;
+}
+} // namespace
+
+// Sets actWeather.CloudType and lets OMSI resolve it (CloudTypeNum := -1, then
+// RefreshWeather, as every OMSI writer does). 1 resolved; 2 OMSI did not find
+// the cloud type (it logs it and draws none; "-1" is OMSI's own "no clouds");
+// 3 invalid name; 0 unavailable.
+extern "C" __declspec(dllexport) int __cdecl NativeSetWeatherCloudType(const wchar_t* name) {
+    if (!Have({ gNative.lStrAsg, gNative.refreshWeather, gNative.gWeather, gNative.vmtWeather, gNative.oWeatherCloudType, gNative.oWeatherCloudTypeNum })) return 0;
+    AnsiConstant source{};
+    if (!MakeAnsiConstant(name, 64, source)) return 3;
+    unsigned char* weather = LiveInstance(gNative.gWeather, gNative.vmtWeather);
+    if (weather == nullptr || !Readable(weather + gNative.oWeatherCloudTypeNum, sizeof(int32_t))) return 0;
+    AssignAnsi(weather + gNative.oWeatherCloudType, source);
+    auto* cloudTypeNum = reinterpret_cast<int32_t*>(weather + gNative.oWeatherCloudTypeNum);
+    *cloudTypeNum = -1;
+    const uintptr_t refresh = gNative.refreshWeather;
+    __asm {
+        mov eax, weather
+        mov ecx, refresh
+        call ecx
+    }
+    return *cloudTypeNum >= 0 ? 1 : 2;
+}
+
+// Sets ActuWeather.ICAO. The managed caller then sets the METAR flags OMSI's
+// weather dialog sets (active, invalid_icao, lastdownloaded, prozess).
+// 1 assigned; 3 invalid; 0 unavailable.
+extern "C" __declspec(dllexport) int __cdecl NativeSetMetarIcao(const wchar_t* icao) {
+    if (!Have({ gNative.lStrAsg, gNative.gActualWeather, gNative.vmtActuWeather, gNative.oActuWeatherIcao })) return 0;
+    AnsiConstant source{};
+    if (!MakeAnsiConstant(icao, 4, source)) return 3;
+    unsigned char* actual = LiveInstance(gNative.gActualWeather, gNative.vmtActuWeather);
+    if (actual == nullptr || !Readable(actual + gNative.oActuWeatherIcao, sizeof(void*))) return 0;
+    AssignAnsi(actual + gNative.oActuWeatherIcao, source);
+    return 1;
+}
+
+// ---- start weather (same report, section 5.2 "Session-start weather"). Runs
+// on the UI thread right after the native start path returned, before the
+// first frame's Translate. mode: 1 preset (relative .owt path), 2 live METAR
+// for icao, 3 live weather for the ICAO OMSI has configured.
+// 0 applied; 1 unavailable; 2 OMSI has no ICAO configured; 3 invalid request.
+extern "C" __declspec(dllexport) int __cdecl NativeApplyStartWeather(int mode, const wchar_t* preset, const wchar_t* icao) {
+    if (!Have({ gNative.gWeather, gNative.vmtWeather, gNative.gActualWeather, gNative.vmtActuWeather, gNative.loadWeather, gNative.lStrAsg,
+                gNative.oActuWeatherIcao, gNative.oActuWeatherActive, gNative.oActuWeatherLastDownloaded, gNative.oActuWeatherInvalidIcao, gNative.oActuWeatherProcess })) return 1;
+    unsigned char* actual = LiveInstance(gNative.gActualWeather, gNative.vmtActuWeather);
+    if (actual == nullptr || !Readable(actual + gNative.oActuWeatherProcess, 1)) return 1;
+    if (mode == 1) {
+        UnicodeConstant file{};
+        if (!MakeUnicodeConstant(preset, 260, file)) return 3;
+        unsigned char* weather = LiveInstance(gNative.gWeather, gNative.vmtWeather);
+        if (weather == nullptr) return 1;
+        // A live download would replace the preset.
+        actual[gNative.oActuWeatherActive] = 0;
+        const wchar_t* chars = file.chars;
+        const uintptr_t target = gNative.loadWeather;
+        __asm {
+            mov eax, weather
+            mov edx, chars
+            xor ecx, ecx
+            call target
+        }
+        return 0;
+    }
+    if (mode == 2) {
+        AnsiConstant code{};
+        if (!MakeAnsiConstant(icao, 4, code)) return 3;
+        AssignAnsi(actual + gNative.oActuWeatherIcao, code);
+    } else if (mode == 3) {
+        const char* configured = *reinterpret_cast<char**>(actual + gNative.oActuWeatherIcao);
+        if (configured == nullptr || !Readable(configured - 4, 4) || *reinterpret_cast<const int32_t*>(configured - 4) <= 0) return 2;
+    } else {
+        return 3;
+    }
+    // As OMSI's weather dialog requests live weather: the next update downloads.
+    actual[gNative.oActuWeatherInvalidIcao] = 0;
+    *reinterpret_cast<double*>(actual + gNative.oActuWeatherLastDownloaded) = 0.0;
+    actual[gNative.oActuWeatherProcess] = 0;
+    actual[gNative.oActuWeatherActive] = 1;
+    return 0;
+}
+
+// ---- vehicle scripts (same report, section 4). OMSI's own setters run with
+// constant-shaped sources; the managed caller has resolved the handle to a
+// live road vehicle and checked that its script declares the string variable
+// (SetStringVariable ignores unknown names). UI thread, at message level, where
+// the calc thread is idle.
+namespace {
+bool LiveRoadVehicle(void* instance) {
+    return instance != nullptr && Readable(instance, sizeof(uint32_t)) && *static_cast<uint32_t*>(instance) == gNative.vmtRoadVehicleInst;
+}
+
+// The virtual method in the profiled slot, when it is the expected one
+// (an unexpected override is never called).
+uintptr_t VirtualTarget(uint32_t slot, uint32_t expected) {
+    auto* entry = reinterpret_cast<uintptr_t*>(slot);
+    return Readable(entry, sizeof(uintptr_t)) && *entry == expected ? *entry : 0;
+}
+} // namespace
+
+// 1 set; 3 invalid name or value; 0 unavailable. An empty value clears it.
+extern "C" __declspec(dllexport) int __cdecl NativeSetScriptStringVariable(void* instance, const wchar_t* name, const wchar_t* value) {
+    if (!Have({ gNative.vmtRoadVehicleInst, gNative.setStringVariable })) return 0;
+    UnicodeConstant nameSource{};
+    UnicodeConstant valueSource{};
+    if (!MakeUnicodeConstant(name, 128, nameSource) || value == nullptr) return 3;
+    const bool empty = value[0] == 0;
+    if (!empty && !MakeUnicodeConstant(value, 1024, valueSource)) return 3;
+    if (!LiveRoadVehicle(instance)) return 0;
+    const wchar_t* nameChars = nameSource.chars;
+    const wchar_t* valueChars = empty ? nullptr : valueSource.chars;
+    const uintptr_t target = gNative.setStringVariable;
+    __asm {
+        mov eax, instance
+        mov edx, nameChars
+        mov ecx, valueChars
+        call target
+    }
+    return 1;
+}
+
+// TriggerXML(name, value): 1 = press (name), 2 = drag (name_drag), 0 = release
+// (name_off), as OMSI's KeyCommand and mouse handlers call it; the vehicle
+// script entry runs synchronously. 1 dispatched; 3 invalid; 4 unexpected
+// virtual method; 0 unavailable.
+extern "C" __declspec(dllexport) int __cdecl NativeScriptTrigger(void* instance, const wchar_t* name, int value) {
+    if (!Have({ gNative.vmtRoadVehicleInst, gNative.triggerXml, gNative.slotTriggerXml })) return 0;
+    AnsiConstant source{};
+    if (value < 0 || value > 2 || !MakeAnsiConstant(name, 128, source)) return 3;
+    if (!LiveRoadVehicle(instance)) return 0;
+    const uintptr_t target = VirtualTarget(gNative.slotTriggerXml, gNative.triggerXml);
+    if (target == 0) return 4;
+    const char* chars = source.chars;
+    float ignored = 0;
+    __asm {
+        mov eax, instance
+        mov edx, chars
+        mov ecx, value
+        call target
+        fstp ignored
+    }
+    (void)ignored;
+    return 1;
+}
+
+// SoundTrigger(trigger, filename). 1 dispatched; 3 invalid; 4 unexpected
+// virtual method; 0 unavailable. The managed caller checked the sound pack.
+extern "C" __declspec(dllexport) int __cdecl NativeScriptSoundTrigger(void* instance, const wchar_t* trigger, const wchar_t* filename) {
+    if (!Have({ gNative.vmtRoadVehicleInst, gNative.soundTrigger, gNative.slotSoundTrigger })) return 0;
+    AnsiConstant triggerSource{};
+    AnsiConstant fileSource{};
+    if (!MakeAnsiConstant(trigger, 128, triggerSource) || !MakeAnsiConstant(filename, 260, fileSource)) return 3;
+    if (!LiveRoadVehicle(instance)) return 0;
+    const uintptr_t target = VirtualTarget(gNative.slotSoundTrigger, gNative.soundTrigger);
+    if (target == 0) return 4;
+    const char* triggerChars = triggerSource.chars;
+    const char* fileChars = fileSource.chars;
+    __asm {
+        mov eax, instance
+        mov edx, triggerChars
+        mov ecx, fileChars
+        call target
+    }
+    return 1;
+}
+
+// 1 scheduled; 0 not available (unresolved targets, OMSI already closing, or
+// called off the UI thread's message loop).
+extern "C" __declspec(dllexport) int __cdecl NativeRequestCooperativeExit() {
+    if (!CooperativeExitAllowed()) return 0;
+    if (gExitTimer != 0) return 1;
+    HMODULE self = nullptr;
+    // OMSI unloads the plugin while the exit runs; this module stays.
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, reinterpret_cast<LPCWSTR>(&NativeRequestCooperativeExit), &self)) return 0;
+    gExitTimer = SetTimer(nullptr, 0, 0, CooperativeExitTimer);
+    return gExitTimer != 0 ? 1 : 0;
 }
 
 // Copies a completed selection's semantic diagnostics. It never exposes an
@@ -1395,7 +1801,6 @@ extern "C" __declspec(dllexport) int __cdecl NativeGetLastEntrypointSelection(
 }
 
 namespace {
-constexpr uintptr_t D3DDeviceSlot = 0x008627D0;
 constexpr unsigned long D3DStateNotReady = 0;
 constexpr unsigned long D3DStateReady = 1;
 constexpr unsigned long D3DStateLost = 2;
@@ -1442,6 +1847,9 @@ D3DTextureEntry gD3DTextures[D3DTextureCapacity]{};
 using D3DResetMethod = HRESULT (STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
 D3DResetMethod gD3DOriginalReset = nullptr;
 void** gD3DResetSlot = nullptr;
+// The product's Reset hook is recorded in the hook registry so module hooks
+// on the device can stack on it.
+int gD3DResetHookId = 0;
 
 void QueueTransition(unsigned long transition) {
     if (transition == D3DTransitionNone || transition > D3DTransitionStopped) return;
@@ -1526,10 +1934,15 @@ bool InstallD3DResetHook(IDirect3DDevice9* device) {
     VirtualProtect(slot, sizeof(void*), oldProtection, &ignored);
     gD3DOriginalReset = original;
     gD3DResetSlot = slot;
+    HookAdoptSlot("omsilaunch.d3d", slot, reinterpret_cast<void*>(original), reinterpret_cast<void*>(&D3DResetHook), &gD3DResetHookId);
     return true;
 }
 
 void RemoveD3DResetHook() {
+    // A hook stacked on top of ours (a module that has not released it yet)
+    // still calls through D3DResetHook: keep the hook and its original then.
+    if (gD3DResetHookId != 0 && HookForget(gD3DResetHookId) != 0) return;
+    gD3DResetHookId = 0;
     if (gD3DResetSlot != nullptr && gD3DOriginalReset != nullptr && Readable(gD3DResetSlot, sizeof(void*)) &&
         *gD3DResetSlot == reinterpret_cast<void*>(&D3DResetHook)) {
         DWORD oldProtection = 0;
@@ -1543,6 +1956,7 @@ void RemoveD3DResetHook() {
     gD3DOriginalReset = nullptr;
 }
 
+
 unsigned long MapLifecycleState(long cooperative) {
     if (cooperative == D3D_OK) return D3DStateReady;
     if (cooperative == D3DERR_DEVICELOST) return D3DStateLost;
@@ -1553,8 +1967,8 @@ unsigned long MapLifecycleState(long cooperative) {
 unsigned long ObserveLifecycle(long* queryInterfaceResult, long* cooperativeResult, uintptr_t* candidateValue) {
     if (queryInterfaceResult != nullptr) *queryInterfaceResult = E_PENDING;
     if (cooperativeResult != nullptr) *cooperativeResult = E_PENDING;
-    auto* candidate = Readable(reinterpret_cast<void*>(D3DDeviceSlot), sizeof(void*))
-        ? *reinterpret_cast<IUnknown**>(D3DDeviceSlot) : nullptr;
+    auto* candidate = gNative.gD3DDevice != 0 && Readable(reinterpret_cast<void*>(gNative.gD3DDevice), sizeof(void*))
+        ? *reinterpret_cast<IUnknown**>(gNative.gD3DDevice) : nullptr;
     if (candidateValue != nullptr) *candidateValue = reinterpret_cast<uintptr_t>(candidate);
 
     if (candidate == nullptr || !Readable(candidate, sizeof(void*))) {
@@ -1671,14 +2085,22 @@ void FillTextureResult(NativeD3DTextureResult* result, D3DTextureEntry* entry) {
 }
 }
 
+// The device the bridge acquired (after a D3D probe), for device hooks.
+void* HookCurrentD3DDevice() {
+    AcquireSRWLockShared(&gD3DLock);
+    void* device = gD3DDevice;
+    ReleaseSRWLockShared(&gD3DLock);
+    return device;
+}
+
 // Acquires and retains exactly one QI reference while initialized. The raw
 // OMSI slot is borrowed and is never AddRef'd or released directly.
 extern "C" __declspec(dllexport) int __cdecl NativeD3DProbe(NativeD3DStatus* result) {
     if (result == nullptr) return 1;
     *result = {};
-    result->slot = D3DDeviceSlot;
+    result->slot = gNative.gD3DDevice;
     result->executionThreadId = GetCurrentThreadId();
-    if (!NativeValidateBuild()) { result->status = 2; return result->status; }
+    if (!Have({ gNative.gD3DDevice })) { result->status = 2; return result->status; }
     AcquireSRWLockExclusive(&gD3DLock);
     result->lifecycleTransition = ObserveLifecycle(&result->queryInterfaceResult, &result->cooperativeLevelResult, &result->candidate);
     result->ownedDeviceReferences = gD3DDevice == nullptr ? 0 : 1;
@@ -1697,7 +2119,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeD3DTextureCreate(
     if (result == nullptr) return 1;
     *result = {};
     result->operationResult = E_INVALIDARG;
-    if (!NativeValidateBuild()) { result->status = 2; return result->status; }
+    if (!Have({ gNative.gD3DDevice })) { result->status = 2; return result->status; }
     if (width == 0 || height == 0 || width > 4096 || height > 4096 || levels > 16 || !SupportedTextureFormat(format, nullptr)) {
         result->status = 6; return result->status;
     }
@@ -1733,7 +2155,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeD3DTextureDescribe(
     unsigned __int64 handle, unsigned long level, NativeD3DTextureResult* result) {
     if (result == nullptr) return 1;
     *result = {}; result->handle = handle; result->level = level;
-    if (!NativeValidateBuild()) { result->status = 2; return result->status; }
+    if (!Have({ gNative.gD3DDevice })) { result->status = 2; return result->status; }
     AcquireSRWLockExclusive(&gD3DLock);
     ObserveLifecycle(nullptr, nullptr, nullptr);
     auto* entry = FindTexture(handle);
@@ -1753,7 +2175,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeD3DTextureUpdate(
     NativeD3DTextureResult* result) {
     if (result == nullptr) return 1;
     *result = {}; result->handle = handle; result->level = level;
-    if (!NativeValidateBuild()) { result->status = 2; return result->status; }
+    if (!Have({ gNative.gD3DDevice })) { result->status = 2; return result->status; }
     AcquireSRWLockExclusive(&gD3DLock);
     ObserveLifecycle(nullptr, nullptr, nullptr);
     auto* entry = FindTexture(handle);
@@ -1795,7 +2217,7 @@ extern "C" __declspec(dllexport) int __cdecl NativeD3DTextureUpdate(
 extern "C" __declspec(dllexport) int __cdecl NativeD3DTextureRelease(unsigned __int64 handle, NativeD3DTextureResult* result) {
     if (result == nullptr) return 1;
     *result = {}; result->handle = handle;
-    if (!NativeValidateBuild()) { result->status = 2; return result->status; }
+    if (!Have({ gNative.gD3DDevice })) { result->status = 2; return result->status; }
     AcquireSRWLockExclusive(&gD3DLock);
     auto* entry = FindTexture(handle);
     if (entry == nullptr || entry->generation != static_cast<unsigned long>(handle >> 32)) result->status = 12;

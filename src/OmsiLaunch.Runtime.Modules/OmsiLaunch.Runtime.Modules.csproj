@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runtime Modules v1: manifest, trust and integrity, plan eligibility and
+       the in-process lifecycle host. Shared by the x64 controller and the x86
+       plugin; module components reference it for the contracts. -->
+  <PropertyGroup><TargetFramework>net6.0</TargetFramework><PlatformTarget>AnyCPU</PlatformTarget><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\OmsiLaunch.Api\OmsiLaunch.Api.csproj" /></ItemGroup>
+</Project>

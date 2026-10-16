@@ -1,9 +1,9 @@
 # CLI-Beispiele
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Übersetzung der [englischen Originalseite](../../../reference/cli-examples.md) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Übersetzung der [englischen Originalseite](../../../reference/cli-examples.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
-Minimale, korrekte Aufrufe von `OmsiLaunch.exe` für OmsiLaunch `0.1.0-beta3`, jeweils mit dem erwarteten Exitcode des Prozesses und einem Hinweis darauf, was geändert und wiederhergestellt wird. Jedes Beispiel wird, sofern nicht anders angegeben, aus dem OMSI-Installationsstammverzeichnis (`<OMSI_PATH>`) ausgeführt; die Syntax ist in der [CLI-Referenz](cli.md) definiert, die Exitcodes unter [Exitcodes](exit-codes.md). `--json` kann jedem Befehl hinzugefügt werden, um das strukturierte Envelope zu erhalten.
+Minimale, korrekte Aufrufe von `OmsiLaunch.exe` für OmsiLaunch `0.1.0-beta4`, jeweils mit dem erwarteten Exitcode des Prozesses und einem Hinweis darauf, was geändert und wiederhergestellt wird. Jedes Beispiel wird, sofern nicht anders angegeben, aus dem OMSI-Installationsstammverzeichnis (`<OMSI_PATH>`) ausgeführt; die Syntax ist in der [CLI-Referenz](cli.md) definiert, die Exitcodes unter [Exitcodes](exit-codes.md). `--json` kann jedem Befehl hinzugefügt werden, um das strukturierte Envelope zu erhalten.
 
 <a id="conventions"></a>
 ## Konventionen
@@ -21,7 +21,7 @@ Minimale, korrekte Aufrufe von `OmsiLaunch.exe` für OmsiLaunch `0.1.0-beta3`, j
 ```text
 OmsiLaunch.exe /version
 ```
-Exit `0`. Gibt `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family` aus. Ändert nichts.
+Exit `0`. Gibt `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family` aus. Ändert nichts.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Exit `0` (`2`, wenn `handle`, `name` oder `value` fehlt). Ändert eine numerische Skriptvariable dieses Fahrzeugs. Wird nicht rückgängig gemacht.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Exit `7`. Wird immer mit `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` abgelehnt; nichts wird geändert.
+Exit `0`. Schreibt den Quell-Wetterdatensatz von OMSI und beendet die Live-METAR-Aktualisierungen; OMSI leitet Nebel, Licht, tatsächlichen Wind und Luftfeuchtigkeit beim nächsten nicht pausierten Wetter-Tick daraus ab. Jeder Wert wird geprüft, bevor etwas geschrieben wird (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, Exit `7`). Ein abgeleiteter Schlüssel wie `relative_humidity` liefert `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` und nennt den stattdessen zu setzenden Schlüssel. Wird nicht rückgängig gemacht. EXPERIMENTAL: Runtime-Validierung steht aus.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Exit `0`. Wechselt zum Live-METAR-Wetter für diese Station; OMSI lädt es bei der nächsten Wetteraktualisierung herunter. EXPERIMENTAL: Runtime-Validierung steht aus.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Exit `0`. `scripts string set` läuft über das eigene `SetStringVariable` von OMSI und gibt den zurückgelesenen Wert zurück; ein Name, den das Fahrzeugskript nicht deklariert, liefert `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (Exit `7`). `scripts trigger` löst einen Trigger aus, wie es die Eingabehandler von OMSI tun (`1` drücken, `0` loslassen); das Fahrzeugskript führt ihn sofort aus. Trigger- und Variablennamen werden vom jeweiligen Fahrzeugmodell definiert; die obigen sind Beispiele. Wird nicht rückgängig gemacht. EXPERIMENTAL: Runtime-Validierung steht aus.
 
 ## Spawn
 

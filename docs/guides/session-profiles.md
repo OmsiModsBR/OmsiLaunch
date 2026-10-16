@@ -9,7 +9,7 @@ Summary of the current behaviour, documented in full on the new page:
 
 - A session profile is `<root>\.omsilaunch\session-profiles\<id>\profile.yaml`,
   schema `omsilaunch.session-profile/v1`, at most 256 KiB, no YAML anchors,
-  unknown keys rejected, `id` equal to the directory name, 1 to 5 presets with
+  unknown keys rejected, `id` equal to the directory name, 1 to 99 presets with
   unique `index`.
 - Select it with `/predefined-profile:<id> /predefined-profile-index:<n>`; the
   `new:` block applies only in NEW_MAP mode, `compatibility.maps` is enforced

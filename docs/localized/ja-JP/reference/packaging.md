@@ -1,9 +1,9 @@
 # パッケージングとリリースレイアウト
 
-<!-- l10n: source=reference/packaging.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/packaging.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/packaging.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-このページでは、OmsiLaunch `0.1.0-beta3` のリリースパッケージについて説明します。`tools\New-ReleasePackage.ps1` が生成するもの、`release-manifest.json` のフィールド、コントローラーが実行時にマニフェストを使って常駐プラグインのクロージャーを検証する方法、OMSI のインストールルートへのパッケージのインストールと削除の方法、使用後に `.omsilaunch` ディレクトリに含まれるもの、および検証スクリプト（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）を扱います。製品のアイデンティティは `OmsiLaunch.Version.props` から取得されます。利用者向けのインストール手順は [インストール](../getting-started/installation.md) を、プラグインクロージャーの実行時の役割は [常駐プラグイン](../concepts/permanent-plugin.md) を参照してください。
+このページでは、OmsiLaunch `0.1.0-beta4` のリリースパッケージについて説明します。`tools\New-ReleasePackage.ps1` が生成するもの、`release-manifest.json` のフィールド、コントローラーが実行時にマニフェストを使って常駐プラグインのクロージャーを検証する方法、OMSI のインストールルートへのパッケージのインストールと削除の方法、使用後に `.omsilaunch` ディレクトリに含まれるもの、および検証スクリプト（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）を扱います。製品のアイデンティティは `OmsiLaunch.Version.props` から取得されます。利用者向けのインストール手順は [インストール](../getting-started/installation.md) を、プラグインクロージャーの実行時の役割は [常駐プラグイン](../concepts/permanent-plugin.md) を参照してください。
 
 <a id="product-identity-omsilaunchversionprops"></a>
 ## 製品アイデンティティ（`OmsiLaunch.Version.props`）
@@ -12,13 +12,13 @@
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | マニフェストの `product`、Windows の `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows の `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro` | Windows の `LegalCopyright` |
-| `OmsiLaunchProductVersion` | `0.1.0-beta3` | マニフェストの `product_version`、Windows の `ProductVersion`、アセンブリの情報バージョン（`/version`）、公開 ZIP の名前 |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows の `LegalCopyright` |
+| `OmsiLaunchProductVersion` | `0.1.0-beta4` | マニフェストの `product_version`、Windows の `ProductVersion`、アセンブリの情報バージョン（`/version`）、公開 ZIP の名前 |
 | `OmsiLaunchManagedVersion` | `0.1.0` | マネージドアセンブリのバージョンの基準 |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | アセンブリバージョンと Windows のファイルバージョン |
 | `OmsiLaunchPackageAlias` | `current` | マニフェストの `package_alias`、ステージングフォルダー名とエイリアス ZIP の名前 |
 
-`Directory.Build.props` は `InformationalVersion` をソースリビジョンなしで `OmsiLaunchProductVersion` に設定するため、`OmsiLaunch.exe /version` は正確に `0.1.0-beta3` を出力します。
+`Directory.Build.props` は `InformationalVersion` をソースリビジョンなしで `OmsiLaunchProductVersion` に設定するため、`OmsiLaunch.exe /version` は正確に `0.1.0-beta4` を出力します。
 
 <a id="build-toolsnew-releasepackageps1"></a>
 ## ビルド（`tools\New-ReleasePackage.ps1`）
@@ -46,7 +46,7 @@
 | `docs\localized\` を除く `docs\` 配下のすべてのファイル（英語ドキュメント、同じディレクトリ構造） | `.omsilaunch\docs\`（これにより、CLI の使用方法テキストに表示されるパス `.omsilaunch\docs\reference\cli.md` が存在します。ドキュメント監査 BUG-08）。`docs\README.md` からリポジトリルートの概要（`PUBLIC-API.md` など）へのリンクは、ソースリポジトリ内でのみ解決されます。 |
 | `docs\localized\LOCALIZATION-MANIFEST.md` と、そのマニフェストに記載された各ロケール（`pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` および `ja-JP`）の `docs\localized\<locale>\**` | `.omsilaunch\docs\localized\`（同じ構造）。記載されたロケールが欠けている場合、スクリプトは中止されます |
 
-続いてスクリプトは、ステージングされたすべてのファイルのハッシュを計算し、パッケージルートに `release-manifest.json` を BOM **なし**の UTF-8 で書き出し（結果は PowerShell のエディションに依存しなくなりました）、ステージに対して `Test-ReleasePackageIntegrity.ps1` を実行し、ステージングされた各プラグインファイルと `OmsiLaunch.Native.x86.dll` をビルド出力と再比較し、ステージを圧縮し、**アーカイブを新しい一時ディレクトリに展開して、展開されたクロージャーを同じマニフェストに照らして検証します**（アーカイブ内のマニフェストは検証済みのマニフェストとバイト単位で一致している必要があります）。その後、ステージを `OmsiLaunch-current` として、アーカイブを `OmsiLaunch-current.zip` として公開し、それを `OmsiLaunch-<product_version>.zip`（`OmsiLaunch-0.1.0-beta3.zip`）にコピーして、`<SHA-256>  <file name>` を含む `OmsiLaunch-0.1.0-beta3.zip.sha256` を書き出します。成果物が 1 つでも欠けているとスクリプトは中止されます。このスクリプトはビルドを行いません。先に `Invoke-OfflineValidation.ps1`（または個別の `dotnet build` / MSBuild の手順）を実行してください。
+続いてスクリプトは、ステージングされたすべてのファイルのハッシュを計算し、パッケージルートに `release-manifest.json` を BOM **なし**の UTF-8 で書き出し（結果は PowerShell のエディションに依存しなくなりました）、ステージに対して `Test-ReleasePackageIntegrity.ps1` を実行し、ステージングされた各プラグインファイルと `OmsiLaunch.Native.x86.dll` をビルド出力と再比較し、ステージを圧縮し、**アーカイブを新しい一時ディレクトリに展開して、展開されたクロージャーを同じマニフェストに照らして検証します**（アーカイブ内のマニフェストは検証済みのマニフェストとバイト単位で一致している必要があります）。その後、ステージを `OmsiLaunch-current` として、アーカイブを `OmsiLaunch-current.zip` として公開し、それを `OmsiLaunch-<product_version>.zip`（`OmsiLaunch-0.1.0-beta4.zip`）にコピーして、`<SHA-256>  <file name>` を含む `OmsiLaunch-0.1.0-beta4.zip.sha256` を書き出します。成果物が 1 つでも欠けているとスクリプトは中止されます。このスクリプトはビルドを行いません。先に `Invoke-OfflineValidation.ps1`（または個別の `dotnet build` / MSBuild の手順）を実行してください。
 
 <a id="package-layout"></a>
 ## パッケージレイアウト
@@ -72,7 +72,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 .omsilaunch\
   assets\splash\{PTB,ENG,DEU,FRA}.bmp   640x480 24-bit managed splash assets
   docs\                               English documentation (README.md, getting-started\, reference\, concepts\, status\, ...)
-  docs\localized\<locale>\             translations of the 0.1.0-beta3 pages (not normative)
+  docs\localized\<locale>\             translations of the 0.1.0-beta4 pages (not normative)
   examples\release-session.example.json
   examples\session-profiles\rmg-leste\profile.yaml
 ```
@@ -84,11 +84,11 @@ plugins\                             the permanent plugin closure (9 files, all 
 | フィールド | 型 | 意味 |
 |---|---|---|
 | `product` | string | `OmsiLaunch` |
-| `product_version` | string | `0.1.0-beta3` |
+| `product_version` | string | `0.1.0-beta4` |
 | `package_alias` | string | `current` |
 | `control_protocol` | string | `0.1`。`PublicCapabilityRegistry.ProtocolVersion` と一致している必要があります |
-| `target_profile` | string | `Omsi23004_692EBFBF`。サポートされる唯一のビルドプロファイルです |
-| `supported_executable_hashes` | string[] | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243`（ランタイム検証済み）および `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759`（Steam LAA、`pending_beta_field_validation`） |
+| `requirement` | string | `OMSI 2` |
+| `known_layouts` | object[] | 既知の各レイアウトの `build_id` と `code_sha256`（`Omsi23004`、`13ec110a...c028`）。高速パスであり、要件ではありません |
 | `configuration` | string | `Release` または `Debug` |
 | `generated_utc` | string | ISO-8601 形式のビルド時刻 |
 | `files[]` | object[] | パッケージ内のすべてのファイルについての `path`（スラッシュ区切り、パッケージルートからの相対パス）、`bytes`、`sha256`（大文字の 16 進数） |
@@ -111,7 +111,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 <a id="installation-into-the-omsi-root"></a>
 ## OMSI ルートへのインストール
 
-1. アーカイブを検証します。`OmsiLaunch-0.1.0-beta3.zip` を `OmsiLaunch-0.1.0-beta3.zip.sha256` と照合してください。
+1. アーカイブを検証します。`OmsiLaunch-0.1.0-beta4.zip` を `OmsiLaunch-0.1.0-beta4.zip.sha256` と照合してください。
 2. アーカイブを **OMSI のインストールルート（`Omsi.exe` があるディレクトリ）に直接**展開します。これにより、ルートのファイル、`plugins\OmsiLaunch.*`（サードパーティ製プラグインと並んで配置）および `.omsilaunch\` が配置されます。
 3. `release-manifest.json` は `OmsiLaunch.exe` と同じ場所に置いたままにしてください。これによりマニフェストベースのプラグイン整合性チェックが有効になります。マニフェストとバイナリは同じパッケージのものでなければなりません。古いマニフェストの上に新しいバイナリを置く（またはその逆の）場合、すべての開始が `OL_E_PERMANENT_PLUGIN_HASH_MISMATCH` で失敗します。`Test-ReleasePresentation.ps1 -InstallPackage` は現在、製品ファイルと一緒にマニフェストもコピーします。以前はマニフェストをスキップしていたため、新しいバイナリの横に古いマニフェストが残っていました（Round A RA-007）。
 4. `tools\Test-ReleasePackageIntegrity.ps1 -PackagePath <zip> -InstallationRoot <root>` で整合性を読み取り専用でチェックします。`installation_comparison.coherent_with_package` が `true` でなければなりません。

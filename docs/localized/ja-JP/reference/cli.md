@@ -1,9 +1,9 @@
 # CLI リファレンス
 
-<!-- l10n: source=reference/cli.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/cli.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/cli.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-このページは、OmsiLaunch `0.1.0-beta3` のコマンドラインに関する完全かつ規範的なリファレンスです。3 つの実行ファイル、引数の文法、ディスパッチ順序、すべてのコマンドワード、すべての階層ルート、すべてのフラグ、出力エンベロープ、および各コマンドのエラー時の動作を扱います。本ページは `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs`、および `tools\OmsiLaunch.Bootstrapper` 配下の 2 つのネイティブシムから生成されています。プロセスの結果は[終了コード](exit-codes.md)に、エラーコードは[エラー](errors.md)に、実際の呼び出し例は [CLI の使用例](cli-examples.md)に記載しています。
+このページは、OmsiLaunch `0.1.0-beta4` のコマンドラインに関する完全かつ規範的なリファレンスです。3 つの実行ファイル、引数の文法、ディスパッチ順序、すべてのコマンドワード、すべての階層ルート、すべてのフラグ、出力エンベロープ、および各コマンドのエラー時の動作を扱います。本ページは `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs`、および `tools\OmsiLaunch.Bootstrapper` 配下の 2 つのネイティブシムから生成されています。プロセスの結果は[終了コード](exit-codes.md)に、エラーコードは[エラー](errors.md)に、実際の呼び出し例は [CLI の使用例](cli-examples.md)に記載しています。
 
 <a id="executables"></a>
 ## 実行ファイル
@@ -49,17 +49,17 @@
 ### ディスパッチ順序（`CliProgram.RunAsync`）
 
 1. `/silent`（`OmsiLaunchW.exe` の下で既に実行中でない場合）: 実行ファイルのディレクトリから `ShellExecute` を通じて（ハンドル継承なしで）`OmsiLaunchW.exe` を開始し、`/silent`/`--silent` を除いた同じ引数を渡し、`silent` エンベロープ（`delegated`、`host_process_id`）を書き込んで `0` を返します。コンソールプロセスはセッションを待機しません。[OmsiLaunchW.exe](omsilaunchw.md#silent-delegation) を参照してください。`OL_E_WINDOWS_HOST_MISSING` / `OL_E_WINDOWS_HOST_START_FAILED` は `7` を返します。
-2. `/version`: `product`、`version`（アセンブリの informational version。`OmsiLaunch.Version.props` から刻印され、`0.1.0-beta3`）、`protocol_version`（`0.1`）、`supported_family`（`OMSI_2_3_004_COMMON`）を含むエンベロープ `version`。終了コード `0`。
-3. `capabilities`: `PublicCapabilityRegistry` のすべての `PublicStableBeta` または `PublicExperimental` 記述子を含むエンベロープ。終了コード `0`。
+2. `/version`: `product`、`version`（アセンブリの informational version。`OmsiLaunch.Version.props` から刻印され、`0.1.0-beta4`）、`protocol_version`（`0.1`）、`supported_family`（`OMSI_2_3_004_COMMON`）を含むエンベロープ `version`。終了コード `0`。
+3. `capabilities`: 正規カタログ `PublicCapabilityRegistry` のすべての `PublicStableBeta` または `PublicExperimental` 記述子（その操作、ネイティブケイパビリティ、エビデンス、注記を含む）を含むエンベロープ。終了コード `0`。
 4. `help [family]`: `usage`、`product_version`、`protocol_version`、`family`、および公開 `commands`（`CliRoute`、`Description`、`Classification`、`RuntimeValidation`）を含むエンベロープ `help`。family で絞り込むこともできます。終了コード `0`。
-5. `profiles`: `family` と、`supported` の実行ファイルバリアント（`ALTERNATE_LAA` `692EBFBF...`、`runtime_validated=true`、および `validation_status=pending_beta_field_validation` の Steam LAA ハッシュ `7DAB063D...`）を含むエンベロープ。終了コード `0`。
+5. `profiles`: `requirement`（`OMSI 2`）、対象ルートの `installation` レポート（`is_omsi2`、`reason`、`build_id`、`identity` の `known`/`unknown`、`file_sha256`、`file_version`、`code_sha256`、`file_variant`）、`known_layouts`、および実行ファイルから解決された `predicted_capabilities`（開始時のプロセス内解決が正となります）を含むエンベロープ。終了コード `0`。
 6. クライアントのランタイム操作（インストール引数がなく、ルートまたは `/runtime:` がある場合）: 引数は `PublicCapabilityRegistry.ValidateRuntimeArguments` に照らして検証され（`OL_E_RUNTIME_OPERATION_UNKNOWN`、`OL_E_RUNTIME_ARGUMENT_REQUIRED`、終了コード `2`）、その後 `runtime.execute` が 8 s のタイムアウト（`road-vehicles.spawn` では 30 s）で転送されます。
 7. クライアントの `session status`（750 ms）、`session stop`（アクティブなセッション id に束縛、750 ms）、`events read`（750 ms）、`events watch`（Ctrl+C まで 250 ms ごとにポーリング）。
 8. `detect`、または **引数がまったくない場合**（インストール、コマンド、`/?`、`/spec`、起動フラグ、リカバリフラグ、`/list` のいずれもない）: `Omsi` プロセスを列挙し、制御エンドポイントを調べます（250 ms）。エンベロープ `detect`。終了コード `0`。
 9. `/?` または `/help`: 使用方法のテキストを出力し、終了コード `0`。コマンドワードはあるがディスパッチ可能なルートがないその他の呼び出し（例: `d3d` 単独や `session status D:\OMSI`）は、使用方法のテキストを出力して終了コード `2` で終了します。
 10. オーナーモード。前提条件: 実行ファイルと同じ場所に `plugins\OmsiLaunch.Plugin.opl` と `plugins\OmsiLaunch.Native.x86.dll` が存在する必要があります（`OL_E_RUNTIME_INSTALLATION_INCOMPLETE`、終了コード `7`）。実行ファイルと同じ場所に `release-manifest.json` がある場合は、それが期待されるプラグインハッシュを提供します。
 11. `/recovery-status` / `/recover`: `RecoverPendingAsync`。`pending`、`recovered`、`diagnostics` を含むエンベロープ `recover`。復元が要求されたのに完了しなかった場合にのみ終了コード `8`、それ以外は `0`。
-12. `/list:<category>`: `DiscoverAsync`。エンベロープ `content.list`。終了コード `0`。
+12. `/list:<category>`: `DiscoverAsync`。エンベロープ `content.list`。終了コード `0`。`/list:SessionProfiles` は代わりに `ListSessionProfilesAsync` を使用し、エンベロープは `session-profiles.list` です。
 13. `LaunchSpec` を構築し（`BuildSpecAsync`）、プランを作成し（`PlanSessionAsync`）、プランを出力します。`/plan` または `/validate`: `IsRunnable` なら終了コード `0`、そうでなければ `1`。実行不可のプランが OMSI を起動することはありません（終了コード `1`）。`OmsiLaunchW.exe` の下では、実行不可のプランでの起動は、その最後の `OL_E_` 診断をメッセージボックスで表示します（ドキュメント監査 BUG-06）。プランニングでは、インストール済みの常駐プラグイン一式を `release-manifest.json` と照合する検証も行うため、プラグインが欠落または改変されているとプランは実行不可になります（`OL_E_PERMANENT_PLUGIN_*`）。
 14. 既存のオーナーの有無を調べ（`OL_E_SESSION_ALREADY_ACTIVE`、終了コード `7`）、その後 `OwnerSession.RunAsync` を実行します。
 
@@ -91,14 +91,14 @@
 | `session` | `session status`、`session stop` | クライアント | 後続の単語はちょうど 1 つです。それ以外は使用方法を出力し、終了コード `2`。`session plan`/`session start` は API のルート名であり、CLI の単語ではありません。`/plan` と `/new` を使用してください。 |
 | `events` | `events read`、`events watch` | クライアント | `read` は上限付きのイベントリストを 1 回返します。`watch` は新しいイベントごとに（`Sequence` に基づき）`events.watch` エンベロープとして 250 ms ごとに Ctrl+C まで出力し（終了コード `0`）、オーナーが応答しない場合は `4`、制御エラーの場合は `7` です。 |
 | `time` | `time get`、`time set` | クライアントルート | |
-| `weather` | `weather get`、`weather set`、`weather actual get` | クライアントルート | |
+| `weather` | `weather get`、`weather set`、`weather metar set`、`weather actual get` | クライアントルート | |
 | `map` | `map get` | クライアントルート | |
 | `camera` | `camera get`、`camera set`、`camera lock`、`camera unlock` | クライアントルート | |
 | `vehicles` | `vehicles list`、`vehicles get`、`vehicles summary`、`vehicles spawn`、`vehicles place-random` | クライアントルート | |
 | `player` | `player get` | クライアントルート | |
 | `humans` | `humans list`、`humans get`、`humans summary` | クライアントルート | |
 | `timetable` | `timetable get`、`timetable <table> list`、`timetable logs list` | クライアントルート | |
-| `scripts` | `scripts variable list|get|set`、`scripts string list|get` | クライアントルート | |
+| `scripts` | `scripts variable list|get|set`、`scripts string list|get|set`、`scripts trigger`、`scripts sound-trigger` | クライアントルート | |
 | `constants` | `constants list`、`constants get` | クライアントルート | |
 | `curves` | `curves list`、`curves evaluate` | クライアントルート | |
 | `hof` | `hof get` | クライアントルート | |
@@ -116,7 +116,8 @@
 | `time get` | `time.read` | Read | はい | いいえ | なし | STABLE_BETA | 時計とカレンダーのフィールド。 |
 | `time set` | `time.set` | Write | はい | はい（メモリ上の時計） | なし、元に戻されない | EXPERIMENTAL | 例: `--minute=<0..59>`。書き込み、読み戻し、復元は 2026-09-20 に検証済み。 |
 | `weather get` | `weather.read` | Read | はい | いいえ | なし | STABLE_BETA | |
-| `weather set` | `weather.set` | Write | はい | いいえ（常に拒否） | なし | UNAVAILABLE | `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` を返します。OMSI は次の天候ティックで値を上書きします。 |
+| `weather set` | `weather.set` | Write | はい | はい（メモリ内の天候） | なし、元に戻されない | EXPERIMENTAL | 例: `--wind_speed=5 --cloud_type="Cumulus 1"`。手動天候: ライブ METAR の更新は停止します。ランタイム検証は保留中です。 |
+| `weather metar set` | `weather.metar.set` | Write | はい | はい（メモリ内の天候。OMSI は ICAO を `options.cfg` に保存し、セッションがそれを復元します） | なし、元に戻されない | EXPERIMENTAL | `--icao=<ICAO>`。OMSI の天候ダイアログが設定するのと同じライブ METAR 天候です。ランタイム検証は保留中です。 |
 | `weather actual get` | `weather.actual.read` | Read | はい | いいえ | なし | EXPERIMENTAL | 実天候/ICAO コントローラーの状態。 |
 | `map get` | `map.read` | Read | はい | いいえ | なし | STABLE_BETA | マップ名、ファイル、説明、タイル数、年の範囲、通行区分。修正後のマップスロットでランタイム再検証済み。 |
 | `camera get` | `camera.read` | Read | はい | いいえ | なし | STABLE_BETA | |
@@ -126,7 +127,7 @@
 | `vehicles list` | `road-vehicles.list` | Read | はい | いいえ | なし | STABLE_BETA | セッションスコープの `rv-NNNNNN` ハンドルを返します。 |
 | `vehicles get` | `road-vehicle.read` | Read | はい | いいえ | なし | STABLE_BETA | `--handle=` が必須。失効したハンドル: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`。 |
 | `vehicles summary` | `road-vehicles.read` | Read | はい | いいえ | なし | STABLE_BETA | 件数とプレイヤーの状態。ハンドルは含みません。 |
-| `vehicles spawn` | `road-vehicles.spawn` | Action | はい | はい（RoadVehicle を 1 台追加） | なし、削除されない | EXPERIMENTAL | `--model=Vehicles\...\*.bus` が必須。クライアントのタイムアウト 30 s、オーナーのタイムアウト 15 s。プレイヤー車両は割り当てません。RV-003 `RUNTIME_PASS`。 |
+| `vehicles spawn` | `road-vehicles.spawn` | Action | はい | はい（RoadVehicle を 1 台追加） | なし、削除されない | EXPERIMENTAL | `--model=Vehicles\...\*.bus` が必須。クライアントのタイムアウト 30 s、オーナーのタイムアウト 15 s。プレイヤー車両は割り当てません。RV-003 `RUNTIME_VALIDATED`。 |
 | `vehicles place-random` | `road-vehicles.place-random` | Action | はい | はい | なし | EXPERIMENTAL | プロファイル済みの `PlaceRandomBus`。 |
 | `player get` | `player-vehicle.read` | Read | はい | いいえ | なし | STABLE_BETA | プレイヤー車両がない場合はセマンティックな null。 |
 | `humans list` | `humans.list` | Read | はい | いいえ | なし | EXPERIMENTAL | `hb-NNNNNN` ハンドルを返します。 |
@@ -141,6 +142,8 @@
 | `timetable bus-stops list` | `timetable.bus-stops.list` | Read | はい | いいえ | なし | STABLE_BETA | 同上。 |
 | `timetable station-links list` | `timetable.station-links.list` | Read | はい | いいえ | なし | STABLE_BETA | 同上。 |
 | `timetable logs list` | `timetable.logs.read` | Read | はい | いいえ | なし | STABLE_BETA | 同上。 |
+| `timetable no-rv-numbers list` | `timetable.no-rv-numbers.list` | Read | はい | いいえ | なし | EXPERIMENTAL | OMSI が自由な AI の使用から除外している車両番号（時刻表ツアーによって予約されている、または固定の AI リストにあるもの）。ページング対象（`cursor`、`limit`、1 ページあたり最大 256）。 |
+| `map tiles list` | `map.tiles.list` | Read | はい | いいえ | なし | EXPERIMENTAL | マップのタイル: グリッド位置、自身のインデックス、ファイルとロード状態、オブジェクト・パス・スプラインの数。ページング対象（`cursor`、`limit`、1 ページあたり最大 256）。 |
 | `drivers list` | `drivers.read` | Read | はい | いいえ | なし | EXPERIMENTAL | 運転士のレコード。 |
 | `tickets get` | `tickets.read` | Read | はい | いいえ | なし | EXPERIMENTAL | 乗車券パックのレコード。 |
 | `hof get` | `vehicle.hofs.read` | Read | はい | いいえ | なし | STABLE_BETA | `--handle=` が必須。 |
@@ -153,6 +156,9 @@
 | `scripts variable set` | `vehicle.variable.set` | Write | はい | はい（スクリプト変数） | なし、元に戻されない | EXPERIMENTAL | `--handle=`、`--name=`、`--value=`（有限の数値）が必須。 |
 | `scripts string list` | `vehicle.string-variables.list` | Read | はい | いいえ | なし | EXPERIMENTAL | `--handle=` が必須。 |
 | `scripts string get` | `vehicle.string-variable.get` | Read | はい | いいえ | なし | EXPERIMENTAL | `--handle=`、`--name=` が必須。 |
+| `scripts string set` | `vehicle.string-variable.set` | Write | はい | はい（メモリ内のスクリプト状態） | なし、元に戻されない | EXPERIMENTAL | `--handle=`、`--name=`、`--value=` が必須。OMSI 自身の `SetStringVariable`。ランタイム検証は保留中です。 |
+| `scripts trigger` | `vehicle.trigger` | Action | はい | はい（車両スクリプトのコードを実行） | なし、元に戻されない | EXPERIMENTAL | `--handle=`、`--name=`、`--value=`（`1` 押下、`0` 解放、`2` ドラッグ）が必須。ランタイム検証は保留中です。 |
+| `scripts sound-trigger` | `vehicle.sound-trigger` | Action | はい | はい（車両のサウンドを再生） | なし、元に戻されない | EXPERIMENTAL | `--handle=`、`--trigger=` が必須。`--file=` は任意。ランタイム検証は保留中です。 |
 
 <a id="operations-without-a-route"></a>
 ### ルートのない操作
@@ -173,17 +179,17 @@
 | `/help` | `/help` | オフ | control | STABLE_BETA | `/?` と同じです。（裸の単語 `help` は代わりに構造化されたカタログを返します。） |
 | `/version` | `/version` | オフ | control | STABLE_BETA | `version` エンベロープ、終了コード `0`。`/silent` を除く他のすべてのコマンドより先に評価されます。 |
 | `/json` | `/json` または `--json` | オフ | control | STABLE_BETA | JSON エンベロープを出力します。`OmsiLaunchW.exe` の下でもコンソール出力を強制します。 |
-| `/quiet` | `/quiet` | オフ | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | `CliInput.Quiet` を設定しますが、これを読み取る箇所はありません。 |
+| `/quiet` | `/quiet` | オフ | control | STABLE_BETA | 人間が読む成功時の出力を抑制します。JSON 出力（`/json`）とエラーは引き続き書き出され、終了コードは変わりません。 |
 | `/silent` | `/silent`（`--silent` も可） | オフ | control | EXPERIMENTAL | コマンドライン全体を `OmsiLaunchW.exe` に委譲し、ホストプロセスが開始された時点で `0` を返します。セッションの結果は `OmsiLaunchW.exe`（メッセージボックス、トレイアイコン）、`.omsilaunch\diagnostics`、およびローカル制御エンドポイントによって報告されます。委譲とエラーダイアログはランタイム検証済みです（ランタイムクロージャ `T04`）。[OmsiLaunchW.exe](omsilaunchw.md) を参照してください。 |
-| `/serve` | `/serve` | オフ | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | `CliInput.Serve` を設定しますが、これを読み取る箇所はありません。制御エンドポイントは常にオーナーによって開始されます。 |
+| `/serve` | `/serve` | — | control | REMOVED | 0.1.0-beta4 で削除されました。`OL_E_INVALID_ARGUMENT`（終了コード `2`）で拒否されます。セッションオーナーは常にローカル制御エンドポイントを提供します。 |
 | `/verbose` | `/verbose` | オフ | launch-time | PARTIAL | `DiagnosticsSpec.Verbose`。値は spec に保持されますが、その効果は `.omsilaunch\diagnostics` 配下のホストトレースに限られます。 |
 | `/log` | `/log` | オン（`DiagnosticsSpec.Log` のデフォルトは `true`） | launch-time | PARTIAL | `DiagnosticsSpec.Log`。事実上常にオンです。 |
 | `/logall` | `/logall` | オフ | launch-time | PARTIAL | `Verbose`、`ProcessTrace`、`PluginTrace`、`NativeTrace` をまとめて設定します。 |
 | `/omsi-logall` | `/omsi-logall` | オフ | launch-time | PARTIAL | `DiagnosticsSpec.OmsiLogAll`。 |
 | `/trace` | `/trace` | オフ | launch-time | PARTIAL | `/trace-process` の別名です。 |
 | `/trace-process` | `/trace-process` | オフ | launch-time | PARTIAL | `DiagnosticsSpec.ProcessTrace`。 |
-| `/trace-plugin` | `/trace-plugin` | オフ | launch-time | PARTIAL | `DiagnosticsSpec.PluginTrace`。 |
-| `/trace-native` | `/trace-native` | オフ | launch-time | PARTIAL | `DiagnosticsSpec.NativeTrace`。 |
+| `/trace-plugin` | `/trace-plugin` | オフ | launch-time | EXPERIMENTAL | `DiagnosticsSpec.PluginTrace`: プラグインはすべてのランタイム操作（`plugin.trace.operation`: 操作、結果、コード、所要時間）をセッションのホストトレースに報告します。 |
+| `/trace-native` | `/trace-native` | オフ | launch-time | EXPERIMENTAL | `DiagnosticsSpec.NativeTrace`: ネイティブレイヤーはすべてのフックの設置と解除（`native.trace`）をセッションのホストトレースに報告します。 |
 
 <a id="planning-validation-and-harnesses"></a>
 ### プランニング、検証、ハーネス
@@ -205,35 +211,43 @@
 |---|---|---|---|---|---|
 | `/new` | `/new` | `WorldMode.NewMap` がデフォルトのモードですが、起動が要求されるのは `/new`、`/saved`、`/last`、`/spec` のいずれかが指定された場合のみです | launch-time | STABLE_BETA | NEW_MAP。`/map` と `/entrypoint-index` が必須です（表示上のエントリポイントインデックスがないプランは `OL_E_ENTRYPOINT_REQUIRED` を報告し、`/map` がない場合はマップが解決されません）。`/new` が暗黙のうちにマップを選択することはありません。 |
 | `/saved` | `/saved:<file.osn>` | なし | launch-time | STABLE_BETA | SAVED_SITUATION。マップと位置は `.osn` から取得されます。`/saved` と一緒に指定した `/map`、`/entrypoint`、`/entrypoint-index` は拒否されます（終了コード `2`）。シチュエーションがない場合: `OL_E_SITUATION_NOT_FOUND`。そのマップがない場合: `OL_E_SITUATION_MAP_NOT_FOUND`。 |
-| `/last` | `/last` | なし | launch-time | UNAVAILABLE | LAST_MAP_STATE。このプロファイルでは常に `OL_E_CAPABILITY_UNAVAILABLE`（実行不可、終了コード `1`）になります。タイムスタンプに基づく `.osn` へのフォールバックは行われません。 |
+| `/last` | `/last /map:<identity>` | なし | launch-time | EXPERIMENTAL | LAST_MAP_STATE: マップ自身の `laststn.osn`（OMSI がマップを閉じたときに書き出すもの）を、Start フォームの last-state 分岐を通じて読み込みます。`/map` が必須で、`laststn.osn` のないマップは `OL_E_SITUATION_NOT_FOUND` です。最新の `.osn` を探すヒューリスティックは決して使いません。ランタイム検証は保留中です。 |
 | `/map` | `/map:<identity>`（例: `maps\Grundorf\global.cfg`） | なし | launch-time | STABLE_BETA | `/new` 用のマップ識別子、または `/list:Entrypoints` のスコープです。未知の場合: `OL_E_MAP_NOT_FOUND`。 |
-| `/entrypoint` | `/entrypoint:<identity>` | なし | launch-time | UNAVAILABLE | ラベルによるエントリポイント指定です。ゲートされています。プランは `world.entrypoint-identity` を `RUNTIME_PARTIAL` として記録し、実行不可になります（`OL_E_CAPABILITY_UNAVAILABLE`）。`/entrypoint-index` とは排他です（識別子が優先され、インデックスはクリアされます）。 |
+| `/entrypoint` | `/entrypoint:<identity>` | なし | launch-time | EXPERIMENTAL | 正確な（大文字と小文字を区別する）ラベル、または `/list:entrypoints` の識別子によるエントリポイント指定です。OMSI は各ラベルの最初のレコードだけを提示します。同じラベルを共有する後続のレコードは拒否され（`OL_E_ENTRYPOINT_NOT_PRESENTED`）、未知のものも拒否されます（`OL_E_ENTRYPOINT_NOT_FOUND`）。ランタイム検証は保留中です。`/entrypoint-index` とは排他です（識別子が優先され、インデックスはクリアされます）。 |
 | `/entrypoint-index` | `/entrypoint-index:<n>`、`0..2147483647` | なし | launch-time | STABLE_BETA | エントリポイントの表示リスト上のインデックスです（OMSI が表示するとおり 1 始まり）。実行可能な NEW_MAP プランには必須です。 |
 
 <a id="date-time-and-weather"></a>
 ### 日付、時刻、天候
 
-これら 4 つはすべて受け付けられ、`LaunchSpec` に保持されますが、ネイティブの開始経路はこれらを適用しません。プランナーはこれらを `STATICALLY_PARTIAL` として記録し、**さらに `OL_E_CAPABILITY_UNAVAILABLE` を追加するため、プランは NOT RUNNABLE（実行不可）になります（終了コード `1`）**。これらを設定する `/spec` ファイルやセッションプロファイルも同じ結果になります。
+これらのフラグは受け付けられ、`LaunchSpec` に保持されます。開始日・時刻・年は NEW_MAP セッションにのみ適用されます。`/saved` または `/last` の場合、プランナーはこれらを `UNAVAILABLE` として記録し、**さらに `OL_E_CAPABILITY_UNAVAILABLE` を追加するため、プランは NOT RUNNABLE（実行不可）になります（終了コード `1`）**。保存済みシチュエーションは独自の時計を保持するためです。天候はすべてのワールドモードに適用されます。これらはすべて `EXPERIMENTAL` です。ネイティブの開始経路は静的に確定済みで、ランタイム検証は保留中です。これらを設定する `/spec` ファイルやセッションプロファイルも同じ結果になります。
 
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
-| `/date` | `/date:<yyyy-mm-dd>` または `/date:system` | 未設定 | launch-time | UNAVAILABLE | `DateSpec` の明示指定/システム。解析できない値: `OL_E_INVALID_ARGUMENT`、終了コード `2`。 |
-| `/time` | `/time:<hh:mm[:ss]>` または `/time:system` | 未設定 | launch-time | UNAVAILABLE | `TimeSpec` の明示指定/システム。 |
-| `/year` | `/year:<n>` または `/year:system` | 未設定 | launch-time | UNAVAILABLE | `YearSpec`。 |
-| `/weather` | `/weather:<preset>` | 未設定 | launch-time | UNAVAILABLE | `WeatherMode.Preset`。 |
-| `/weather-icao` | `/weather-icao:<code>` | 未設定 | launch-time | UNAVAILABLE | `WeatherMode.Icao`。 |
-| `/weather-real` | `/weather-real` | 未設定 | launch-time | UNAVAILABLE | `WeatherMode.RealCurrent`。`/weather`、`/weather-icao`、`/weather-real` のうち最後に指定したものが優先されます。 |
+| `/date` | `/date:<yyyy-mm-dd>` または `/date:system` | 未設定 | launch-time | EXPERIMENTAL | `DateSpec` の明示指定/システム: NEW_MAP セッションの開始日です（[launchspec](launchspec.md#datespec-timespec-yearspec)を参照）。解析できない値: `OL_E_INVALID_ARGUMENT`、終了コード `2`。不可能な日付: `OL_E_DATE_TIME_APPLY_FAILED`。 |
+| `/time` | `/time:<hh:mm[:ss]>` または `/time:system` | 未設定 | launch-time | EXPERIMENTAL | `TimeSpec` の明示指定/システム: NEW_MAP セッションの開始時刻です。 |
+| `/year` | `/year:<n>` または `/year:system` | 未設定 | launch-time | EXPERIMENTAL | `YearSpec`: NEW_MAP セッションの開始年です（1900..2200）。 |
+| `/weather` | `/weather:<preset>` | 未設定 | launch-time | EXPERIMENTAL | `WeatherMode.Preset`: インストール環境の `weather` フォルダー内のファイルを、名前（`Regen`）またはパス（`weather\Regen.owt`）で指定します。存在しないものはプラン作成時に `OL_E_WEATHER_INVALID` になります。ワールドの開始直後に OMSI 自身の `loadWeather` で読み込まれ、ライブ METAR はオフのままです。ランタイム検証は保留中です。 |
+| `/weather-icao` | `/weather-icao:<code>` | 未設定 | launch-time | EXPERIMENTAL | `WeatherMode.Icao`: 4 文字の ICAO 観測所のライブ METAR 天候です（それ以外は `OL_E_WEATHER_INVALID`）。OMSI は観測所を `options.cfg` に保存し、セッションがそれを復元します。ランタイム検証は保留中です。 |
+| `/weather-real` | `/weather-real` | 未設定 | launch-time | EXPERIMENTAL | `WeatherMode.RealCurrent`: OMSI にすでに設定されている観測所のライブ METAR 天候です。設定がない場合、開始は `OL_E_WEATHER_APPLY_FAILED` で失敗します。`/weather`、`/weather-icao`、`/weather-real` のうち最後に指定したものが優先されます。開始時の天候は、保存済みシチュエーションの天候より優先されます。 |
 
 <a id="player-vehicle"></a>
 ### プレイヤー車両
 
-受け付けられ、インストール環境に照らして解決されますが、ランタイムでは適用されません。設定された各フィールドは `STATICALLY_PARTIAL` となり、`OL_E_CAPABILITY_UNAVAILABLE` を追加します（プランは NOT RUNNABLE、終了コード `1`）。
+受け付けられ、インストール環境に照らして解決されますが、ランタイムでは適用されません。設定された各フィールドは `UNAVAILABLE` となり、`OL_E_CAPABILITY_UNAVAILABLE` を追加します（プランは NOT RUNNABLE、終了コード `1`）。
 
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
 | `/vehicle` | `/vehicle:<identity>`（`Vehicles\...\*.bus`） | 未設定 | launch-time | UNAVAILABLE | 最初に解決されます（未知の場合は `OL_E_VEHICLE_NOT_FOUND`）。 |
 | `/repaint` | `/repaint:<id>` | 未設定 | launch-time | UNAVAILABLE | `/vehicle` と一緒に指定した場合にのみ解決されます（`OL_E_REPAINT_NOT_FOUND`）。 |
 | `/hof` | `/hof:<id>` | 未設定 | launch-time | UNAVAILABLE | 未知の場合は `OL_E_HOF_NOT_FOUND`。 |
+| `/hof-source` | `/hof-source:<collection\|directory\|vehicle\|file>:<value>` | なし | launch-time | STABLE_BETA | セッションの [HOF 管理](hof-management.md)操作 1 件: `HofSourceKind` と `Source`。少なくとも 1 つの `/hof-target` が必須です。`/spec` の `HofManagement` を置き換えます。`hofs` を持つセッションプロファイルのプリセットとの併用: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。不正な形式: 終了コード `2`。 |
+| `/hof-target` | `/hof-target:<vehicle identity or folder>`（繰り返し可） | なし | launch-time | STABLE_BETA | `Vehicles\` 配下のターゲット車両です。`/hof-source` がない場合: 終了コード `2`。 |
+| `/hof-file` | `/hof-file:<name.hof>`（繰り返し可） | すべてのファイル | launch-time | STABLE_BETA | ソースをこれらのファイル名に限定します。`/hof-source` がない場合: 終了コード `2`。 |
+| `/hof-mode` | `/hof-mode:add\|mirror` | `add` | launch-time | STABLE_BETA | `HofApplyMode`。`/hof-source` がない場合: 終了コード `2`。 |
+| `/module` | `/module:<id>`（繰り返し可） | なし | launch-time | EXPERIMENTAL | セッションに[ランタイムモジュール](../../../reference/runtime-modules.md)を要求します（`LaunchSpec.Modules.Enable`。`/spec` ファイルのモジュールに追加されます）。読み込めない要求済みモジュールがあると、プランは実行不可となり、その `OL_E_MODULE_*` コードが返ります（終了コード `1`）。モジュールの操作は `/runtime:module.<id>.<operation>` と `/runtime-arg` で呼び出します。当該モジュールに `enabled: false` を設定するセッションプロファイルのプリセットとの併用: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。 |
+| `/no-module` | `/no-module:<id>`（繰り返し可） | なし | launch-time | EXPERIMENTAL | 既定、そのマップ、または設定ファイルによって読み込まれるモジュールを含め、モジュールをセッションから除外します（`LaunchSpec.Modules.Disable`）。当該モジュールに `enabled: true` を設定するプリセットとの併用: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。値がない場合: 終了コード `2`。 |
+| `/module-setting` | `/module-setting:<module id>.<key>=<value>`（繰り返し可） | なし | launch-time | EXPERIMENTAL | モジュールの設定を指定します（`LaunchSpec.Modules.Settings`）。`/spec` ファイル、設定ファイル、既定値より優先されます。選択したプリセットも設定しているキー: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。`<id>.<key>=<value>` の形式でない場合: 終了コード `2`。無効な値または宣言されていないキー: プラン診断 `OL_E_MODULE_SETTING_INVALID`（終了コード `1`）。 |
+| `/<module flag>` | `/<flag>:<value>`。ブール設定では `/<flag>` のみで `true` を意味します | なし | launch-time | EXPERIMENTAL | インストール済みモジュールが自身の設定の 1 つに対して宣言するフラグです（マニフェストの `flag`。`/list:RuntimeModules` で一覧されます）。セッションのプラン作成時に解決され、`/module-setting:<id>.<key>=<value>` と同じ意味になります。どのインストール済みモジュールも宣言していないフラグ、または起動以外で使われたフラグ: `Unknown argument`、終了コード `2`。2 つのモジュールが宣言したフラグ: `OL_E_MODULE_SETTING_INVALID`、終了コード `2`。モジュールのフラグが組み込みフラグを置き換えることはありません。 |
 | `/fleet` | `/fleet:<n>` | 未設定 | launch-time | UNAVAILABLE | 車両番号。 |
 | `/registration` | `/registration:<text>` | 未設定 | launch-time | UNAVAILABLE | 登録番号。 |
 | `/no-vehicle` | `/no-vehicle` | オフ | launch-time | STABLE_BETA | シード（`/spec` またはプロファイル）からプレイヤー車両をすべてクリアします。無害です。 |
@@ -243,14 +257,14 @@
 
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
-| `/set` | `/set:<key>=<value>`（繰り返し可、キーは大文字と小文字を区別しない） | なし | launch-time | STABLE_BETA | `ConfigurationCatalog` に基づく、セマンティックな `options.cfg` オーバーレイです（例: `graphics.maxFPS=60`、`traffic.randomVehicles=150`）。未知のキー: `OL_E_UNKNOWN_SETTING`（終了コード `2`）。読み取り専用のキー（`advanced.multithreadingCalculate`、`advanced.multithreadingTextureLoad`、`graphics.texture`、`graphics.textureFilter`）: `OL_E_SETTING_NOT_WRITABLE`（終了コード `2`）。範囲外または不正な形式の値: オーバーレイの構築時に `OL_E_INVALID_SETTING_VALUE`。オーバーレイはセッションによる変更です。スナップショットが取られ、OMSI の起動前に適用され、停止時にバイト単位で正確に復元されます（RV-005 `RUNTIME_PASS`）。選択したプロファイルのプリセットが所有するキーと競合する場合: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。 |
+| `/set` | `/set:<key>=<value>`（繰り返し可、キーは大文字と小文字を区別しない） | なし | launch-time | STABLE_BETA | `ConfigurationCatalog` に基づく、セマンティックな `options.cfg` オーバーレイです（例: `graphics.maxFPS=60`、`traffic.randomVehicles=150`）。未知のキー: `OL_E_UNKNOWN_SETTING`（終了コード `2`）。読み取り専用のキー（`advanced.multithreadingCalculate`、`advanced.multithreadingTextureLoad`、`graphics.texture`、`graphics.textureFilter`）: `OL_E_SETTING_NOT_WRITABLE`（終了コード `2`）。範囲外または不正な形式の値: オーバーレイの構築時に `OL_E_INVALID_SETTING_VALUE`。オーバーレイはセッションによる変更です。スナップショットが取られ、OMSI の起動前に適用され、停止時にバイト単位で正確に復元されます（RV-005 `RUNTIME_VALIDATED`）。選択したプロファイルのプリセットが所有するキーと競合する場合: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。 |
 
 <a id="splash-presentation"></a>
 ### スプラッシュの表示
 
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
-| `/splash` | `/splash:Managed`、`/splash:Native`、`/splash:Unset`（大文字と小文字を区別しない） | `Managed` | launch-time | STABLE_BETA | `Managed`: パッケージに同梱された 640x480 24 ビットの BMP が `<root>\.omsilaunch\assets\splash` に一度だけコピーされ、`GUI\NewSplashscreen_ENG.bmp` と `GUI\NewSplashscreen_<lang>.bmp` がトランザクションとしてオーバーレイされ、正確に復元されます（RV-006 `RUNTIME_PASS`）。`Native`/`Unset`（別名）: OMSI のファイルには触れません。値がない場合: `/splash requires Unset, Native, or Managed`、終了コード `2`。 |
+| `/splash` | `/splash:Managed`、`/splash:Native`、`/splash:Unset`（大文字と小文字を区別しない） | `Managed` | launch-time | STABLE_BETA | `Managed`: パッケージに同梱された 640x480 24 ビットの BMP が `<root>\.omsilaunch\assets\splash` に一度だけコピーされ、`GUI\NewSplashscreen_ENG.bmp` と `GUI\NewSplashscreen_<lang>.bmp` がトランザクションとしてオーバーレイされ、正確に復元されます（RV-006 `RUNTIME_VALIDATED`）。`Native`/`Unset`（別名）: OMSI のファイルには触れません。値がない場合: `/splash requires Unset, Native, or Managed`、終了コード `2`。 |
 | `/splash-language` | `/splash-language:PTB|ENG|DEU|FRA`（`pt-BR`、`de`、`fr`、`en` も可。それ以外はすべて `ENG` にフォールバック） | `options.cfg` の `[language]`、なければ `ENG` | launch-time | STABLE_BETA | ローカライズされた対象ファイルを選択します。 |
 | `/splash-assets` | `/splash-assets:<directory>`（相対パスはインストールルート配下として解決） | `<root>\.omsilaunch\assets\splash`、なければパッケージ同梱のセット | launch-time | STABLE_BETA | カスタムのアセットディレクトリです。`ENG.bmp` と、英語以外の言語の場合は `<lang>.bmp` を含む必要があります。エラー: `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`、`OL_E_SPLASH_ASSET_MISSING`、`OL_E_SPLASH_FORMAT_UNSUPPORTED`（プランでは `OL_E_SESSION_PRESENTATION_INVALID` として表面化し、実行不可）。 |
 
@@ -267,7 +281,7 @@
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
 | `/predefined-profile` | `/predefined-profile:<id>` | なし | launch-time | STABLE_BETA（コンパイル。オフラインの `OmsiLaunch.ProfileTests`） | `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` を読み込みます（[セッションプロファイル](session-profiles.md)を参照）。`/predefined-profile-index` が必須です（`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`、終了コード `2`）。`new:` ブロックは `/new` の場合にのみ適用されます。`compatibility.maps` は `/new` と `/saved` に対して強制されます（`OL_E_SESSION_PROFILE_MAP_MISMATCH`）。プロファイルが所有するフィールドと衝突する明示的なフラグは `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` で拒否されます（`CliInput.RejectProfileConflicts`）。対象は、`new:` ブロックが所有する場合の map/entrypoint/date/time/year/weather、プリセットが所有する `/set` キー、プリセットに `presentation` がある場合のスプラッシュフラグ、`internet-textures` がある場合の Internet Textures フラグ、`behavior` がある場合のタイムアウトです。 |
-| `/predefined-profile-index` | `/predefined-profile-index:<1..5>` | なし | launch-time | STABLE_BETA | `index` によってプリセットを選択します。範囲外: 終了コード `2`。 |
+| `/predefined-profile-index` | `/predefined-profile-index:<1..99>` | なし | launch-time | STABLE_BETA | `index` によってプリセットを選択します。範囲外: 終了コード `2`。 |
 
 <a id="launchspec-file"></a>
 ### LaunchSpec ファイル
@@ -283,7 +297,7 @@
 
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
-| `/list` | `/list:<category>`。カテゴリは `ContentQueryKind` の値 `Maps`、`Situations`、`Vehicles`、`Repaints`、`Hofs`、`FleetNumbers`、`Registrations`、`Addons`、`Entrypoints`（大文字と小文字を区別しない） | なし | ローカル、セッション不要 | STABLE_BETA | インストール環境に対する `DiscoverAsync` です。`Identity`、`Kind`、`DisplayName` のエントリを含むエンベロープ `content.list`。終了コード `0`。未知のカテゴリ: `Unknown discovery category`、終了コード `2`。リパースポイント（ジャンクション/シンボリックリンク）はスキップされ、OMSI のファイルは Windows-1252 として読み取られます。 |
+| `/list` | `/list:<category>`。カテゴリは `ContentQueryKind` の値 `Maps`、`Situations`、`Vehicles`、`Repaints`、`Hofs`、`FleetNumbers`、`Registrations`、`Addons`、`Entrypoints`、`SessionProfiles`、`RuntimeModules`（大文字と小文字を区別しない） | なし | ローカル、セッション不要 | STABLE_BETA | インストール環境に対する `DiscoverAsync` です。`Identity`、`Kind`、`DisplayName` のエントリを含むエンベロープ `content.list`。終了コード `0`。`SessionProfiles` は `ListSessionProfilesAsync`（エンベロープ `session-profiles.list`）で、`RuntimeModules` は `ListRuntimeModulesAsync`（エンベロープ `runtime-modules.list`: 各モジュールの ID、バージョン、アクティベーション、操作、有効性、および型・既定値・フラグを含む設定）で応答します。未知のカテゴリ: `Unknown discovery category`、終了コード `2`。リパースポイント（ジャンクション/シンボリックリンク）はスキップされ、OMSI のファイルは Windows-1252 として読み取られます。 |
 | `/vehicle-scope` | `/vehicle-scope:<vehicle identity>` | なし | ローカル | STABLE_BETA | `Entrypoints` を除くすべてのカテゴリに転送されるスコープです。`Entrypoints` は `/map` をスコープとして使用します。 |
 
 <a id="timeouts-and-observation"></a>
@@ -292,7 +306,8 @@
 | フラグ | 構文と値 | デフォルト | フェーズ | 安定性 | 動作 |
 |---|---|---|---|---|---|
 | `/startup-timeout` | `/startup-timeout:<1..600>` 秒 | spec/プロファイルの値、なければ `180` | launch-time | STABLE_BETA | `Behavior.StartupTimeoutSeconds`。オーナーはこの値に 5 s を加えた時間だけ `Running` を待機します。`OL_E_STARTUP_TIMEOUT` はセッションを終了させ、終了コードは `1` です。 |
-| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` 秒 | spec/プロファイルの値、なければ `30` | launch-time | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | `Behavior.ShutdownTimeoutSeconds` に保持されますが、このビルドのスーパーバイザーはこれを使用しません（OMSI は終了を依頼されるのではなく、強制終了されます）。 |
+| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` 秒 | spec/プロファイルの値、なければ `30` | launch-time | EXPERIMENTAL | `Behavior.ShutdownTimeoutSeconds`: `/cooperative-shutdown` を併用した場合、スーパーバイザーが OMSI を強制終了する前に OMSI の終了を待つ時間です。併用しない場合、OMSI は直ちに強制終了され、この値は効果を持ちません。 |
+| `/cooperative-shutdown` | `/cooperative-shutdown` | オフ | launch-time | EXPERIMENTAL | `Behavior.CooperativeShutdown`: 実行中のセッションを終了するとき、OMSI 自身の終了ルーチン（ユーザーが終了を確認した後に実行されるもので、`options.cfg` とマップの `laststn.osn` を保存してから閉じます）で OMSI に終了を依頼し、強制終了する前に `ShutdownTimeoutSeconds` だけ待機します。ランタイム検証済みになるまではオプトインです。OMSI を強制終了せざるを得なかった場合は `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE`。セッションのファイルは、どちらの場合も終了後に復元されます。 |
 | `/observe-seconds` | `/observe-seconds:<0..2147483647>` | なし（OMSI が終了するか停止が要求されるまで実行） | runtime（オーナー） | STABLE_BETA | 実行フェーズの上限です。`Running` になってから `n` 秒後に正規の停止が要求されます。トレイやパイプからの停止、または OMSI の終了があれば、それより早く終わります。`0` は `Running` の直後に停止します。 |
 
 <a id="recovery"></a>
@@ -302,6 +317,7 @@
 |---|---|---|---|---|---|
 | `/recovery-status` | `/recovery-status` | オフ | ローカル | STABLE_BETA | `<root>\.omsilaunch\journal.json` が保留中かどうか（`pending`）を報告し、復元は決して行いません。終了コード `0`。インストールリースを取得します。オーナーがリースを保持している間は `OL_E_INSTALLATION_BUSY`（終了コード `7`）です。 |
 | `/recover` | `/recover` | オフ | ローカル | STABLE_BETA | 保留中のジャーナルを復元します（まずバックアップをスナップショットの SHA-256 と照合して検証します。`OL_E_RECOVERY_BACKUP_CORRUPT`、`OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`、`OL_W_RESTORE_FOREIGN_FILE_RETAINED` は `diagnostics` に報告されます）。何も保留されていなかった場合、または復元が完了した場合は終了コード `0`。ジャーナルが保留中で、そのまま残っている場合は `8`。ジャーナルに記録された OMSI プロセス（PID、作成時刻、exe パス）、または PID を持たない `HandoffCreated` 以降のジャーナルの場合はそのルートの任意の `Omsi.exe` が生存している間は、`OL_E_INSTALLATION_BUSY` で拒否されます。すべてのセッション開始時には、インストール環境を読み取る前に同じリカバリが自動的に実行されます。 |
+| `/clear-module-data` | `/clear-module-data:<module id>` | なし | ローカル、セッション不要 | EXPERIMENTAL | モジュールのデータディレクトリ `<root>\.omsilaunch\module-data\<id>` だけを削除します。エンベロープ `module-data.clear` に `module` と `cleared`（削除対象がなかった場合は `false`）を含み、終了コード `0`。インストールリースを取得します。セッションがインストール環境を所有している間は `OL_E_INSTALLATION_BUSY`（終了コード `7`）。リンク経由で到達したモジュールデータフォルダーは拒否されます（`OL_E_MODULE_INTEGRITY`）。その内部のリンクはリンクとして削除されます。 |
 
 <a id="output-formats"></a>
 ## 出力形式

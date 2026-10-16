@@ -11,7 +11,13 @@ var repository = FindRepositoryRoot();
 var docs = Path.Combine(repository, "docs");
 var failures = new List<string>();
 var inventoryPath = Path.Combine(docs, "reference", "public-api-inventory.md");
-if (args.Contains("--write-inventory")) { File.WriteAllText(inventoryPath, PublicApiInventory.Generate().Replace("\r\n", "\n")); Console.WriteLine("written " + inventoryPath); return; }
+var capabilitiesPath = Path.Combine(docs, "reference", "capabilities.md");
+if (args.Contains("--write-inventory"))
+{
+    File.WriteAllText(inventoryPath, PublicApiInventory.Generate().Replace("\r\n", "\n")); Console.WriteLine("written " + inventoryPath);
+    File.WriteAllText(capabilitiesPath, CapabilityCatalogDocument.Splice(File.ReadAllText(capabilitiesPath))); Console.WriteLine("written " + capabilitiesPath);
+    return;
+}
 // Normative English pages; release notes of earlier betas and localized copies are historical.
 IEnumerable<string> NormativePages() => Directory.EnumerateFiles(docs, "*.md", SearchOption.AllDirectories)
     .Where(file => !file.Contains(Path.DirectorySeparatorChar + "localized" + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !Path.GetFileName(file).StartsWith("release-0.1.0-beta", StringComparison.Ordinal) && !file.Contains(Path.DirectorySeparatorChar + "adr" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
@@ -156,6 +162,12 @@ Gate("public-api-inventory", () =>
     var expected = PublicApiInventory.Generate().Replace("\r\n", "\n");
     var actual = File.Exists(inventoryPath) ? File.ReadAllText(inventoryPath).Replace("\r\n", "\n") : "";
     Check(expected == actual, "docs/reference/public-api-inventory.md is stale; regenerate with --write-inventory");
+});
+
+Gate("capability-catalog", () =>
+{
+    var actual = File.ReadAllText(capabilitiesPath).Replace("\r\n", "\n");
+    Check(CapabilityCatalogDocument.Splice(actual) == actual, "the generated capability catalog in docs/reference/capabilities.md is stale; regenerate with --write-inventory");
 });
 
 Gate("registry-cli-routes", () =>

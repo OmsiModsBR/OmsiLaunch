@@ -74,11 +74,45 @@ public sealed record InternetTexturesSpec(InternetTexturesMode Mode = InternetTe
 // Identifies declarative third-party session content without leaking its YAML
 // representation into the rest of the public session API.
 public sealed record SessionProfileMetadata(string Id, string Name, string Version, string Author, string PresetId, int PresetIndex, string PresetName, string PackagePath);
+// Discovery view of one session-profile package. A package that does not
+// compile is listed with IsValid = false and its OL_E_SESSION_PROFILE_* code.
+public sealed record SessionProfileSummary(string Id, string? Name, string? Version, string? Author, IReadOnlyList<string> CompatibleMaps, string? MapIdentity, IReadOnlyList<SessionProfilePresetSummary> Presets, bool IsValid, string? ErrorCode, string? ErrorMessage);
+public sealed record SessionProfilePresetSummary(int Index, string Id, string Name);
 // Large maps and native saved situations can legitimately require more than one minute
 // before they reach gameplay. Callers may still choose a tighter bounded timeout.
-public sealed record LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30);
-public sealed record LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec? Year = null, WeatherSpec? Weather = null, InputSpec? Input = null, DiagnosticsSpec? Diagnostics = null, SessionPresentationSpec? Presentation = null, InternetTexturesSpec? InternetTextures = null, SessionProfileMetadata? SessionProfile = null)
+// CooperativeShutdown (Beta 4, opt-in until runtime validated): ending a
+// running session asks OMSI to quit through its own exit routine and waits
+// ShutdownTimeoutSeconds before terminating it.
+public sealed record LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30, bool CooperativeShutdown = false);
+// HOF management: copy HOF files (bus-stop/route data read by OMSI from each
+// vehicle folder) into vehicle folders for the duration of a session. Every
+// written or removed file is a transaction entry and is restored exactly.
+public enum HofSourceKind : byte
 {
+    // <root>\.omsilaunch\hof\<name>\*.hof
+    Collection,
+    // An installation-relative directory, for example next to map content.
+    Directory,
+    // The folder of an installed vehicle (identity of its .bus or .ovh file).
+    Vehicle,
+    // One installation-relative .hof file.
+    File
+}
+public enum HofApplyMode : byte
+{
+    // Copy the source HOFs into each target folder; other HOFs stay.
+    Add,
+    // Copy the source HOFs and remove every other .hof from each target
+    // folder for the session, so the target set equals the source set.
+    Mirror
+}
+public sealed record HofOperationSpec(HofSourceKind SourceKind, string Source, IReadOnlyList<string> TargetVehicles, HofApplyMode Mode = HofApplyMode.Add, IReadOnlyList<string>? Files = null);
+public sealed record HofManagementSpec(IReadOnlyList<HofOperationSpec> Operations);
+
+public sealed record LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec? Year = null, WeatherSpec? Weather = null, InputSpec? Input = null, DiagnosticsSpec? Diagnostics = null, SessionPresentationSpec? Presentation = null, InternetTexturesSpec? InternetTextures = null, SessionProfileMetadata? SessionProfile = null, HofManagementSpec? HofManagement = null, RuntimeModulesSpec? Modules = null)
+{
+    public HofManagementSpec EffectiveHofManagement => HofManagement ?? new(Array.Empty<HofOperationSpec>());
+    public RuntimeModulesSpec EffectiveModules => Modules ?? new(Array.Empty<string>());
     public YearSpec EffectiveYear => Year ?? new(DateTimeMode.Unset, OptionalValue<int>.Unset);
     public WeatherSpec EffectiveWeather => Weather ?? new(WeatherMode.Unset, OptionalValue<string>.Unset, OptionalValue<string>.Unset);
     public InputSpec EffectiveInput => Input ?? new(OptionalValue<string>.Unset, OptionalValue<string>.Unset);
@@ -88,18 +122,57 @@ public sealed record LaunchSpec(InstallationSpec Installation, WorldSpec World, 
 }
 
 public sealed record LaunchDiagnostic(string Code, string Message, IReadOnlyDictionary<string, string>? Data = null);
-public sealed record RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data);
+// SessionTickMilliseconds: the plugin's monotonic session clock when the
+// plugin emitted the event (null for host-side events).
+public sealed record RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data, long? SessionTickMilliseconds = null);
 public sealed record RuntimePlatformInfo(string OsFamily, string OsVersion, string OsArchitecture, string HostArchitecture, string OmsiArchitecture, string PluginArchitecture, bool CurrentPlatformSupported, bool LegacyPlatform, bool Wow64Available, bool InstallationWritable, bool ProcessLaunchSupported, bool PluginRuntimeSupported, bool NativeInteropSupported, bool SharedMemorySupported, bool ExactRestoreSupported);
 public sealed record Capability(string Name, bool Available, string EvidenceState, string? Reason = null);
 public sealed record PlannedMutation(string RelativePath, string SemanticKey, string RequestedValue, string Operation);
-public sealed record SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable);
+public sealed record SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable, IReadOnlyList<PlannedModule>? PlannedModules = null)
+{
+    public IReadOnlyList<PlannedModule> EffectivePlannedModules => PlannedModules ?? Array.Empty<PlannedModule>();
+}
+// Runtime modules for a session (Beta 4). Enable requests modules by id;
+// Disable keeps a default, content or settings-file module out of the
+// session; Settings sets module settings by "<module-id>.<key>".
+public sealed record RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyList<string>? Disable = null, IReadOnlyDictionary<string, string>? Settings = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> NoSettings = new Dictionary<string, string>(StringComparer.Ordinal);
+    public IReadOnlyList<string> EffectiveDisable => Disable ?? Array.Empty<string>();
+    public IReadOnlyDictionary<string, string> EffectiveSettings => Settings ?? NoSettings;
+}
+// A module's plan-time evaluation. Status is ELIGIBLE (it is loaded) or
+// REJECTED (Code and Reason say why). Operations are the public operation ids
+// (module.<id>.<operation>) the module exposes while the session runs.
+// Activation says why the module is in the plan: requested (LaunchSpec,
+// command line or session profile), settings-file, content or default.
+// Settings are the effective values of the settings the module declares.
+public sealed record PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string? Code = null, string? Reason = null, string? ManifestSha256 = null, string Activation = PlannedModule.ActivationRequested, IReadOnlyList<PlannedModuleSetting>? Settings = null)
+{
+    public const string Eligible = "ELIGIBLE";
+    public const string Rejected = "REJECTED";
+    public const string ActivationRequested = "requested";
+    public const string ActivationSettingsFile = "settings-file";
+    public const string ActivationContent = "content";
+    public const string ActivationDefault = "default";
+    public bool IsEligible => Status == Eligible;
+    public IReadOnlyList<PlannedModuleSetting> EffectiveSettings => Settings ?? Array.Empty<PlannedModuleSetting>();
+}
+// One effective module setting. Source is request, settings-file or default.
+public sealed record PlannedModuleSetting(string Key, string Value, string Source);
+// An installed module as discovery sees it. Activation is requested, content
+// or default; Settings describe the settings it declares.
+public sealed record RuntimeModuleSummary(string Id, string? Version, string? Name, string? Activation, bool IsValid, IReadOnlyList<string> Operations, string? ContentBindingMap = null, string? ErrorCode = null, string? ErrorMessage = null, IReadOnlyList<RuntimeModuleSettingSummary>? Settings = null);
+// A setting a module declares. Type is boolean, integer, choice or text;
+// Default "auto" means the module decides; Flag is its command-line shortcut.
+public sealed record RuntimeModuleSettingSummary(string Key, string Type, string Default, bool AllowsAuto = false, string? Minimum = null, string? Maximum = null, IReadOnlyList<string>? Choices = null, string? Flag = null, string? Description = null);
 public sealed record SessionStatus(Guid SessionId, SessionState State, IReadOnlyList<LaunchDiagnostic> Diagnostics, IReadOnlyList<RuntimeEvent>? RuntimeEvents = null);
 public sealed record SessionHandle(Guid SessionId);
 // Result of an explicit recovery request. Pending means a durable journal
 // exists; Recovered means it was restored, verified and removed by this call.
 public sealed record RecoveryStatus(bool Pending, bool Recovered, IReadOnlyList<LaunchDiagnostic> Diagnostics);
 public sealed record ContentIdentity(string Identity, string Kind, string? DisplayName = null);
-public enum ContentQueryKind : byte { Maps, Situations, Vehicles, Repaints, Hofs, FleetNumbers, Registrations, Addons, Entrypoints }
+public enum ContentQueryKind : byte { Maps, Situations, Vehicles, Repaints, Hofs, FleetNumbers, Registrations, Addons, Entrypoints, SessionProfiles, RuntimeModules }
 
 public interface IOmsiLaunch
 {
@@ -112,6 +185,8 @@ public interface IOmsiLaunch
     Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ContentIdentity>> DiscoverAsync(InstallationSpec installation, ContentQueryKind query, OptionalValue<string> scope = default, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default);
     // Recovery of a stale durable journal. It takes the installation lease, so
     // it never restores files underneath a session that is still starting.
     Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default);

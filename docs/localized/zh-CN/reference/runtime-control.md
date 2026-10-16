@@ -1,7 +1,7 @@
 # 运行时控制
 
-<!-- l10n: source=reference/runtime-control.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/runtime-control.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/runtime-control.md source-sha256=b79a9850e602d765b5b38aa36000259df855a06801f97d18558f1cf962b396d5 -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/runtime-control.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 运行时控制是 OmsiLaunch 在正在运行的 OMSI 会话内部执行的一组读取、写入和动作操作。本页说明访问它的三种途径（所有者 API、CLI 客户端、本地控制平面），请求如何从调用方传到插件再返回，句柄和请求标识如何工作，适用哪些超时，哪些内容有意不记入事务日志，以及参数与结果的约定，并为每个系列给出一个完整示例。操作清单本身（含参数、结果键和错误）见[能力](capabilities.md)。来源：`OmsiLaunchService.ExecuteRuntimeAsync`、`CurrentRuntimeCommandStore`（`src/OmsiLaunch.Process/RuntimeDeployment.cs`）、`CurrentRuntimeCommandMailbox` 和 `CurrentRuntimeControl`（`src/OmsiLaunch.Plugin/CurrentRuntimeControl.cs`）、`LocalControlPlane` 和 `CliInput`（`tools/OmsiLaunch.Cli/`）。
 
@@ -38,7 +38,7 @@ CLI 客户端和控制平面在联系所有者之前会自行执行第 1 步，�
 | 会话绑定 | 插件会忽略（并清除）会话 GUID 不属于自身的请求；宿主会拒绝会话 ID 或请求 ID 不匹配的响应（`OL_E_RUNTIME_RESPONSE_INVALID`）。 |
 | 超时 | 截止时间过后，宿主将槽重置为空闲，并抛出 `TimeoutException("OL_E_RUNTIME_REQUEST_TIMEOUT")`。 |
 | 迟到的响应 | 插件仅在槽中仍保存着其请求 ID 时才发布响应；对已放弃请求的响应会被丢弃。如果仍有这样的响应落入槽中，宿主的下一个请求会发现一个过时的 `responded` 槽，将其丢弃后继续；如果该过时响应携带的请求 ID 与新请求**相同**，宿主会抛出 `OL_E_RUNTIME_REQUEST_ID_REUSED`。因此，调用方绝不能在同一会话内重复使用请求 ID。 |
-| 大小 | 大于槽的请求会在暂存之前被拒绝（`ArgumentOutOfRangeException`）。无法放入的有界列表结果会由插件缩短（丢弃末尾的行，`truncated=true`，`returned_count` 变小）；其他任何超大响应都会被替换为带类型的 `OL_E_RUNTIME_RESPONSE_TOO_LARGE` 错误。 |
+| 大小 | 大于槽的请求会在暂存之前被拒绝（`ArgumentOutOfRangeException`）。无法放入的列表页会由插件缩短（丢弃末尾的行，`truncated=true`，`returned_count` 变小，`next_cursor` 指向第一个被丢弃的行）；其他任何超大响应都会被替换为带类型的 `OL_E_RUNTIME_RESPONSE_TOO_LARGE` 错误。 |
 | 通道关闭 | 会话结束后返回 `OL_E_RUNTIME_CHANNEL_CLOSED`。 |
 
 请求 ID 是由调用方选择的 `ulong`。CLI 使用固定区间：`/runtime:` 使用 `10_001`，转发的控制平面请求使用 `50_001+`，读取批次使用 `1+`，D3D 批次使用 `20_000+`，`D3DRuntimeApi` 使用 `30_000+`。集成方应在每个会话内使用单调递增的计数器。
@@ -68,7 +68,7 @@ CLI 客户端和控制平面在联系所有者之前会自行执行第 1 步，�
 
 - 参数是字符串键/值对。在 CLI 中，命令词之后的 `--key=value` 会成为运行时参数（`OmsiLaunch.exe vehicles get --handle=rv-000001`）；对于 `/runtime:<op>`，等效写法为 `/runtime-arg:key=value`。数字使用固定区域性（invariant culture，小数分隔符为 `.`）；布尔值为 `true`/`false`。
 - 命令词通过 `CliInput.HierarchicalRoutes` 映射到操作 ID（例如 `time get` -> `time.read`、`vehicles summary` -> `road-vehicles.read`、`scripts variable set` -> `vehicle.variable.set`）。完整的路由表见 [CLI 参考](cli.md)。D3D 操作没有命令词路由；请使用 `/runtime:d3d.status` 或 `/runtime:d3d.texture.create --width=8 --height=8 --format=A8R8G8B8`。
-- 结果是扁平的字符串字典。列表使用 `<row>.<n>.<field>` 形式的键（`vehicle.0.handle`、`track.3.filename`、`name.12`），并带有 `count`；有界列表还带有 `returned_count` 和 `truncated`。
+- 结果是扁平的字符串字典。列表使用 `<row>.<n>.<field>` 形式的键（`vehicle.0.handle`、`track.3.filename`、`name.12`），并带有页字段 `count`、`returned_count`、`truncated` 和 `next_cursor`（参见[分页](capabilities.md#pagination)）。
 - 失败结果带有 `Succeeded=false`、一个 `OL_E_` 形式的 `ErrorCode`，对于插件端失败还带有 `detail`（D3D 另有 `native_status`，意外故障另有 `exception`）。
 
 <a id="cli-envelope---json"></a>
@@ -114,7 +114,7 @@ else Console.WriteLine(result.Values!["value"]);
 | --- | --- | --- |
 | 会话 | `OmsiLaunch.exe session status --json` | 读取 `SessionId`、`State`、诊断信息以及有界的运行时事件列表。 |
 | 时间 | `OmsiLaunch.exe time get`，然后 `OmsiLaunch.exe time set --hour=7 --minute=30` | 读取时钟；通过配置化的 `SetTime` 设置时钟并返回回读值。 |
-| 天气 | `OmsiLaunch.exe weather get` 和 `OmsiLaunch.exe weather actual get` | 读取当前天气状态和实际/ICAO 天气状态。`OmsiLaunch.exe weather set --wind_speed=1` 返回 `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`。 |
+| 天气 | `OmsiLaunch.exe weather get` 和 `OmsiLaunch.exe weather actual get` | 读取当前天气状态和实际/ICAO 天气状态。`OmsiLaunch.exe weather set --wind_speed=5` 设置手动天气（OMSI 的源记录；实时 METAR 停止），`OmsiLaunch.exe weather metar set --icao=EDDF` 切换到实时 METAR 天气。二者在经运行时验证之前均为 EXPERIMENTAL。 |
 | 地图 | `OmsiLaunch.exe map get` | 地图标识、名称、描述、图块数、年份范围和行车方向。 |
 | 摄像机 | `OmsiLaunch.exe camera set --field_of_view=50`，然后 `OmsiLaunch.exe camera lock --family=0 --preset=1` 和 `OmsiLaunch.exe camera unlock` | 写入 FOV；以预设 1 固定司机视角 family（需要玩家车辆，例如已保存情景）；解除该策略。 |
 | 车辆 | `OmsiLaunch.exe vehicles summary`、`OmsiLaunch.exe vehicles list`、`OmsiLaunch.exe vehicles get --handle=rv-000001` | 计数；句柄；单个快照。 |
@@ -122,7 +122,7 @@ else Console.WriteLine(result.Values!["value"]);
 | 玩家 | `OmsiLaunch.exe player get` | headless 启动时为 `present=false`，否则返回玩家快照。 |
 | 人物对象 | `OmsiLaunch.exe humans summary`、`OmsiLaunch.exe humans list`、`OmsiLaunch.exe humans get --handle=hb-000001` | 计数；句柄；单个快照。 |
 | 时刻表 | `OmsiLaunch.exe timetable get`、`OmsiLaunch.exe timetable tracks list`、`OmsiLaunch.exe timetable logs list` | 管理器计数；有界的线路轨迹行；时刻表日志。 |
-| 脚本 | `OmsiLaunch.exe scripts variable list --handle=rv-000001`、`OmsiLaunch.exe scripts variable get --handle=rv-000001 --name=Refresh_Strings`、`OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --value=1`、`OmsiLaunch.exe scripts string get --handle=rv-000001 --name=act_route` | 数值变量的列出/读取/写入；字符串变量读取。 |
+| 脚本 | `OmsiLaunch.exe scripts variable list --handle=rv-000001`、`OmsiLaunch.exe scripts variable get --handle=rv-000001 --name=Refresh_Strings`、`OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --value=1`、`OmsiLaunch.exe scripts string get --handle=rv-000001 --name=act_route`、`OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110`、`OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1` | 数值变量的列出/读取/写入；字符串变量读取/写入；脚本和声音触发器（字符串写入和触发器在经运行时验证之前均为 EXPERIMENTAL）。 |
 | 常量与曲线 | `OmsiLaunch.exe constants list --handle=rv-000001`、`OmsiLaunch.exe constants get --handle=rv-000001 --name=antrieb_getr_version`、`OmsiLaunch.exe curves list --handle=rv-000001`、`OmsiLaunch.exe curves evaluate --handle=rv-000001 --name=retarder_stufe1 --x=0.5` | 车辆常量与曲线求值。名称与车型相关：请使用 `list` 命令返回的名称（这些名称是针对 `situations\Linie 5.osn` 的玩家巴士列出的）。 |
 | HOF | `OmsiLaunch.exe hof get --handle=rv-000001` | 车辆定义的 HOF 元数据。 |
 | 司机与车票 | `OmsiLaunch.exe drivers list`、`OmsiLaunch.exe tickets get` | 司机记录；车票包。 |

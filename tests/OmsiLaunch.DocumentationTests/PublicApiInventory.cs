@@ -13,7 +13,7 @@ internal static class PublicApiInventory
     // Stability per type; anything not listed is STABLE_BETA.
     private static readonly Dictionary<string, string> Stability = new(StringComparer.Ordinal)
     {
-        ["RuntimeCommandWire"] = "INTERNAL", ["StartupHandoff"] = "INTERNAL", ["StartupHandoffWire"] = "INTERNAL",
+        ["RuntimeCommandWire"] = "INTERNAL", ["TelemetryRingWire"] = "INTERNAL", ["StartupHandoff"] = "INTERNAL", ["StartupHandoffWire"] = "INTERNAL",
         ["D3DRuntimeApi"] = "EXPERIMENTAL", ["D3DDeviceStatus"] = "EXPERIMENTAL", ["D3DDeviceState"] = "EXPERIMENTAL", ["D3DTextureDescription"] = "EXPERIMENTAL",
         ["D3DTextureFormat"] = "EXPERIMENTAL", ["D3DTextureHandle"] = "EXPERIMENTAL", ["D3DTextureResourceState"] = "EXPERIMENTAL", ["D3DTextureUpdate"] = "EXPERIMENTAL", ["OmsiRuntimeException"] = "EXPERIMENTAL",
         ["DateSpec"] = "PARTIAL", ["TimeSpec"] = "PARTIAL", ["YearSpec"] = "PARTIAL", ["WeatherSpec"] = "PARTIAL", ["PlayerVehicleSpec"] = "PARTIAL", ["InputSpec"] = "PARTIAL", ["DiagnosticsSpec"] = "PARTIAL",

@@ -1,9 +1,9 @@
 # CLI Examples
 
-<!-- l10n: source=reference/cli-examples.md -->
-> British English edition of the [canonical page](../../../reference/cli-examples.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> British English edition of the [canonical page](../../../reference/cli-examples.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
-Minimal, correct invocations of `OmsiLaunch.exe` for OmsiLaunch `0.1.0-beta3`, each with its expected process exit code and a note of what is mutated and restored. Every example runs from the OMSI installation root (`<OMSI_PATH>`) unless stated otherwise; the syntax is defined in the [CLI reference](cli.md) and the exit codes in [exit codes](exit-codes.md). `--json` may be added to any command to obtain the structured envelope.
+Minimal, correct invocations of `OmsiLaunch.exe` for OmsiLaunch `0.1.0-beta4`, each with its expected process exit code and a note of what is mutated and restored. Every example runs from the OMSI installation root (`<OMSI_PATH>`) unless stated otherwise; the syntax is defined in the [CLI reference](cli.md) and the exit codes in [exit codes](exit-codes.md). `--json` may be added to any command to obtain the structured envelope.
 
 ## Conventions
 
@@ -19,7 +19,7 @@ Minimal, correct invocations of `OmsiLaunch.exe` for OmsiLaunch `0.1.0-beta3`, e
 ```text
 OmsiLaunch.exe /version
 ```
-Exit `0`. Prints `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family`. Mutates nothing.
+Exit `0`. Prints `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family`. Mutates nothing.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -246,9 +246,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Exit `0` (`2` if `handle`, `name` or `value` is missing). Mutates one numeric script variable of that vehicle. Not reverted.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Exit `7`. Always rejected with `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; nothing is changed.
+Exit `0`. Writes OMSI's source weather record and stops live METAR updates; OMSI derives fog, light, actual wind and humidity from it on its next unpaused weather tick. Every value is checked before anything is written (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, exit `7`). A derived key such as `relative_humidity` returns `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` and names the key to set instead. Not reverted. EXPERIMENTAL: runtime validation pending.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Exit `0`. Switches to live METAR weather for that station; OMSI downloads it on its next weather update. EXPERIMENTAL: runtime validation pending.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Exit `0`. `scripts string set` goes through OMSI's own `SetStringVariable` and returns the value read back; a name the vehicle script does not declare returns `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (exit `7`). `scripts trigger` raises a trigger as OMSI's input handlers do (`1` press, `0` release); the vehicle script runs it at once. Trigger and variable names are defined by each vehicle model; the ones above are examples. Not reverted. EXPERIMENTAL: runtime validation pending.
 
 ## Spawn
 

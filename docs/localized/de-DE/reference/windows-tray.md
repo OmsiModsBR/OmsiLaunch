@@ -1,7 +1,7 @@
 # Windows-Tray-Anzeige
 
-<!-- l10n: source=reference/windows-tray.md -->
-> Übersetzung der [englischen Originalseite](../../../reference/windows-tray.md) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> Übersetzung der [englischen Originalseite](../../../reference/windows-tray.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
 Jede eigenständige Eigentümersitzung (gestartet mit `OmsiLaunch.exe` oder `OmsiLaunchW.exe`) zeigt ein Symbol im Infobereich (Benachrichtigungsbereich), das die Sitzung meldet und es dem Benutzer ermöglicht, sie zu beenden. Diese Seite spezifiziert die Anzeige so, wie sie durch `SessionTrayIndicator`, `StatusWindow` und `StopConfirmationWindow` in `tools\OmsiLaunch.Cli\WindowsHost.cs`, den schreibgeschützten Presenter `SessionStatusPresenter` (`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`) und die Zeichenfolgen-Registry `WindowsUiStrings` (`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`) implementiert ist, zusammen mit den Fehlerdialogen von `OmsiLaunchW.exe` aus `WindowsHost`. Der Tray ist ausschließlich ein Darstellungsadapter: Er besitzt weder OMSI noch die Recovery (Absturzwiederherstellung), und seine Stopp-Aktion signalisiert denselben kanonischen Stopppfad des Eigentümers wie `session stop` (siehe [CLI-Referenz](cli.md) und [lokale Steuerung](local-control.md)).
 
@@ -60,7 +60,7 @@ Die Abschnitte erscheinen in dieser Reihenfolge; ein Abschnitt entfällt, wenn e
 | `Presentation` | `Splash` | immer | `Managed` oder `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | immer | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-Die Abschnitte `Environment` und `Vehicle` können in einer laufenden Beta-3-Sitzung nie erscheinen: Die Anforderung eines Datums, einer Uhrzeit, eines Jahres, eines Wetters oder eines beliebigen Felds des Spielerfahrzeugs macht den Plan nicht ausführbar, sodass keine solche Sitzung startet (siehe [bekannte Einschränkungen](known-limitations.md)). Sie existieren für zukünftige Builds und sind durch den Offline-Test des Presenters abgedeckt.
+Der Abschnitt `Environment` erscheint in einer laufenden Beta-4-Sitzung, wenn ein Datum, eine Uhrzeit, ein Jahr oder ein Wetter angefordert wurde (diese Anforderungen sind experimentell, siehe [bekannte Einschränkungen](known-limitations.md)). Der Abschnitt `Vehicle` kann in einer laufenden Sitzung nie erscheinen: Die Anforderung eines beliebigen Felds des Spielerfahrzeugs macht den Plan nicht ausführbar, sodass keine solche Sitzung startet. Er existiert für einen zukünftigen Build und ist durch den Offline-Presenter-Test abgedeckt.
 
 Runtime-Nachweis (pt-BR-UI, Runtime-Closure `T01`): Eine NEW_MAP-Sitzung auf Grundorf zeigte `Sessão em execução`; `Sessão`: `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1`; `Apresentação`: `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

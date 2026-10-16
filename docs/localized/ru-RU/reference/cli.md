@@ -1,9 +1,9 @@
 # Справочник по CLI
 
-<!-- l10n: source=reference/cli.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/cli.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+> Перевод [исходной страницы на английском языке](../../../reference/cli.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-Эта страница — полный нормативный справочник по командной строке OmsiLaunch `0.1.0-beta3`: три исполняемых файла, грамматика аргументов, порядок диспетчеризации, все командные слова, все иерархические маршруты, все флаги, выходные конверты и поведение каждой команды при ошибках. Она составлена на основе `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` и двух нативных shim-обёрток в `tools\OmsiLaunch.Bootstrapper`. Результаты процесса перечислены в разделе [коды выхода](exit-codes.md), коды ошибок — в разделе [ошибки](errors.md), готовые примеры вызовов — в разделе [примеры CLI](cli-examples.md).
+Эта страница — полный нормативный справочник по командной строке OmsiLaunch `0.1.0-beta4`: три исполняемых файла, грамматика аргументов, порядок диспетчеризации, все командные слова, все иерархические маршруты, все флаги, выходные конверты и поведение каждой команды при ошибках. Она составлена на основе `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` и двух нативных shim-обёрток в `tools\OmsiLaunch.Bootstrapper`. Результаты процесса перечислены в разделе [коды выхода](exit-codes.md), коды ошибок — в разделе [ошибки](errors.md), готовые примеры вызовов — в разделе [примеры CLI](cli-examples.md).
 
 <a id="executables"></a>
 ## Исполняемые файлы
@@ -49,17 +49,17 @@
 ### Порядок диспетчеризации (`CliProgram.RunAsync`)
 
 1. `/silent` (если процесс ещё не выполняется под `OmsiLaunchW.exe`): запустить `OmsiLaunchW.exe` из каталога исполняемого файла через `ShellExecute` (без наследования дескрипторов) с теми же аргументами за вычетом `/silent`/`--silent`, записать конверт `silent` (`delegated`, `host_process_id`) и вернуть `0`. Консольный процесс не ждёт завершения сеанса; см. [OmsiLaunchW.exe](omsilaunchw.md#silent-delegation). `OL_E_WINDOWS_HOST_MISSING` / `OL_E_WINDOWS_HOST_START_FAILED` возвращают `7`.
-2. `/version`: конверт `version` с полями `product`, `version` (информационная версия сборки, проставляемая из `OmsiLaunch.Version.props`, `0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family` (`OMSI_2_3_004_COMMON`); код выхода `0`.
-3. `capabilities`: конверт со всеми дескрипторами `PublicStableBeta` или `PublicExperimental` из `PublicCapabilityRegistry`; код выхода `0`.
+2. `/version`: конверт `version` с полями `product`, `version` (информационная версия сборки, проставляемая из `OmsiLaunch.Version.props`, `0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family` (`OMSI_2_3_004_COMMON`); код выхода `0`.
+3. `capabilities`: конверт со всеми дескрипторами `PublicStableBeta` или `PublicExperimental` из канонического каталога `PublicCapabilityRegistry` (с его операциями, нативными возможностями, подтверждениями и примечанием); код выхода `0`.
 4. `help [family]`: конверт `help` с полями `usage`, `product_version`, `protocol_version`, `family` и публичными `commands` (`CliRoute`, `Description`, `Classification`, `RuntimeValidation`), при необходимости отфильтрованными по семейству; код выхода `0`.
-5. `profiles`: конверт с полем `family` и поддерживаемыми вариантами исполняемого файла `supported` (`ALTERNATE_LAA` `692EBFBF...`, `runtime_validated=true`; хеш Steam LAA `7DAB063D...` с `validation_status=pending_beta_field_validation`); код выхода `0`.
+5. `profiles`: конверт с полем `requirement` (`OMSI 2`), отчётом `installation` о целевом корневом каталоге (`is_omsi2`, `reason`, `build_id`, `identity` `known`/`unknown`, `file_sha256`, `file_version`, `code_sha256`, `file_variant`), списком `known_layouts` и `predicted_capabilities`, определёнными по исполняемому файлу (авторитетным остаётся определение в процессе при запуске); код выхода `0`.
 6. Runtime-операция клиента (без аргумента установки, с маршрутом или `/runtime:`): аргументы проверяются через `PublicCapabilityRegistry.ValidateRuntimeArguments` (`OL_E_RUNTIME_OPERATION_UNKNOWN`, `OL_E_RUNTIME_ARGUMENT_REQUIRED`, код выхода `2`), затем `runtime.execute` пересылается с тайм-аутом 8 s (30 s для `road-vehicles.spawn`).
 7. Клиентские `session status` (750 ms), `session stop` (привязан к идентификатору активного сеанса, 750 ms), `events read` (750 ms), `events watch` (опрос каждые 250 ms до нажатия Ctrl+C).
 8. `detect` или **полное отсутствие аргументов** (нет установки, нет команды, нет `/?`, нет `/spec`, нет флага запуска, нет флага восстановления, нет `/list`): перечислить процессы `Omsi` и опросить конечную точку управления (250 ms); конверт `detect`; код выхода `0`.
 9. `/?` или `/help`: вывести текст справки об использовании, код выхода `0`. Любой другой вызов, в котором есть командное слово, но нет маршрута для диспетчеризации (например, только `d3d` или `session status D:\OMSI`), выводит текст справки и завершается с кодом `2`.
 10. Режим владельца. Предварительные условия: `plugins\OmsiLaunch.Plugin.opl` и `plugins\OmsiLaunch.Native.x86.dll` должны находиться рядом с исполняемым файлом (`OL_E_RUNTIME_INSTALLATION_INCOMPLETE`, код выхода `7`). Файл `release-manifest.json` рядом с исполняемым файлом, если он есть, задаёт ожидаемые хеши плагинов.
 11. `/recovery-status` / `/recover`: `RecoverPendingAsync`; конверт `recover` с полями `pending`, `recovered`, `diagnostics`; код выхода `8` только в том случае, если восстановление было запрошено и не завершилось, иначе `0`.
-12. `/list:<category>`: `DiscoverAsync`; конверт `content.list`; код выхода `0`.
+12. `/list:<category>`: `DiscoverAsync`; конверт `content.list`; код выхода `0`. `/list:SessionProfiles` вместо этого использует `ListSessionProfilesAsync`; конверт `session-profiles.list`.
 13. Построить `LaunchSpec` (`BuildSpecAsync`), спланировать его (`PlanSessionAsync`), вывести план. `/plan` или `/validate`: код выхода `0`, если `IsRunnable`, иначе `1`. Неисполнимый план никогда не запускает OMSI (код выхода `1`); под `OmsiLaunchW.exe` запуск с неисполнимым планом показывает его последнее диагностическое сообщение `OL_E_` в окне сообщения (аудит документации, BUG-06). При планировании также проверяется установленное замыкание постоянного плагина (набор его файлов) по `release-manifest.json`, поэтому отсутствующий или изменённый плагин делает план неисполнимым (`OL_E_PERMANENT_PLUGIN_*`).
 14. Проверить наличие уже работающего владельца (`OL_E_SESSION_ALREADY_ACTIVE`, код выхода `7`), затем `OwnerSession.RunAsync`.
 
@@ -91,14 +91,14 @@
 | `session` | `session status`, `session stop` | Клиент | Ровно одно последующее слово; всё остальное выводит справку, код выхода `2`. `session plan`/`session start` — это имена маршрутов API, а не слова CLI: используйте `/plan` и `/new`. |
 | `events` | `events read`, `events watch` | Клиент | `read` один раз возвращает ограниченный список событий; `watch` каждые 250 ms выводит каждое новое событие (по `Sequence`) в виде конверта `events.watch` до нажатия Ctrl+C (код выхода `0`), `4`, если владелец не отвечает, `7` при ошибке управления. |
 | `time` | `time get`, `time set` | Клиентский маршрут | |
-| `weather` | `weather get`, `weather set`, `weather actual get` | Клиентский маршрут | |
+| `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Клиентский маршрут | |
 | `map` | `map get` | Клиентский маршрут | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Клиентский маршрут | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Клиентский маршрут | |
 | `player` | `player get` | Клиентский маршрут | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Клиентский маршрут | |
 | `timetable` | `timetable get`, `timetable <table> list`, `timetable logs list` | Клиентский маршрут | |
-| `scripts` | `scripts variable list|get|set`, `scripts string list|get` | Клиентский маршрут | |
+| `scripts` | `scripts variable list|get|set`, `scripts string list|get|set`, `scripts trigger`, `scripts sound-trigger` | Клиентский маршрут | |
 | `constants` | `constants list`, `constants get` | Клиентский маршрут | |
 | `curves` | `curves list`, `curves evaluate` | Клиентский маршрут | |
 | `hof` | `hof get` | Клиентский маршрут | |
@@ -116,7 +116,8 @@
 | `time get` | `time.read` | Read | Да | Нет | Нет | STABLE_BETA | Поля часов и календаря. |
 | `time set` | `time.set` | Write | Да | Да (часы в памяти) | Нет, не откатывается | EXPERIMENTAL | Например, `--minute=<0..59>`; запись, обратное чтение и восстановление проверены 2026-09-20. |
 | `weather get` | `weather.read` | Read | Да | Нет | Нет | STABLE_BETA | |
-| `weather set` | `weather.set` | Write | Да | Нет (всегда отклоняется) | Нет | UNAVAILABLE | Возвращает `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; OMSI перезаписывает значение при следующем такте обновления погоды. |
+| `weather set` | `weather.set` | Write | Да | Да (погода в памяти) | Нет, не откатывается | EXPERIMENTAL | Например, `--wind_speed=5 --cloud_type="Cumulus 1"`. Ручная погода: обновления живой METAR прекращаются. Проверка в runtime ожидается. |
+| `weather metar set` | `weather.metar.set` | Write | Да | Да (погода в памяти; OMSI сохраняет ICAO в `options.cfg`, а сеанс его восстанавливает) | Нет, не откатывается | EXPERIMENTAL | `--icao=<ICAO>`. Живая погода METAR, как её задаёт диалог погоды OMSI. Проверка в runtime ожидается. |
 | `weather actual get` | `weather.actual.read` | Read | Да | Нет | Нет | EXPERIMENTAL | Состояние контроллера фактической погоды / ICAO. |
 | `map get` | `map.read` | Read | Да | Нет | Нет | STABLE_BETA | Имя карты, файл, описание, количество тайлов, диапазон лет и сторона движения; повторно проверено в runtime на исправленном слоте карты. |
 | `camera get` | `camera.read` | Read | Да | Нет | Нет | STABLE_BETA | |
@@ -126,7 +127,7 @@
 | `vehicles list` | `road-vehicles.list` | Read | Да | Нет | Нет | STABLE_BETA | Возвращает handle вида `rv-NNNNNN`, действующие в пределах сеанса. |
 | `vehicles get` | `road-vehicle.read` | Read | Да | Нет | Нет | STABLE_BETA | Требует `--handle=`. Устаревший handle: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Да | Нет | Нет | STABLE_BETA | Количества и состояние игрока, без handle. |
-| `vehicles spawn` | `road-vehicles.spawn` | Action | Да | Да (добавляет один RoadVehicle) | Нет, не удаляется | EXPERIMENTAL | Требует `--model=Vehicles\...\*.bus`. Тайм-аут клиента 30 s, тайм-аут владельца 15 s. Не назначает транспортное средство игрока. RV-003 `RUNTIME_PASS`. |
+| `vehicles spawn` | `road-vehicles.spawn` | Action | Да | Да (добавляет один RoadVehicle) | Нет, не удаляется | EXPERIMENTAL | Требует `--model=Vehicles\...\*.bus`. Тайм-аут клиента 30 s, тайм-аут владельца 15 s. Не назначает транспортное средство игрока. RV-003 `RUNTIME_VALIDATED`. |
 | `vehicles place-random` | `road-vehicles.place-random` | Action | Да | Да | Нет | EXPERIMENTAL | Профилированный `PlaceRandomBus`. |
 | `player get` | `player-vehicle.read` | Read | Да | Нет | Нет | STABLE_BETA | Семантический null, если транспортного средства игрока нет. |
 | `humans list` | `humans.list` | Read | Да | Нет | Нет | EXPERIMENTAL | Возвращает handle вида `hb-NNNNNN`. |
@@ -141,6 +142,8 @@
 | `timetable bus-stops list` | `timetable.bus-stops.list` | Read | Да | Нет | Нет | STABLE_BETA | То же. |
 | `timetable station-links list` | `timetable.station-links.list` | Read | Да | Нет | Нет | STABLE_BETA | То же. |
 | `timetable logs list` | `timetable.logs.read` | Read | Да | Нет | Нет | STABLE_BETA | То же. |
+| `timetable no-rv-numbers list` | `timetable.no-rv-numbers.list` | Read | Да | Нет | Нет | EXPERIMENTAL | Номера ТС, которые OMSI не отдаёт свободному ИИ (зарезервированы рейсами расписания или фиксированными списками ИИ). Постраничный список (`cursor`, `limit`, не более 256 на страницу). |
+| `map tiles list` | `map.tiles.list` | Read | Да | Нет | Нет | EXPERIMENTAL | Тайлы карты: позиция в сетке, собственный индекс, файл и состояние загрузки, количество объектов, путей и сплайнов. Постраничный список (`cursor`, `limit`, не более 256 на страницу). |
 | `drivers list` | `drivers.read` | Read | Да | Нет | Нет | EXPERIMENTAL | Записи водителей. |
 | `tickets get` | `tickets.read` | Read | Да | Нет | Нет | EXPERIMENTAL | Записи наборов билетов. |
 | `hof get` | `vehicle.hofs.read` | Read | Да | Нет | Нет | STABLE_BETA | Требует `--handle=`. |
@@ -153,6 +156,9 @@
 | `scripts variable set` | `vehicle.variable.set` | Write | Да | Да (переменная скрипта) | Нет, не откатывается | EXPERIMENTAL | Требует `--handle=`, `--name=`, `--value=` (конечное число). |
 | `scripts string list` | `vehicle.string-variables.list` | Read | Да | Нет | Нет | EXPERIMENTAL | Требует `--handle=`. |
 | `scripts string get` | `vehicle.string-variable.get` | Read | Да | Нет | Нет | EXPERIMENTAL | Требует `--handle=`, `--name=`. |
+| `scripts string set` | `vehicle.string-variable.set` | Write | Да | Да (состояние скрипта в памяти) | Нет, не откатывается | EXPERIMENTAL | Требует `--handle=`, `--name=`, `--value=`. Собственный `SetStringVariable` OMSI. Проверка в runtime ожидается. |
+| `scripts trigger` | `vehicle.trigger` | Action | Да | Да (выполняет код скрипта ТС) | Нет, не откатывается | EXPERIMENTAL | Требует `--handle=`, `--name=`, `--value=` (`1` нажатие, `0` отпускание, `2` перетаскивание). Проверка в runtime ожидается. |
+| `scripts sound-trigger` | `vehicle.sound-trigger` | Action | Да | Да (воспроизводит звуки ТС) | Нет, не откатывается | EXPERIMENTAL | Требует `--handle=`, `--trigger=`; необязателен `--file=`. Проверка в runtime ожидается. |
 
 <a id="operations-without-a-route"></a>
 ### Операции без маршрута
@@ -173,17 +179,17 @@
 | `/help` | `/help` | выкл. | control | STABLE_BETA | То же, что `/?`. (Слово без префикса `help` вместо этого возвращает структурированный каталог.) |
 | `/version` | `/version` | выкл. | control | STABLE_BETA | Конверт `version`, код выхода `0`. Обрабатывается раньше всех остальных команд, кроме `/silent`. |
 | `/json` | `/json` или `--json` | выкл. | control | STABLE_BETA | Выводит JSON-конверты (envelope); также принудительно включает вывод в консоль даже под `OmsiLaunchW.exe`. |
-| `/quiet` | `/quiet` | выкл. | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Устанавливает `CliInput.Quiet`; это значение ничто не читает (принимается для совместимости, сейчас ни на что не влияет). |
+| `/quiet` | `/quiet` | выкл. | control | STABLE_BETA | Подавляет вывод об успехе, предназначенный для человека. Вывод JSON (`/json`) и ошибки по-прежнему записываются; код выхода не меняется. |
 | `/silent` | `/silent` (также `--silent`) | выкл. | control | EXPERIMENTAL | Передаёт всю командную строку в `OmsiLaunchW.exe` и возвращает `0`, как только процесс хоста запущен. Результат сеанса сообщают `OmsiLaunchW.exe` (окна сообщений, значок в трее), `.omsilaunch\diagnostics` и конечная точка локального управления. Делегирование и диалоги ошибок проверены в runtime (итоговый набор runtime-проверок `T04`); см. [OmsiLaunchW.exe](omsilaunchw.md). |
-| `/serve` | `/serve` | выкл. | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Устанавливает `CliInput.Serve`; это значение ничто не читает. Конечная точка управления всегда запускается владельцем. |
+| `/serve` | `/serve` | — | control | REMOVED | Удалён в 0.1.0-beta4: отклоняется с `OL_E_INVALID_ARGUMENT` (код выхода `2`). Владелец сеанса всегда обслуживает конечную точку локального управления. |
 | `/verbose` | `/verbose` | выкл. | launch-time | PARTIAL | `DiagnosticsSpec.Verbose`. Значения переносятся в спецификацию; их действие ограничено трассировкой хоста в `.omsilaunch\diagnostics`. |
 | `/log` | `/log` | вкл. (`DiagnosticsSpec.Log` по умолчанию `true`) | launch-time | PARTIAL | `DiagnosticsSpec.Log`. Фактически всегда включён. |
 | `/logall` | `/logall` | выкл. | launch-time | PARTIAL | Одновременно устанавливает `Verbose`, `ProcessTrace`, `PluginTrace` и `NativeTrace`. |
 | `/omsi-logall` | `/omsi-logall` | выкл. | launch-time | PARTIAL | `DiagnosticsSpec.OmsiLogAll`. |
 | `/trace` | `/trace` | выкл. | launch-time | PARTIAL | Псевдоним `/trace-process`. |
 | `/trace-process` | `/trace-process` | выкл. | launch-time | PARTIAL | `DiagnosticsSpec.ProcessTrace`. |
-| `/trace-plugin` | `/trace-plugin` | выкл. | launch-time | PARTIAL | `DiagnosticsSpec.PluginTrace`. |
-| `/trace-native` | `/trace-native` | выкл. | launch-time | PARTIAL | `DiagnosticsSpec.NativeTrace`. |
+| `/trace-plugin` | `/trace-plugin` | выкл. | launch-time | EXPERIMENTAL | `DiagnosticsSpec.PluginTrace`: плагин сообщает каждую runtime-операцию (`plugin.trace.operation`: операция, исход, код, длительность) в трассировку хоста сеанса. |
+| `/trace-native` | `/trace-native` | выкл. | launch-time | EXPERIMENTAL | `DiagnosticsSpec.NativeTrace`: нативный слой сообщает каждую установку и снятие хука (`native.trace`) в трассировку хоста сеанса. |
 
 <a id="planning-validation-and-harnesses"></a>
 ### Планирование, проверка и тестовые обвязки
@@ -205,35 +211,43 @@
 |---|---|---|---|---|---|
 | `/new` | `/new` | `WorldMode.NewMap` — режим по умолчанию, но запуск запрашивается, только если присутствует один из флагов `/new`, `/saved`, `/last`, `/spec` | launch-time | STABLE_BETA | NEW_MAP. Требует `/map` и `/entrypoint-index` (план без индекса точки входа в представленном списке сообщает `OL_E_ENTRYPOINT_REQUIRED`; без `/map` карта не определяется). `/new` никогда не выбирает карту неявно. |
 | `/saved` | `/saved:<file.osn>` | нет | launch-time | STABLE_BETA | SAVED_SITUATION. Карта и позиция берутся из `.osn`; `/map`, `/entrypoint`, `/entrypoint-index` вместе с `/saved` отклоняются (код выхода `2`). Сохранённая ситуация не найдена: `OL_E_SITUATION_NOT_FOUND`; не найдена её карта: `OL_E_SITUATION_MAP_NOT_FOUND`. |
-| `/last` | `/last` | нет | launch-time | UNAVAILABLE | LAST_MAP_STATE. В этом профиле всегда приводит к `OL_E_CAPABILITY_UNAVAILABLE` (план неисполним, код выхода `1`); резервный выбор `.osn` по отметке времени не выполняется. |
+| `/last` | `/last /map:<identity>` | нет | launch-time | EXPERIMENTAL | LAST_MAP_STATE: загружает собственный `laststn.osn` карты (его записывает OMSI при закрытии карты) через ветку последнего состояния формы Start. Требует `/map`; карта без `laststn.osn` даёт `OL_E_SITUATION_NOT_FOUND`. Никогда не выбирается самый новый `.osn` по эвристике. Проверка в runtime ожидается. |
 | `/map` | `/map:<identity>` (например, `maps\Grundorf\global.cfg`) | нет | launch-time | STABLE_BETA | Идентификатор карты для `/new` или область поиска для `/list:Entrypoints`. Неизвестная карта: `OL_E_MAP_NOT_FOUND`. |
-| `/entrypoint` | `/entrypoint:<identity>` | нет | launch-time | UNAVAILABLE | Точка входа по метке. Заблокировано проверкой: план записывает `world.entrypoint-identity` как `RUNTIME_PARTIAL` и становится неисполнимым (`OL_E_CAPABILITY_UNAVAILABLE`). Взаимоисключается с `/entrypoint-index` (идентификатор имеет приоритет и сбрасывает индекс). |
+| `/entrypoint` | `/entrypoint:<identity>` | нет | launch-time | EXPERIMENTAL | Точка входа по точной метке (с учётом регистра) или по идентификатору из `/list:entrypoints`. OMSI показывает только первую запись для каждой метки; более поздняя запись с той же меткой отклоняется (`OL_E_ENTRYPOINT_NOT_PRESENTED`), как и неизвестная (`OL_E_ENTRYPOINT_NOT_FOUND`). Проверка в runtime ожидается. Взаимоисключается с `/entrypoint-index` (идентификатор имеет приоритет и сбрасывает индекс). |
 | `/entrypoint-index` | `/entrypoint-index:<n>`, `0..2147483647` | нет | launch-time | STABLE_BETA | Индекс точки входа в представленном списке (нумерация с 1, как её показывает OMSI). Обязателен для исполнимого плана NEW_MAP. |
 
 <a id="date-time-and-weather"></a>
 ### Дата, время и погода
 
-Все четыре принимаются и переносятся в `LaunchSpec`, но нативный путь запуска их не применяет: планировщик записывает их как `STATICALLY_PARTIAL` **и добавляет `OL_E_CAPABILITY_UNAVAILABLE`, поэтому план НЕИСПОЛНИМ (код выхода `1`)**. Файл `/spec` или профиль сеанса, задающие эти значения, дают тот же результат.
+Эти флаги принимаются и переносятся в `LaunchSpec`. Дата, время и год запуска применяются только к сеансам NEW_MAP: при `/saved` или `/last` планировщик записывает их как `UNAVAILABLE` **и добавляет `OL_E_CAPABILITY_UNAVAILABLE`, поэтому план НЕИСПОЛНИМ (код выхода `1`)**, так как сохранённая ситуация хранит собственные часы. Погода применяется в любом режиме мира. Все они `EXPERIMENTAL`: нативный путь запуска закрыт статически, проверка в runtime ожидается. Файл `/spec` или профиль сеанса, задающие эти значения, дают тот же результат.
 
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
-| `/date` | `/date:<yyyy-mm-dd>` или `/date:system` | не задано | launch-time | UNAVAILABLE | `DateSpec` явный/системный. Значение, которое не удаётся разобрать: `OL_E_INVALID_ARGUMENT`, код выхода `2`. |
-| `/time` | `/time:<hh:mm[:ss]>` или `/time:system` | не задано | launch-time | UNAVAILABLE | `TimeSpec` явный/системный. |
-| `/year` | `/year:<n>` или `/year:system` | не задано | launch-time | UNAVAILABLE | `YearSpec`. |
-| `/weather` | `/weather:<preset>` | не задано | launch-time | UNAVAILABLE | `WeatherMode.Preset`. |
-| `/weather-icao` | `/weather-icao:<code>` | не задано | launch-time | UNAVAILABLE | `WeatherMode.Icao`. |
-| `/weather-real` | `/weather-real` | не задано | launch-time | UNAVAILABLE | `WeatherMode.RealCurrent`. Действует последний из `/weather`, `/weather-icao`, `/weather-real`. |
+| `/date` | `/date:<yyyy-mm-dd>` или `/date:system` | не задано | launch-time | EXPERIMENTAL | `DateSpec` явный/системный: дата начала сеанса NEW_MAP (см. [launchspec](launchspec.md#datespec-timespec-yearspec)). Значение, которое не удаётся разобрать: `OL_E_INVALID_ARGUMENT`, код выхода `2`; невозможная дата: `OL_E_DATE_TIME_APPLY_FAILED`. |
+| `/time` | `/time:<hh:mm[:ss]>` или `/time:system` | не задано | launch-time | EXPERIMENTAL | `TimeSpec` явный/системный: время начала сеанса NEW_MAP. |
+| `/year` | `/year:<n>` или `/year:system` | не задано | launch-time | EXPERIMENTAL | `YearSpec`: год начала сеанса NEW_MAP (1900..2200). |
+| `/weather` | `/weather:<preset>` | не задано | launch-time | EXPERIMENTAL | `WeatherMode.Preset`: файл из каталога `weather` установки, по имени (`Regen`) или по пути (`weather\Regen.owt`); отсутствующий файл даёт `OL_E_WEATHER_INVALID` при планировании. Загружается собственным `loadWeather` OMSI сразу после запуска мира; живая METAR остаётся выключенной. Проверка в runtime ожидается. |
+| `/weather-icao` | `/weather-icao:<code>` | не задано | launch-time | EXPERIMENTAL | `WeatherMode.Icao`: живая погода METAR для станции ICAO из четырёх символов (иначе `OL_E_WEATHER_INVALID`). OMSI сохраняет станцию в `options.cfg`, а сеанс его восстанавливает. Проверка в runtime ожидается. |
+| `/weather-real` | `/weather-real` | не задано | launch-time | EXPERIMENTAL | `WeatherMode.RealCurrent`: живая погода METAR для станции, уже настроенной в OMSI; без неё запуск завершается с `OL_E_WEATHER_APPLY_FAILED`. Действует последний из `/weather`, `/weather-icao`, `/weather-real`. Любая погода запуска переопределяет погоду сохранённой ситуации. |
 
 <a id="player-vehicle"></a>
 ### Транспортное средство игрока
 
-Принимаются и сопоставляются с установкой, но не применяются runtime: каждое заданное поле получает `STATICALLY_PARTIAL` и добавляет `OL_E_CAPABILITY_UNAVAILABLE` (план НЕИСПОЛНИМ, код выхода `1`).
+Принимаются и сопоставляются с установкой, но не применяются runtime: каждое заданное поле получает `UNAVAILABLE` и добавляет `OL_E_CAPABILITY_UNAVAILABLE` (план НЕИСПОЛНИМ, код выхода `1`).
 
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
 | `/vehicle` | `/vehicle:<identity>` (`Vehicles\...\*.bus`) | не задано | launch-time | UNAVAILABLE | Определяется первым (`OL_E_VEHICLE_NOT_FOUND`, если неизвестно). |
 | `/repaint` | `/repaint:<id>` | не задано | launch-time | UNAVAILABLE | Определяется только вместе с `/vehicle` (`OL_E_REPAINT_NOT_FOUND`). |
 | `/hof` | `/hof:<id>` | не задано | launch-time | UNAVAILABLE | `OL_E_HOF_NOT_FOUND`, если неизвестно. |
+| `/hof-source` | `/hof-source:<collection\|directory\|vehicle\|file>:<value>` | нет | launch-time | STABLE_BETA | Одна операция [управления HOF](hof-management.md) сеанса: `HofSourceKind` и `Source`. Требует хотя бы один `/hof-target`. Заменяет `HofManagement` из `/spec`; при пресете профиля сеанса с `hofs`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Неверный формат: код выхода `2`. |
+| `/hof-target` | `/hof-target:<vehicle identity or folder>` (можно повторять) | нет | launch-time | STABLE_BETA | Целевое ТС ниже `Vehicles\`. Без `/hof-source`: код выхода `2`. |
+| `/hof-file` | `/hof-file:<name.hof>` (можно повторять) | все файлы | launch-time | STABLE_BETA | Ограничивает источник этими именами файлов. Без `/hof-source`: код выхода `2`. |
+| `/hof-mode` | `/hof-mode:add\|mirror` | `add` | launch-time | STABLE_BETA | `HofApplyMode`. Без `/hof-source`: код выхода `2`. |
+| `/module` | `/module:<id>` (можно повторять) | нет | launch-time | EXPERIMENTAL | Запрашивает [runtime-модуль](../../../reference/runtime-modules.md) для сеанса (`LaunchSpec.Modules.Enable`, добавляется к модулям файла `/spec`). Запрошенный модуль, который не удаётся загрузить, делает план неисполнимым с кодом `OL_E_MODULE_*` (код выхода `1`). Его операции вызываются через `/runtime:module.<id>.<operation>` и `/runtime-arg`. При пресете профиля сеанса, задающем для него `enabled: false`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
+| `/no-module` | `/no-module:<id>` (можно повторять) | нет | launch-time | EXPERIMENTAL | Не допускает модуль в сеанс, включая модуль, загружаемый по умолчанию, по его карте или по файлу параметров (`LaunchSpec.Modules.Disable`). При пресете, задающем для него `enabled: true`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Без значения: код выхода `2`. |
+| `/module-setting` | `/module-setting:<module id>.<key>=<value>` (можно повторять) | нет | launch-time | EXPERIMENTAL | Задаёт параметр модуля (`LaunchSpec.Modules.Settings`); имеет приоритет над файлом `/spec`, файлом параметров и значением по умолчанию. Ключ, который задаёт и выбранный пресет: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Не в формате `<id>.<key>=<value>`: код выхода `2`. Неверное значение или необъявленный ключ: диагностическое сообщение плана `OL_E_MODULE_SETTING_INVALID` (код выхода `1`). |
+| `/<module flag>` | `/<flag>:<value>`; `/<flag>` без значения означает `true` для булева параметра | нет | launch-time | EXPERIMENTAL | Флаг, который установленный модуль объявляет для одного из своих параметров (`flag` в его манифесте; перечисляются через `/list:RuntimeModules`). Разрешается при планировании сеанса и равносилен `/module-setting:<id>.<key>=<value>`. Флаг, который не объявляет ни один установленный модуль, или флаг вне запуска: `Unknown argument`, код выхода `2`. Флаг, объявленный двумя модулями: `OL_E_MODULE_SETTING_INVALID`, код выхода `2`. Флаг модуля никогда не заменяет встроенный флаг. |
 | `/fleet` | `/fleet:<n>` | не задано | launch-time | UNAVAILABLE | Бортовой номер. |
 | `/registration` | `/registration:<text>` | не задано | launch-time | UNAVAILABLE | Регистрационный номер. |
 | `/no-vehicle` | `/no-vehicle` | выкл. | launch-time | STABLE_BETA | Удаляет транспортное средство игрока из исходных данных (`/spec` или профиль). Безвреден. |
@@ -243,14 +257,14 @@
 
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
-| `/set` | `/set:<key>=<value>` (можно повторять; ключи нечувствительны к регистру) | нет | launch-time | STABLE_BETA | Семантический overlay (временная замена файла на время сеанса) для `options.cfg` из `ConfigurationCatalog` (например, `graphics.maxFPS=60`, `traffic.randomVehicles=150`). Неизвестный ключ: `OL_E_UNKNOWN_SETTING` (код выхода `2`); ключ только для чтения (`advanced.multithreadingCalculate`, `advanced.multithreadingTextureLoad`, `graphics.texture`, `graphics.textureFilter`): `OL_E_SETTING_NOT_WRITABLE` (код выхода `2`); значение вне диапазона или с неверным форматом: `OL_E_INVALID_SETTING_VALUE` при построении overlay. Overlay — это изменение в рамках сеанса: для него создаётся снимок (snapshot), он применяется до запуска OMSI и побайтово восстанавливается при остановке (RV-005 `RUNTIME_PASS`). Конфликт с ключом, которым владеет пресет выбранного профиля: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
+| `/set` | `/set:<key>=<value>` (можно повторять; ключи нечувствительны к регистру) | нет | launch-time | STABLE_BETA | Семантический overlay (временная замена файла на время сеанса) для `options.cfg` из `ConfigurationCatalog` (например, `graphics.maxFPS=60`, `traffic.randomVehicles=150`). Неизвестный ключ: `OL_E_UNKNOWN_SETTING` (код выхода `2`); ключ только для чтения (`advanced.multithreadingCalculate`, `advanced.multithreadingTextureLoad`, `graphics.texture`, `graphics.textureFilter`): `OL_E_SETTING_NOT_WRITABLE` (код выхода `2`); значение вне диапазона или с неверным форматом: `OL_E_INVALID_SETTING_VALUE` при построении overlay. Overlay — это изменение в рамках сеанса: для него создаётся снимок (snapshot), он применяется до запуска OMSI и побайтово восстанавливается при остановке (RV-005 `RUNTIME_VALIDATED`). Конфликт с ключом, которым владеет пресет выбранного профиля: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
 
 <a id="splash-presentation"></a>
 ### Отображение заставки
 
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
-| `/splash` | `/splash:Managed`, `/splash:Native`, `/splash:Unset` (без учёта регистра) | `Managed` | launch-time | STABLE_BETA | `Managed`: входящие в пакет 24-битные BMP размером 640x480 один раз копируются в `<root>\.omsilaunch\assets\splash`, а `GUI\NewSplashscreen_ENG.bmp` и `GUI\NewSplashscreen_<lang>.bmp` подменяются через overlay в рамках транзакции и точно восстанавливаются (RV-006 `RUNTIME_PASS`). `Native`/`Unset` (псевдонимы): файлы OMSI не затрагиваются. Значение не указано: `/splash requires Unset, Native, or Managed`, код выхода `2`. |
+| `/splash` | `/splash:Managed`, `/splash:Native`, `/splash:Unset` (без учёта регистра) | `Managed` | launch-time | STABLE_BETA | `Managed`: входящие в пакет 24-битные BMP размером 640x480 один раз копируются в `<root>\.omsilaunch\assets\splash`, а `GUI\NewSplashscreen_ENG.bmp` и `GUI\NewSplashscreen_<lang>.bmp` подменяются через overlay в рамках транзакции и точно восстанавливаются (RV-006 `RUNTIME_VALIDATED`). `Native`/`Unset` (псевдонимы): файлы OMSI не затрагиваются. Значение не указано: `/splash requires Unset, Native, or Managed`, код выхода `2`. |
 | `/splash-language` | `/splash-language:PTB|ENG|DEU|FRA` (также `pt-BR`, `de`, `fr`, `en`; любое другое значение заменяется на `ENG`) | `[language]` из `options.cfg`, иначе `ENG` | launch-time | STABLE_BETA | Выбирает локализованный целевой файл. |
 | `/splash-assets` | `/splash-assets:<directory>` (относительные пути разрешаются внутри корневого каталога установки) | `<root>\.omsilaunch\assets\splash`, иначе набор из пакета | launch-time | STABLE_BETA | Пользовательский каталог ресурсов; должен содержать `ENG.bmp`, а для неанглийского языка — `<lang>.bmp`. Ошибки: `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`, `OL_E_SPLASH_ASSET_MISSING`, `OL_E_SPLASH_FORMAT_UNSUPPORTED` (в плане выводятся как `OL_E_SESSION_PRESENTATION_INVALID`; план неисполним). |
 
@@ -268,7 +282,7 @@
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
 | `/predefined-profile` | `/predefined-profile:<id>` | нет | launch-time | STABLE_BETA (компиляция; офлайн-тесты `OmsiLaunch.ProfileTests`) | Загружает `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` (см. [профили сеанса](session-profiles.md)). Требует `/predefined-profile-index` (`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`, код выхода `2`). Блок `new:` применяется только с `/new`; `compatibility.maps` применяется для `/new` и `/saved` (`OL_E_SESSION_PROFILE_MAP_MISMATCH`). Явные флаги, конфликтующие с полем, которым владеет профиль, отклоняются с `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (`CliInput.RejectProfileConflicts`): карта/точка входа/дата/время/год/погода, если ими владеет блок `new:`; ключи `/set`, которыми владеет пресет; флаги заставки, если у пресета есть `presentation`; флаги интернет-текстур, если у него есть `internet-textures`; тайм-ауты, если у него есть `behavior`. |
-| `/predefined-profile-index` | `/predefined-profile-index:<1..5>` | нет | launch-time | STABLE_BETA | Выбирает пресет по `index`. Вне диапазона: код выхода `2`. |
+| `/predefined-profile-index` | `/predefined-profile-index:<1..99>` | нет | launch-time | STABLE_BETA | Выбирает пресет по `index`. Вне диапазона: код выхода `2`. |
 
 <a id="launchspec-file"></a>
 ### Файл LaunchSpec
@@ -284,7 +298,7 @@
 
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
-| `/list` | `/list:<category>`; категории — значения `ContentQueryKind` `Maps`, `Situations`, `Vehicles`, `Repaints`, `Hofs`, `FleetNumbers`, `Registrations`, `Addons`, `Entrypoints` (без учёта регистра) | нет | локально, без сеанса | STABLE_BETA | `DiscoverAsync` по установке; конверт `content.list` с элементами `Identity`, `Kind`, `DisplayName`; код выхода `0`. Неизвестная категория: `Unknown discovery category`, код выхода `2`. Точки повторного анализа (junction/символические ссылки) пропускаются, файлы OMSI читаются в кодировке Windows-1252. |
+| `/list` | `/list:<category>`; категории — значения `ContentQueryKind` `Maps`, `Situations`, `Vehicles`, `Repaints`, `Hofs`, `FleetNumbers`, `Registrations`, `Addons`, `Entrypoints`, `SessionProfiles`, `RuntimeModules` (без учёта регистра) | нет | локально, без сеанса | STABLE_BETA | `DiscoverAsync` по установке; конверт `content.list` с элементами `Identity`, `Kind`, `DisplayName`; код выхода `0`. `SessionProfiles` отвечает через `ListSessionProfilesAsync` (конверт `session-profiles.list`), а `RuntimeModules` — через `ListRuntimeModulesAsync` (конверт `runtime-modules.list`: идентификатор, версия, активация, операции и корректность каждого модуля, а также его параметры с типом, значением по умолчанию и флагом). Неизвестная категория: `Unknown discovery category`, код выхода `2`. Точки повторного анализа (junction/символические ссылки) пропускаются, файлы OMSI читаются в кодировке Windows-1252. |
 | `/vehicle-scope` | `/vehicle-scope:<vehicle identity>` | нет | локально | STABLE_BETA | Область поиска, передаваемая для всех категорий, кроме `Entrypoints`, которая использует в качестве области `/map`. |
 
 <a id="timeouts-and-observation"></a>
@@ -293,7 +307,8 @@
 | Флаг | Синтаксис и значения | По умолчанию | Фаза | Стабильность | Поведение |
 |---|---|---|---|---|---|
 | `/startup-timeout` | `/startup-timeout:<1..600>` секунд | значение из спецификации/профиля, иначе `180` | launch-time | STABLE_BETA | `Behavior.StartupTimeoutSeconds`. Владелец ждёт `Running` в течение этого значения плюс 5 s; `OL_E_STARTUP_TIMEOUT` завершает сеанс с кодом выхода `1`. |
-| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` секунд | значение из спецификации/профиля, иначе `30` | launch-time | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Переносится в `Behavior.ShutdownTimeoutSeconds`; в этой сборке супервизор его не использует (OMSI принудительно завершается, а не получает просьбу закрыться). |
+| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` секунд | значение из спецификации/профиля, иначе `30` | launch-time | EXPERIMENTAL | `Behavior.ShutdownTimeoutSeconds`: при `/cooperative-shutdown` — сколько супервизор ждёт, пока OMSI завершится сама, прежде чем принудительно её завершить; без этого флага OMSI завершается сразу, и значение не действует. |
+| `/cooperative-shutdown` | `/cooperative-shutdown` | выкл. | launch-time | EXPERIMENTAL | `Behavior.CooperativeShutdown`: завершение работающего сеанса просит OMSI выйти через её собственную процедуру выхода (ту, что выполняется после подтверждения выхода пользователем: она сохраняет `options.cfg` и `laststn.osn` карты, затем закрывается) и ждёт `ShutdownTimeoutSeconds`, прежде чем принудительно завершить процесс. Включается явно, пока не проверено в runtime; `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE`, когда OMSI пришлось завершить принудительно. Файлы сеанса восстанавливаются после выхода в любом случае. |
 | `/observe-seconds` | `/observe-seconds:<0..2147483647>` | нет (работа до выхода OMSI или запроса остановки) | runtime (владелец) | STABLE_BETA | Верхняя граница фазы работы: через `n` секунд в состоянии `Running` запрашивается каноническая остановка. Остановка через трей или pipe либо выход OMSI завершают её раньше. `0` останавливает сразу после `Running`. |
 
 <a id="recovery"></a>
@@ -303,6 +318,7 @@
 |---|---|---|---|---|---|
 | `/recovery-status` | `/recovery-status` | выкл. | локально | STABLE_BETA | Сообщает, является ли `<root>\.omsilaunch\journal.json` незавершённым (`pending`), никогда ничего не восстанавливает; код выхода `0`. Берёт аренду установки: `OL_E_INSTALLATION_BUSY` (код выхода `7`), пока её удерживает владелец. |
 | `/recover` | `/recover` | выкл. | локально | STABLE_BETA | Восстанавливает незавершённый журнал (резервные копии сначала сверяются с SHA-256 снимка; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` сообщаются в `diagnostics`). Код выхода `0`, если незавершённых транзакций не было или восстановление завершилось; `8`, если журнал был незавершённым и таким остался. Отклоняется с `OL_E_INSTALLATION_BUSY`, пока жив записанный в журнал процесс OMSI (PID, время создания, путь к exe) или — для журнала после `HandoffCreated` без PID — любой `Omsi.exe` из этого корневого каталога. Каждый запуск сеанса автоматически выполняет такое же восстановление перед чтением установки. |
+| `/clear-module-data` | `/clear-module-data:<module id>` | нет | локально, без сеанса | EXPERIMENTAL | Удаляет каталог данных модуля `<root>\.omsilaunch\module-data\<id>` и больше ничего; конверт `module-data.clear` с полями `module` и `cleared` (`false`, если удалять было нечего); код выхода `0`. Захватывает аренду установки (lease): `OL_E_INSTALLATION_BUSY` (код выхода `7`), пока сеанс владеет установкой. Каталог данных модуля, достигнутый через ссылку, отклоняется (`OL_E_MODULE_INTEGRITY`); ссылка внутри него удаляется как ссылка. |
 
 <a id="output-formats"></a>
 ## Форматы вывода

@@ -1,7 +1,7 @@
 # 常駐プラグイン
 
-<!-- l10n: source=concepts/permanent-plugin.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../concepts/permanent-plugin.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=concepts/permanent-plugin.md source-sha256=f18a0812b1fa4194aa62d0fa6366ba35b3140f830d4c9b12f57c2f82e2cfb8c3 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../concepts/permanent-plugin.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 OmsiLaunch は、製品の一部として `plugins\OmsiLaunch.*` 以下に一度だけインストールされるプラグインを通じて、OMSI プロセスの内部から OMSI を制御します。このプラグインがセッションによってステージング、コピー、スナップショット取得、復元、削除されることは決してありません。このページでは、クロージャーに何が含まれるか、OMSI がそれをどのように読み込むか、ホストが毎回の開始前にそれをどのように検証するか、ホストとプラグインがどのように通信するか（ハンドオフ、テレメトリ、ランタイムメールボックス）、そして OmsiLaunch を介さずに OMSI が起動された場合にプラグインが何をするかを説明します。出典: `src/OmsiLaunch.Process/RuntimeDeployment.cs`（`RuntimeArtifactSet`、`ReleaseManifest`、3 つの共有メモリストア）、`src/OmsiLaunch.Plugin/CurrentDnneAdapter.cs`、`src/OmsiLaunch.Plugin/PluginRuntime.cs`、`src/OmsiLaunch.Plugin/OmsiLaunch.Plugin.opl`、`src/OmsiLaunch.Api/StartupHandoff.cs`、`src/OmsiLaunch.Api/RuntimeControlProtocol.cs`。
 
@@ -48,7 +48,7 @@ OmsiLaunch は、製品の一部として `plugins\OmsiLaunch.*` 以下に一度
 
 使用されるのはマニフェストの `plugins/` エントリだけです。マニフェストはデータであり、ポリシーではありません。マニフェストはリリースパッケージャーによって、ステージングされたすべてのファイルの SHA-256 とともに生成されます。コントローラーが OMSI ルートから実行される場合（リリースのレイアウト）、コピー元とコピー先は同じディレクトリになります。したがってマニフェストがない場合、チェックは存在確認と自己整合性にまで弱まります。リリースパッケージに必ず `release-manifest.json` が含まれているのはこのためです。不一致の解消方法: `plugins\` と `release-manifest.json` が一致するよう、パッケージを再インストールしてください。
 
-プラグインはプロセス内でビルドを再度検証します。`NativeServices.ValidateBuild` はプロファイル識別子 `Omsi23004_692EBFBF` のみを受け入れ、実行中の実行ファイルに対して `NativeValidateBuild` が成功することを要求します。失敗するとテレメトリ `plugin.build.invalid` となり、ホストはこれを `OL_E_BUILD_VALIDATION_FAILED` にマッピングします。[互換性](../reference/compatibility.md)を参照してください。
+何かにパッチを当てる前に、プラグインはビルドカタログのすべてのネイティブターゲットを、読み込まれたイメージに対して解決して検証し、検証済みのテーブルを OMSI のアドレスを一切含まない `OmsiLaunch.Native.x86.dll` に渡します（テレメトリ `native.capabilities`）。`boot.headless-start` またはワールドモードのケイパビリティが利用できない開始は `plugin.capability.unresolved`（`OL_E_CAPABILITY_UNRESOLVED`）で失敗し、想定外の状態にある実際の Start フォームは `plugin.build.invalid`（`OL_E_BUILD_VALIDATION_FAILED`）で失敗します。[互換性](../reference/compatibility.md)を参照してください。
 
 <a id="host-to-plugin-environment-variables"></a>
 ## ホストからプラグインへ: 環境変数
@@ -75,7 +75,7 @@ OmsiLaunch は、製品の一部として `plugins\OmsiLaunch.*` 以下に一度
 <a id="telemetry-slot"></a>
 ## テレメトリスロット
 
-`OmsiLaunch.Telemetry.<session>` は 4096 バイトの最新値スロットです: `length`（オフセット 0 の int32）、`sequence`（オフセット 4 の int32）、オフセット 8 からの UTF-8 JSON `{ "name": ..., "data": { ... } }`。プロデューサーは長さを無効化し、ペイロードを書き込み、新しいシーケンス番号を公開し、最後に長さを公開します。ホストは 100 ms ごとにこれをサンプリングし、コピー中に長さまたはシーケンス番号が変化したサンプルを書き込み途中のものとみなしてスキップし、シーケンス番号が前回と異なる場合にのみサンプルを処理します。このため、同一のイベントが連続しても別々のイベントとして扱われます。イベントは `SessionStatus.RuntimeEvents`（最新 256 件に制限）に追加され、セマンティックなライフサイクル（`plugin.started`、`world.starting`、`gameplay.entered`、失敗）を駆動します。最新値しか保持されないため、ホストの 100 ms のサンプリングより速いイベントのバーストでは途中のイベントが失われる可能性があります。プラグインは `gameplay.entered` の後 2 s の間 D3D ライフサイクルイベントを遅延させるため、`Running` の境界が隠されることはありません。
+`OmsiLaunch.Telemetry.<session>` はイベントリング（Beta 4、`TelemetryRingWire`）です。64 バイトのヘッダー（マジック `OLTR`、バージョン 1、スロット数、スロットサイズ、コミット済みシーケンス）と、2048 バイトの番号付きスロット 64 個からなり、各スロットは UTF-8 JSON イベント 1 件 `{ "name": ..., "data": { ... }, "tick": <ms> }` を保持します（`tick` はプラグインの単調増加するセッションクロックです）。書き込み側はプラグインのみで、スロットを無効化し、書き込み、そのスロットのシーケンスをコミットし、続いてリングのシーケンスを公開します。ホストは 100 ms ごとに、前回の読み取り以降にコミットされたすべてのイベントを順番に読み取ります。コピー中に上書きされたスロットは失われたものとして数えられ、書き込み途中のまま渡されることはありません。64 イベントを超えて遅れたホストには、正確な件数を伴うランタイムイベント `telemetry.lost` が渡されます。スロットより大きいイベントは、それを示す `telemetry.oversized` に置き換えられます。イベントは `SessionStatus.RuntimeEvents`（最新 256 件に制限）に追加され、セマンティックなライフサイクル（`plugin.started`、`world.starting`、`gameplay.entered`、モジュールおよび失敗のイベント）を駆動します。
 
 <a id="runtime-command-mailbox"></a>
 ## ランタイムコマンドメールボックス

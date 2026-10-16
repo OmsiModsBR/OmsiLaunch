@@ -1,9 +1,9 @@
 # 第一个会话
 
-<!-- l10n: source=getting-started/first-session.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../getting-started/first-session.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=getting-started/first-session.md source-sha256=3985b8db122dfbbfeabd69692a21620d4e3d381f398197b61be2c500be1f3170 -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../getting-started/first-session.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-本页逐步介绍使用 OmsiLaunch `0.1.0-beta3` 进行的第一个受管 OMSI 会话：在不启动 OMSI 的情况下进行规划、使用显式参数启动、使用预定义的会话配置档启动、控制和停止会话，以及事后查找诊断信息。本页假定已按照[安装](installation.md)中的说明安装了包。每个参数都在 [CLI 参考](../reference/cli.md)中规定；更多调用示例见 [CLI 示例](../reference/cli-examples.md)。
+本页逐步介绍使用 OmsiLaunch `0.1.0-beta4` 进行的第一个受管 OMSI 会话：在不启动 OMSI 的情况下进行规划、使用显式参数启动、使用预定义的会话配置档启动、控制和停止会话，以及事后查找诊断信息。本页假定已按照[安装](installation.md)中的说明安装了包。每个参数都在 [CLI 参考](../reference/cli.md)中规定；更多调用示例见 [CLI 示例](../reference/cli-examples.md)。
 
 <a id="what-a-session-does"></a>
 ## 会话的作用
@@ -38,7 +38,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 
 依次发生的事情：
 
-1. 打印计划（`Plan: READY profile=Omsi23004_692EBFBF`）。
+1. 打印计划（`Plan: READY profile=Omsi23004`，在已知布局上）。
 2. 恢复任何较早的待处理事务日志、获取租约、创建快照、写入事务日志、应用覆盖层、检查插件完整性、启动 `Omsi.exe`。
 3. 出现托盘图标（`OmsiLaunch is running`）；见 [Windows 托盘](../reference/windows-tray.md)。
 4. 进入游戏后，`Running` 状态以 JSON 形式打印（`"State": 14`）。默认启动超时为 180 s（可用 `/startup-timeout:<1..600>` 修改）。
@@ -56,7 +56,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 <a id="3-start-with-a-predefined-session-profile"></a>
 ## 3. 使用预定义的会话配置档启动
 
-会话配置档是位于 `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` 的 YAML 文件，它固定地图、入口点以及最多五个设置项预设（schema 为 `omsilaunch.session-profile/v1`；完整参考见[会话配置档](../reference/session-profiles.md)）。创建 `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`：
+会话配置档是位于 `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` 的 YAML 文件，它固定地图、入口点以及最多 99 个设置项预设（schema 为 `omsilaunch.session-profile/v1`；完整参考见[会话配置档](../reference/session-profiles.md)）。创建 `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`：
 
 ```yaml
 schema: omsilaunch.session-profile/v1
@@ -92,7 +92,7 @@ OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /n
 OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /new
 ```
 
-需要记住的规则：`id` 必须与目录名相同；索引为 `1..5`；会覆盖配置档所拥有字段的显式参数（`/map`、`/entrypoint-index`、预设所拥有的 `/set` 键、预设含有 `presentation` 时的启动画面参数）会以 `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` 被拒绝（退出码 `2`）；`new:` 块仅在使用 `/new` 时生效；使用 `/saved:<file.osn>` 时，情景的地图必须列在 `compatibility.maps` 下。随包提供的 `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` 展示了完整的 schema，但其 `new:` 块设置了 `date`、`time` 和 `weather`，而本版本（build）无法应用这些键，因此只有在删除这些键之后才能复制使用。
+需要记住的规则：`id` 必须与目录名相同；索引为 `1..99`；会覆盖配置档所拥有字段的显式参数（`/map`、`/entrypoint-index`、预设所拥有的 `/set` 键、预设含有 `presentation` 时的启动画面参数）会以 `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` 被拒绝（退出码 `2`）；`new:` 块仅在使用 `/new` 时生效；使用 `/saved:<file.osn>` 时，情景的地图必须列在 `compatibility.maps` 下。随包提供的 `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` 展示了完整的 schema，但其 `new:` 块设置了 `date`、`time` 和 `weather`，而本版本（build）无法应用这些键，因此只有在删除这些键之后才能复制使用。
 
 <a id="4-control-the-running-session"></a>
 ## 4. 控制正在运行的会话

@@ -1,12 +1,12 @@
 # Documentation OmsiLaunch
 
-<!-- l10n: source=README.md -->
-> Traduction de la [page originale en anglais](../../README.md) d’OmsiLaunch 0.1.0-beta3. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> Traduction de la [page originale en anglais](../../README.md) d’OmsiLaunch 0.1.0-beta4. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
 
-Ceci est la documentation anglaise normative d'OmsiLaunch `0.1.0-beta3`, la
+Ceci est la documentation anglaise normative d'OmsiLaunch `0.1.0-beta4`, la
 base de référence post-durcissement. OmsiLaunch fournit le lancement programmable, la
-propriété de session et le contrôle runtime pour exactement un build d'OMSI 2, le profil
-`Omsi23004_692EBFBF`. Chaque page sous `docs/` décrit ce que fait le code
+propriété de session et le contrôle runtime pour un OMSI 2 installé ; chaque capacité native
+est résolue et vérifiée par build (voir [compatibilité](reference/compatibility.md)). Chaque page sous `docs/` décrit ce que fait le code
 actuel ; lorsqu'une page et le code divergent, le code l'emporte et la page est un bogue.
 
 Vocabulaire de stabilité utilisé dans toute la documentation : `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`,
@@ -34,6 +34,8 @@ validé à l'exécution sauf si le
 | [Référence de la CLI](reference/cli.md) | Chaque option, mot de commande et route hiérarchique de `OmsiLaunch.exe` / `OmsiLaunchW.exe`. |
 | [Exemples de CLI](reference/cli-examples.md) | Lignes de commande à copier-coller pour les tâches courantes. |
 | [Référence LaunchSpec](reference/launchspec.md) | Chaque propriété et valeur d'enum de `LaunchSpec`, règles de chargement JSON pour `/spec`. |
+| [Gestion des HOF](reference/hof-management.md) | Copie et miroir des HOF limités à la session dans les dossiers de véhicules : sources, cibles, conflits, restauration. |
+| [Modules runtime](../../reference/runtime-modules.md) | Modules qui s'exécutent dans OMSI avec une session : manifeste, confiance, cycle de vie, politiques d'échec, opérations. |
 | [Référence des profils de session](reference/session-profiles.md) | Schéma `omsilaunch.session-profile/v1` de `profile.yaml`, clés, limites, priorité. |
 | [Référence de l'API publique](reference/public-api.md) | `IOmsiLaunch`, records et enums publics, stabilité de chaque membre. |
 | [Inventaire de l'API publique](reference/public-api-inventory.md) | Liste générée de chaque type et membre public avec sa signature et sa stabilité. |
@@ -52,14 +54,15 @@ validé à l'exécution sauf si le
 | [Limitations connues](reference/known-limitations.md) | Ce qui n'est pas pris en charge, ce qui est partiel ou constitue un risque accepté dans cette bêta. |
 | [Statut de validation à l'exécution](status/runtime-validation-status.md) | Ce qui a été exécuté sous OMSI, ce qui n'a été exécuté que hors ligne, ce qui nécessite encore une vraie session. |
 
-Pages à la racine qui restent normatives pour les mainteneurs :
-[`README.md`](../../../README.md), [`PUBLIC-API.md`](../../../PUBLIC-API.md),
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md),
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md),
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md),
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md),
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md),
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md). Elles résument ; les
+Pages qui restent normatives pour les mainteneurs : le
+[`README.md`](../../../README.md) du dépôt, les spécifications sous `docs/specs`
+([`PUBLIC-API.md`](../../specs/PUBLIC-API.md),
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md),
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md),
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)) et les pages de projet sous
+`docs/project` ([`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md),
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md),
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)). Elles résument ; les
 pages ci-dessus constituent la référence détaillée. Les pages historiques sont répertoriées dans le
 [manifeste de la documentation](../../DOCUMENTATION-MANIFEST.md).
 
@@ -91,7 +94,7 @@ n'est pas documenté ou qu'un lien est cassé. Il ne vérifie pas la prose : une
 <a id="translations"></a>
 ## Traductions
 
-`docs\localized\<locale>\` contient des traductions complètes de cette documentation `0.1.0-beta3`
+`docs\localized\<locale>\` contient des traductions complètes de cette documentation `0.1.0-beta4`
 pour `pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` et `ja-JP`. L'ensemble des pages, les racines des langues et les
 pages volontairement non traduites sont répertoriés dans
 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md).

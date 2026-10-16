@@ -1,6 +1,6 @@
 # Installation
 
-This page explains what OmsiLaunch `0.1.0-beta3` requires, which OMSI build it supports, how the release package is installed into an OMSI installation root, and how to verify the installation with `/version` and `/plan` before starting a session. The package contents are specified in [packaging](../reference/packaging.md); the first launch is described in [first session](first-session.md).
+This page explains what OmsiLaunch `0.1.0-beta4` requires, which OMSI build it supports, how the release package is installed into an OMSI installation root, and how to verify the installation with `/version` and `/plan` before starting a session. The package contents are specified in [packaging](../reference/packaging.md); the first launch is described in [first session](first-session.md).
 
 ## Requirements
 
@@ -9,7 +9,7 @@ This page explains what OmsiLaunch `0.1.0-beta3` requires, which OMSI build it s
 | Windows 10 or later, 64-bit | The controller checks `Environment.OSVersion.Version.Major >= 10`, an x64 operating system and an x64 process. | Plan not runnable with `OL_E_UNSUPPORTED_OPERATING_SYSTEM` (or `OL_E_UNSUPPORTED_OS_ARCHITECTURE`), exit `1`/`3`. |
 | .NET 6 Desktop Runtime, **x64** | `OmsiLaunch.Controller.runtimeconfig.json` requires `Microsoft.NETCore.App` 6.0 and `Microsoft.WindowsDesktop.App` 6.0 (Windows Forms is used by the tray indicator). The shims locate it with `nethost.dll`. | `OmsiLaunch.exe` exits with shim code `102`..`106` before any output; `OmsiLaunchW.exe` shows `OmsiLaunch could not start the .NET host (code N).` |
 | .NET 6 Runtime, **x86** | `plugins\OmsiLaunch.Plugin.runtimeconfig.json` requires `Microsoft.NETCore.App` 6.0 for x86, because the plugin runs inside the 32-bit `Omsi.exe`. The x86 .NET 6 Desktop Runtime bundle also satisfies it. | The plugin does not start inside OMSI; the session fails to reach `Running` (`OL_E_PLUGIN_NOT_LOADED` / `OL_E_STARTUP_TIMEOUT`), exit `1`, files restored. |
-| Supported OMSI 2 build | `Omsi.exe` with SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (8,503,440 bytes), profile `Omsi23004_692EBFBF`, runtime validated. The Steam LAA executable `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` is accepted but its validation status is `pending_beta_field_validation`. The hash is re-checked at every plan and at every start. | `OL_E_UNSUPPORTED_BUILD`; plan not runnable, exit `1`. See [compatibility](../reference/compatibility.md). |
+| OMSI 2 installed | A 32-bit `Omsi.exe` with an OMSI 2 (2.x) version, and `maps\` and `Vehicles\` in the root. No particular executable hash is required; OMSI 2.3.004 is the known, runtime-validated layout, and on other builds each capability is resolved and verified in process. | `OL_E_UNSUPPORTED_BUILD`; plan not runnable, exit `1`. A capability unavailable on the build fails with `OL_E_CAPABILITY_UNRESOLVED`. See [compatibility](../reference/compatibility.md). |
 | Writable installation root | The transaction writes `.omsilaunch\`, overlays under `GUI\`, `Texture\` and `options.cfg` and restores them; the root must be writable by the current user (avoid `Program Files` without appropriate permissions). | `OL_E_INSTALLATION_NOT_WRITABLE`, exit `1`. |
 | One user, one owner per installation | The installation lease `Local\OmsiLaunch.Installation.<sha256(root)>` and the control pipe are per logon session. | `OL_E_INSTALLATION_BUSY` / `OL_E_SESSION_ALREADY_ACTIVE`, exit `7`. |
 
@@ -28,7 +28,7 @@ The hash must be one of the two listed above. `OmsiLaunch.exe profiles` prints t
 
 ## Install the package
 
-1. Download `OmsiLaunch-0.1.0-beta3.zip` and `OmsiLaunch-0.1.0-beta3.zip.sha256`; verify the checksum (`Get-FileHash` must equal the value in the `.sha256` file).
+1. Download `OmsiLaunch-0.1.0-beta4.zip` and `OmsiLaunch-0.1.0-beta4.zip.sha256`; verify the checksum (`Get-FileHash` must equal the value in the `.sha256` file).
 2. Extract the archive **directly into the OMSI installation root** (the folder that contains `Omsi.exe`). The archive is laid out for that root:
    - `OmsiLaunch.exe`, `OmsiLaunchW.exe`, `nethost.dll`, `OmsiLaunch.Controller.dll` and the other `OmsiLaunch.*.dll` controller assemblies, `YamlDotNet.dll`, `release-manifest.json`, `LICENSE`, `THIRD-PARTY-NOTICES.md` at the root;
    - the permanent plugin closure `plugins\OmsiLaunch.*` (9 files) beside your existing plugins, which are never touched;
@@ -45,7 +45,7 @@ Run from the OMSI root (the installation argument defaults to the directory cont
 ```text
 OmsiLaunch.exe /version
 ```
-Expected: `"version": "0.1.0-beta3"`, `"protocol_version": "0.1"`, `"supported_family": "OMSI_2_3_004_COMMON"`; exit `0`. Exit `102`..`106` means the x64 .NET 6 runtime is missing or the package is incomplete.
+Expected: `"version": "0.1.0-beta4"`, `"protocol_version": "0.1"`, `"supported_family": "OMSI_2"`; exit `0`. Exit `102`..`106` means the x64 .NET 6 runtime is missing or the package is incomplete.
 
 ```text
 OmsiLaunch.exe profiles
@@ -56,7 +56,7 @@ Expected: the supported hashes, then the maps discovered in this installation; e
 ```text
 OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /plan
 ```
-Expected: `Plan: READY profile=Omsi23004_692EBFBF` and exit `0` (use any map identity from `/list:Maps`; the entrypoint index must be a presented index of that map, see `/list:Entrypoints /map:<identity>`). With `--json` the plan lists `TouchedFiles` (the splash overlays), `PlannedMutations`, `RequiredCapabilities` (all `STATICALLY_VALIDATED`), `Diagnostics` (including `plugin.integrity.reference`) and `IsRunnable`. `Plan: NOT RUNNABLE` with exit `1` names the reason in `Diagnostics` (`OL_E_UNSUPPORTED_BUILD`, `OL_E_MAP_NOT_FOUND`, `OL_E_ENTRYPOINT_REQUIRED`, `OL_E_RUNTIME_ARTIFACT_MISSING`, ...). Planning never starts OMSI and never writes to the installation.
+Expected: `Plan: READY profile=Omsi23004` (on the known layout; `unrecognized` otherwise) and exit `0` (use any map identity from `/list:Maps`; the entrypoint index must be a presented index of that map, see `/list:Entrypoints /map:<identity>`). With `--json` the plan lists `TouchedFiles` (the splash overlays), `PlannedMutations`, `RequiredCapabilities` (`STATICALLY_VALIDATED`, and `RESOLVED_KNOWN_LAYOUT` for the native start capabilities on the known layout), `Diagnostics` (including `plugin.integrity.reference`) and `IsRunnable`. `Plan: NOT RUNNABLE` with exit `1` names the reason in `Diagnostics` (`OL_E_UNSUPPORTED_BUILD`, `OL_E_MAP_NOT_FOUND`, `OL_E_ENTRYPOINT_REQUIRED`, `OL_E_RUNTIME_ARTIFACT_MISSING`, ...). Planning never starts OMSI and never writes to the installation.
 
 ## Where things live afterwards
 

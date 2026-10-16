@@ -1,9 +1,9 @@
 # 打包与发行布局
 
-<!-- l10n: source=reference/packaging.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/packaging.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/packaging.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-本页说明 OmsiLaunch `0.1.0-beta3` 发行包：`tools\New-ReleasePackage.ps1` 生成什么、`release-manifest.json` 的字段、控制器在运行时如何使用清单校验永久插件闭包、如何将包安装到 OMSI 安装根目录以及如何从中删除、使用后 `.omsilaunch` 目录包含哪些内容，以及验证脚本（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）。产品标识来自 `OmsiLaunch.Version.props`。面向用户的安装步骤见[安装](../getting-started/installation.md)；插件闭包在运行时的作用见[永久插件](../concepts/permanent-plugin.md)。
+本页说明 OmsiLaunch `0.1.0-beta4` 发行包：`tools\New-ReleasePackage.ps1` 生成什么、`release-manifest.json` 的字段、控制器在运行时如何使用清单校验永久插件闭包、如何将包安装到 OMSI 安装根目录以及如何从中删除、使用后 `.omsilaunch` 目录包含哪些内容，以及验证脚本（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）。产品标识来自 `OmsiLaunch.Version.props`。面向用户的安装步骤见[安装](../getting-started/installation.md)；插件闭包在运行时的作用见[永久插件](../concepts/permanent-plugin.md)。
 
 <a id="product-identity-omsilaunchversionprops"></a>
 ## 产品标识（`OmsiLaunch.Version.props`）
@@ -12,13 +12,13 @@
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | 清单 `product`、Windows `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro` | Windows `LegalCopyright` |
-| `OmsiLaunchProductVersion` | `0.1.0-beta3` | 清单 `product_version`、Windows `ProductVersion`、程序集信息版本（`/version`）、公开 ZIP 名称 |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchProductVersion` | `0.1.0-beta4` | 清单 `product_version`、Windows `ProductVersion`、程序集信息版本（`/version`）、公开 ZIP 名称 |
 | `OmsiLaunchManagedVersion` | `0.1.0` | 托管程序集版本基数 |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | 程序集版本和 Windows 文件版本 |
 | `OmsiLaunchPackageAlias` | `current` | 清单 `package_alias`、暂存文件夹和别名 ZIP 名称 |
 
-`Directory.Build.props` 将 `InformationalVersion` 设置为 `OmsiLaunchProductVersion`，不附带源代码修订号，因此 `OmsiLaunch.exe /version` 输出的正是 `0.1.0-beta3`。
+`Directory.Build.props` 将 `InformationalVersion` 设置为 `OmsiLaunchProductVersion`，不附带源代码修订号，因此 `OmsiLaunch.exe /version` 输出的正是 `0.1.0-beta4`。
 
 <a id="build-toolsnew-releasepackageps1"></a>
 ## 构建（`tools\New-ReleasePackage.ps1`）
@@ -46,7 +46,7 @@
 | `docs\` 下除 `docs\localized\` 以外的每个文件（英文文档，目录结构相同） | `.omsilaunch\docs\`（因此 CLI 用法文本中输出的路径 `.omsilaunch\docs\reference\cli.md` 确实存在；文档审计 BUG-08）。从 `docs\README.md` 指向仓库根目录摘要（`PUBLIC-API.md` 等）的链接只在源代码仓库中有效。 |
 | `docs\localized\LOCALIZATION-MANIFEST.md` 以及该清单中列出的每个语言区域的 `docs\localized\<locale>\**`（`pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` 和 `ja-JP`） | `.omsilaunch\docs\localized\`（结构相同）；缺少任何已列出的语言区域都会使脚本中止 |
 
-然后，脚本计算每个暂存文件的哈希，在包根目录以**不带** BOM 的 UTF-8 写入 `release-manifest.json`（结果不再取决于 PowerShell 版本），在暂存区上运行 `Test-ReleasePackageIntegrity.ps1`，将每个暂存的插件文件和 `OmsiLaunch.Native.x86.dll` 与其构建输出重新比较，压缩暂存区，**将归档解压到一个全新的临时目录，并根据同一清单校验解压出的闭包**（归档中的清单必须与已校验的清单逐字节相同），然后将暂存区发布为 `OmsiLaunch-current`，将归档发布为 `OmsiLaunch-current.zip`，将其复制为 `OmsiLaunch-<product_version>.zip`（`OmsiLaunch-0.1.0-beta3.zip`），并写入内容为 `<SHA-256>  <file name>` 的 `OmsiLaunch-0.1.0-beta3.zip.sha256`。任何产物缺失都会使脚本中止。该脚本不执行构建；请先运行 `Invoke-OfflineValidation.ps1`（或单独的 `dotnet build` / MSBuild 步骤）。
+然后，脚本计算每个暂存文件的哈希，在包根目录以**不带** BOM 的 UTF-8 写入 `release-manifest.json`（结果不再取决于 PowerShell 版本），在暂存区上运行 `Test-ReleasePackageIntegrity.ps1`，将每个暂存的插件文件和 `OmsiLaunch.Native.x86.dll` 与其构建输出重新比较，压缩暂存区，**将归档解压到一个全新的临时目录，并根据同一清单校验解压出的闭包**（归档中的清单必须与已校验的清单逐字节相同），然后将暂存区发布为 `OmsiLaunch-current`，将归档发布为 `OmsiLaunch-current.zip`，将其复制为 `OmsiLaunch-<product_version>.zip`（`OmsiLaunch-0.1.0-beta4.zip`），并写入内容为 `<SHA-256>  <file name>` 的 `OmsiLaunch-0.1.0-beta4.zip.sha256`。任何产物缺失都会使脚本中止。该脚本不执行构建；请先运行 `Invoke-OfflineValidation.ps1`（或单独的 `dotnet build` / MSBuild 步骤）。
 
 <a id="package-layout"></a>
 ## 包布局
@@ -72,7 +72,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 .omsilaunch\
   assets\splash\{PTB,ENG,DEU,FRA}.bmp   640x480 24-bit managed splash assets
   docs\                               English documentation (README.md, getting-started\, reference\, concepts\, status\, ...)
-  docs\localized\<locale>\             translations of the 0.1.0-beta3 pages (not normative)
+  docs\localized\<locale>\             translations of the 0.1.0-beta4 pages (not normative)
   examples\release-session.example.json
   examples\session-profiles\rmg-leste\profile.yaml
 ```
@@ -84,11 +84,11 @@ plugins\                             the permanent plugin closure (9 files, all 
 | 字段 | 类型 | 含义 |
 |---|---|---|
 | `product` | string | `OmsiLaunch` |
-| `product_version` | string | `0.1.0-beta3` |
+| `product_version` | string | `0.1.0-beta4` |
 | `package_alias` | string | `current` |
 | `control_protocol` | string | `0.1`；必须与 `PublicCapabilityRegistry.ProtocolVersion` 一致 |
-| `target_profile` | string | `Omsi23004_692EBFBF`，唯一受支持的构建配置 |
-| `supported_executable_hashes` | string[] | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243`（经运行时验证）和 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759`（Steam LAA，`pending_beta_field_validation`） |
+| `requirement` | string | `OMSI 2` |
+| `known_layouts` | object[] | 每个已知布局（`Omsi23004`、`13ec110a...c028`）的 `build_id` 和 `code_sha256`；是一条快速路径，而非要求 |
 | `configuration` | string | `Release` 或 `Debug` |
 | `generated_utc` | string | ISO-8601 格式的构建时间 |
 | `files[]` | object[] | 每个打包文件的 `path`（正斜杠，相对于包根目录）、`bytes`、`sha256`（大写十六进制） |
@@ -111,7 +111,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 <a id="installation-into-the-omsi-root"></a>
 ## 安装到 OMSI 根目录
 
-1. 校验归档：将 `OmsiLaunch-0.1.0-beta3.zip` 与 `OmsiLaunch-0.1.0-beta3.zip.sha256` 进行比对。
+1. 校验归档：将 `OmsiLaunch-0.1.0-beta4.zip` 与 `OmsiLaunch-0.1.0-beta4.zip.sha256` 进行比对。
 2. 将归档**直接解压到 OMSI 安装根目录**（包含 `Omsi.exe` 的目录）。这会放置根目录文件、`plugins\OmsiLaunch.*`（与任何第三方插件并列）以及 `.omsilaunch\`。
 3. 将 `release-manifest.json` 保留在 `OmsiLaunch.exe` 旁：它用于启用基于清单的插件完整性校验。清单和二进制文件必须来自同一个包：在旧清单上覆盖新二进制文件（或反之）会导致每次启动都以 `OL_E_PERMANENT_PLUGIN_HASH_MISMATCH` 失败。`Test-ReleasePresentation.ps1 -InstallPackage` 现在会将清单与产品文件一起复制；它以前会跳过清单，导致较新的二进制文件旁留有旧清单（Round A RA-007）。
 4. 使用 `tools\Test-ReleasePackageIntegrity.ps1 -PackagePath <zip> -InstallationRoot <root>` 以只读方式检查一致性：`installation_comparison.coherent_with_package` 必须为 `true`。

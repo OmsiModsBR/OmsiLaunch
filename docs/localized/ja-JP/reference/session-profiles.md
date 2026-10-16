@@ -1,9 +1,9 @@
 # セッションプロファイル
 
-<!-- l10n: source=reference/session-profiles.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/session-profiles.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/session-profiles.md source-sha256=5bc9beef6e11a8c70d3ea3056678096ccc42321393f0d09fd40217e53c271e4e -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/session-profiles.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-セッションプロファイルは宣言的な YAML パッケージです。コンテンツ作成者がマップやアドオンと一緒に配布し、エンドユーザーが 1 つのコマンド（`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..5> /new`）で再現可能な OmsiLaunch セッションを開始できるようにします。このページは、`src/OmsiLaunch.Core/SessionProfiles.cs` の `SessionProfileCompiler` が実装する `omsilaunch.session-profile/v1` 形式、CLI が適用する優先順位のルール（`tools/OmsiLaunch.Cli/Program.cs` の `CliInput.BuildSpecAsync` と `RejectProfileConflicts`）、およびプロファイルが書き込める設定カタログ（`ConfigurationCatalog`）についての規範的なリファレンスです。プロファイルでできることはすべて、CLI フラグと [LaunchSpec](launchspec.md) でも行えます。プロファイルはそれらの選択をパッケージにまとめるだけです。
+セッションプロファイルは宣言的な YAML パッケージです。コンテンツ作成者がマップやアドオンと一緒に配布し、エンドユーザーが 1 つのコマンド（`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..99> /new`）で再現可能な OmsiLaunch セッションを開始できるようにします。このページは、`src/OmsiLaunch.Core/SessionProfiles.cs` の `SessionProfileCompiler` が実装する `omsilaunch.session-profile/v1` 形式、CLI が適用する優先順位のルール（`tools/OmsiLaunch.Cli/Program.cs` の `CliInput.BuildSpecAsync` と `RejectProfileConflicts`）、およびプロファイルが書き込める設定カタログ（`ConfigurationCatalog`）についての規範的なリファレンスです。プロファイルでできることはすべて、CLI フラグと [LaunchSpec](launchspec.md) でも行えます。プロファイルはそれらの選択をパッケージにまとめるだけです。
 
 安定性: 解析、検証、競合検出、および `settings` / `presentation` / `internet-textures` / `behavior` ブロックは `STABLE_BETA` です（オフラインテスト `session-profiles.strict-compiler`。オーバーレイと復元の経路は RV-005 と RV-006 でランタイム検証済みです。[ランタイム検証の状況](../status/runtime-validation-status.md)を参照してください）。`new.date`、`new.time`、`new.year`、`new.weather` の各キーは、このビルドでは `UNAVAILABLE` です（[`new` ブロック](#new)を参照）。
 
@@ -57,7 +57,7 @@
 | `version` | string | はい | パッケージのバージョン文字列（自由形式。引用符で囲んでください: `"1.0"`）。`SessionProfileMetadata.Version` で報告されます。 |
 | `compatibility` | mapping | いいえ | `compatibility` を参照してください。 |
 | `new` | mapping | いいえ | NEW_MAP の既定値。`new` を参照してください。 |
-| `presets` | マッピングのシーケンス | はい | 1 から 5 個のプリセットエントリ。0 個、5 個を超える、またはシーケンスでない値は `OL_E_SESSION_PROFILE_INVALID` です。 |
+| `presets` | マッピングのシーケンス | はい | 1 から 99 個のプリセットエントリ。0 個、99 個を超える、またはシーケンスでない値は `OL_E_SESSION_PROFILE_INVALID` です。 |
 
 ### `compatibility`
 
@@ -73,13 +73,13 @@
 | --- | --- | --- | --- | --- |
 | `map` | string | いいえ | はい | 正規化された形式 `maps\<Map>\global.cfg` のマップ識別子（プランニングではこの形が厳密に要求されます: `maps\` で始まり、`\global.cfg` で終わり、`..` を含まない）。`WorldSpec.MapIdentity` を設定します。 |
 | `entrypoint-index` | integer | いいえ | はい | 提示されるエントリポイントのインデックス（OMSI のエントリポイント一覧における 0 始まりの位置）。`PresentedEntrypointIndex` を設定し、エントリポイント識別子をクリアします。 |
-| `entrypoint` | string | いいえ | はい | 生のエントリポイント識別子。`EntrypointIdentity` を設定し、提示インデックスをクリアします。`entrypoint-index` と `entrypoint` の両方がある場合、最後に適用される `entrypoint` が優先されます。エントリポイント識別子による選択は `PARTIAL`（BI-001）です。プランニングは `world.entrypoint-identity` を `RUNTIME_PARTIAL` として報告し、プランは実行不可になります。`entrypoint-index` を使用することを推奨します。 |
+| `entrypoint` | string | いいえ | はい | 生のエントリポイント識別子。`EntrypointIdentity` を設定し、提示インデックスをクリアします。`entrypoint-index` と `entrypoint` の両方がある場合、最後に適用される `entrypoint` が優先されます。値は正確な（大文字と小文字を区別する）ラベルまたはディスカバリ識別子です。OMSI は各ラベルの最初のレコードだけを提示します（`world.entrypoint-identity`、`EXPERIMENTAL`）。 |
 | `date` | mapping | いいえ | いいえ（`UNAVAILABLE`） | `new.date` を参照してください。 |
 | `time` | mapping | いいえ | いいえ（`UNAVAILABLE`） | `new.time` を参照してください。 |
 | `year` | integer | いいえ | いいえ（`UNAVAILABLE`） | 明示的な年。 |
 | `weather` | mapping | いいえ | いいえ（`UNAVAILABLE`） | `new.weather` を参照してください。 |
 
-`date`、`time`、`year`、`weather` は、`DateTimeMode.Explicit` / 選択された `WeatherMode` を持つ `DateSpec`、`TimeSpec`、`YearSpec`、`WeatherSpec` にコンパイルされます。その後、セッションプランナー（`src/OmsiLaunch.Core/SessionPlanner.cs`）がケイパビリティ `world.explicit-date`、`world.explicit-time`、`world.explicit-year`、`weather` を `STATICALLY_PARTIAL` として報告し、プラン診断に `OL_E_CAPABILITY_UNAVAILABLE` を追加して、プランを**実行不可**とします。さらにプラグインは、日付または時刻のモードが `Unset` でないハンドオフを拒否します（`plugin.request.unsupported`）。このビルドでの結果として、これら 4 つのキーのいずれかを設定したプロファイルは `/plan` で検証はできますが、セッションを開始することはできません（終了コード 1、`OL_E_PLAN_NOT_RUNNABLE`）。実行を想定したプロファイルではこれらを省いてください。
+`date`、`time`、`year`、`weather` は、`DateTimeMode.Explicit` / 選択された `WeatherMode` を持つ `DateSpec`、`TimeSpec`、`YearSpec`、`WeatherSpec` にコンパイルされます。セッションプランナー（`src/OmsiLaunch.Core/SessionPlanner.cs`）は `world.explicit-date`、`world.explicit-time`、`world.explicit-year`、`world.weather` を必要とします。4 つはすべて `EXPERIMENTAL` です（静的に確定済みで、ランタイム検証は保留中）。開始日時は NEW_MAP にのみ適用され、天候はすべてのワールドモードに適用されます。
 
 #### `new.date`
 
@@ -108,13 +108,15 @@
 
 | キー | 型 | 必須 | 既定値 | 説明 |
 | --- | --- | --- | --- | --- |
-| `index` | integer | はい | | 1 から 5 で、プロファイル内で一意です。`/predefined-profile-index` で選択します。重複または範囲外: `OL_E_SESSION_PROFILE_INVALID`。プロファイルのどこにも存在しないインデックス: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`。 |
+| `index` | integer | はい | | 1 から 99 で、プロファイル内で一意です。インデックスは連続していなくてもかまいません。`/predefined-profile-index` で選択します。重複または範囲外: `OL_E_SESSION_PROFILE_INVALID`。プロファイルのどこにも存在しないインデックス: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`。 |
 | `id` | string | はい | | プリセット識別子。`SessionProfileMetadata.PresetId` として報告されます。 |
 | `name` | string | はい | | プリセットの表示名。`SessionProfileMetadata.PresetName` として報告されます。 |
 | `settings` | mapping | いいえ | なし | セマンティックな `options.cfg` 設定。[設定](#settings)を参照してください。キーは大文字と小文字を区別せずにカタログと照合されます。 |
 | `presentation` | mapping | いいえ | 継承 | スプラッシュの表示。`presentation` を参照してください。ない場合、プリセットはベースライン（`/spec` の値、または CLI の既定値 `Managed`）を継承します。 |
 | `internet-textures` | mapping | いいえ | 継承 | `internet-textures` を参照してください。 |
 | `behavior` | mapping | いいえ | 継承 | タイムアウト。`behavior` を参照してください。 |
+| `hofs` | マッピングのシーケンス | いいえ | 継承 | セッションの HOF 操作。`hofs` を参照してください。指定すると、ベースラインの `HofManagement` を置き換えます。 |
+| `modules` | マッピング | いいえ | 継承 | ランタイムモジュール。`modules` を参照してください。`/spec` ファイルが要求するものと結合されます。 |
 
 適用されるのは選択されたプリセットだけです。ただし、すべてのプリセットが解析・検証されるため、プリセット 3 にエラーがあるとプリセット 1 の要求も失敗します。
 
@@ -149,6 +151,45 @@
 | `shutdown-timeout` | integer（秒） | いいえ | 30 | `LaunchBehaviorSpec.ShutdownTimeoutSeconds` に対応します。ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT: スーパーバイザーは OMSI を直接終了させ、この値を読み取ることはありません。 |
 
 `behavior` ブロックがある場合、両方のタイムアウトが設定され（指定値または既定値）、ベースラインの `LaunchBehaviorSpec` 全体を置き換えます。これには `RestoreConfiguration` と `SuppressStaleClosecheckWarning` も含まれ、これらは既定値（`true`、`true`）に戻ります。
+
+### `hofs`
+
+各エントリは [HOF 管理](hof-management.md)の操作 1 件で、ソースのキーをちょうど 1 つ（`package`、`collection`、`directory`、`vehicle` または `file`）指定します。0 個または複数: `OL_E_SESSION_PROFILE_INVALID`。ソースとターゲットの存在は、`package` を除き、セッションのプラン作成時に検査されます（`OL_E_HOF_*`）。
+
+| キー | 型 | 必須 | 既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `package` | string | ソースキーのいずれか 1 つ | | プロファイルが同梱する `.hof` ファイルを保持する、**パッケージからの相対**ディレクトリ。プロファイルの読み込み時に存在していなければなりません（`OL_E_SESSION_PROFILE_ASSET_MISSING`）。パスの制限規則が適用されます。`Directory` ソースになります。 |
+| `collection` | string | ソースキーのいずれか 1 つ | | `.omsilaunch\hof\` 配下のコレクションの名前。 |
+| `directory` | string | ソースキーのいずれか 1 つ | | インストール環境からの相対ディレクトリ。たとえばマップのコンテンツの隣。 |
+| `vehicle` | string | ソースキーのいずれか 1 つ | | HOF のコピー元となる車両の識別子またはフォルダー。 |
+| `file` | string | ソースキーのいずれか 1 つ | | インストール環境からの相対 `.hof` ファイル。 |
+| `targets` | 文字列のシーケンス | はい | | ターゲット車両（`Vehicles\` 配下の識別子またはフォルダー）。ない、または空: `OL_E_SESSION_PROFILE_INVALID`。 |
+| `files` | 文字列のシーケンス | いいえ | すべて | ソースから取り込むファイル名。 |
+| `mode` | string | いいえ | `add` | `add` または `mirror`（大文字と小文字を区別しない）。それ以外: `OL_E_SESSION_PROFILE_INVALID`。 |
+
+`hofs` を持つプリセットを `/hof-source` フラグと組み合わせた場合: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。
+
+### `modules`
+
+[ランタイムモジュール](../../../reference/runtime-modules.md) ID ごとに 1 エントリ（`EXPERIMENTAL`）。各エントリは次のキーを持つマッピングです（コンテキスト `module`）。
+
+| キー | 型 | 必須 | 既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `enabled` | `true` または `false` | いいえ | 未設定 | `true` はモジュールを要求します（`LaunchSpec.Modules.Enable`）。`false` は、既定、そのマップ、または設定ファイルによって読み込まれるモジュールを含め、モジュールをセッションから除外します（`LaunchSpec.Modules.Disable`）。 |
+| `settings` | マッピング | いいえ | なし | キーごとのモジュール設定（`<id>.<key>` としての `LaunchSpec.Modules.Settings`）。値は、セッションのプラン作成時にモジュールが宣言した設定と照合されます（`OL_E_MODULE_SETTING_INVALID`）。 |
+
+```yaml
+modules:
+  example-preload:
+    enabled: true
+    settings:
+      ram_budget_mb: 8192
+      monitor: false
+  example-hud:
+    enabled: false
+```
+
+`[a-z0-9][a-z0-9-]{1,47}` でないモジュール ID、`true` または `false` 以外の `enabled`、あるいは `[a-z][a-z0-9_]{0,31}` でない設定キー: `OL_E_SESSION_PROFILE_INVALID`。インストールされていないモジュールは、セッションのプラン作成時に報告されます（`enabled: true` では `OL_E_MODULE_NOT_FOUND`、設定のみでは `OL_W_MODULE_SETTING_IGNORED`）。
 
 <a id="settings"></a>
 ## 設定
@@ -252,6 +293,9 @@
 | `/splash`、`/splash-language`、`/splash-assets` | `presentation`（内容を問わず） | すべて |
 | `/internet-textures`、`/internet-textures-profile` | `internet-textures`（内容を問わず） | すべて |
 | `/startup-timeout`、`/shutdown-timeout` | `behavior`（内容を問わず） | すべて |
+| `/module:<id>` | `modules.<id>.enabled: false` | すべて |
+| `/no-module:<id>` | `modules.<id>.enabled: true` | すべて |
+| `/module-setting:<id>.<key>=...` またはモジュールフラグ | `modules.<id>.settings.<key>` | すべて |
 
 競合にならないもの: プリセットが定義していない `/set` のキー（追加されます）、車両フラグ（`/vehicle`、`/repaint`、`/hof`、`/fleet`、`/registration`、`/no-vehicle`。プロファイルはプレイヤー車両を定義できません）、および `/saved` の下での world 引数（そこでは `new` ブロックは適用されません）。`/map`、`/entrypoint`、`/entrypoint-index` は、プロファイルの有無にかかわらず `/saved` と併用すると無効です（`OL_E_INVALID_ARGUMENT`）。
 
@@ -264,7 +308,7 @@
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | `id` が単純なディレクトリ名でない。`assets` / `profile` がパッケージの外に出る、または再解析ポイントを経由する | 2 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` が `omsilaunch.session-profile/v1` でない | 2 |
 | `OL_E_SESSION_PROFILE_INVALID` | サイズ上限、ドキュメントの形、アンカー、未知のキー、必須キーの欠落、スカラーでない値、不正な数値/日付/時刻、`id` の不一致、プリセットの個数/インデックスのルール、サポートされていないモードの語、正でないタイムアウト、`splash` のない `presentation`、`profile` のない `override` | 2 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` がない、1..5 の範囲外、またはその `index` を持つプリセットがない | 2 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` がない、1..99 の範囲外、またはその `index` を持つプリセットがない | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | `settings` のキーがカタログにない | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | `settings` のキーがカタログにあるが読み取り専用 | 2 |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | `assets` ディレクトリまたは `profile` ファイルがパッケージ内に存在しない | 2 |
@@ -272,6 +316,14 @@
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | 明示的な CLI 引数がプロファイルの所有するフィールドを対象としている | 2 |
 
 これらはすべて、コマンドラインのコンパイル中、プランニングの前に発生します。いずれも `SessionProfileException`（競合の場合は `ArgumentException`）であり、セッションが開始されることはありません。完全なカタログは[エラー](errors.md)に、終了コードは[終了コード](exit-codes.md)にあります。
+
+## Discovering installed profiles
+
+`OmsiLaunch.exe /list:SessionProfiles`（API `ListSessionProfilesAsync`）は、`.omsilaunch\session-profiles\` 配下のすべてのパッケージをコンパイルし、パッケージごとに 1 エントリを出力します。`Id`、`Name`、`Version`、`Author`、`CompatibleMaps`、`MapIdentity`、およびインデックス順の `Presets`（`Index`、`Id`、`Name`）です。コンパイルできないパッケージも `IsValid: false` とともに一覧され、起動した場合に報告されるのと同じ `OL_E_SESSION_PROFILE_*` コードが付きます。何も書き込まれません。
+
+```text
+OmsiLaunch.exe /list:SessionProfiles --json
+```
 
 <a id="how-a-profile-appears-in-the-api"></a>
 ## API におけるプロファイルの見え方

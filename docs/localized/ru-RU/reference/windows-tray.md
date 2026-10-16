@@ -1,7 +1,7 @@
 # Индикатор в трее Windows
 
-<!-- l10n: source=reference/windows-tray.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/windows-tray.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> Перевод [исходной страницы на английском языке](../../../reference/windows-tray.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Каждый автономный сеанс владельца (запущенный через `OmsiLaunch.exe` или `OmsiLaunchW.exe`) показывает значок в области уведомлений, который отображает состояние сеанса и позволяет пользователю его завершить. На этой странице описан индикатор в том виде, как он реализован классами `SessionTrayIndicator`, `StatusWindow` и `StopConfirmationWindow` в `tools\OmsiLaunch.Cli\WindowsHost.cs`, презентером только для чтения `SessionStatusPresenter` (`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`) и реестром строк `WindowsUiStrings` (`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`), а также диалоги ошибок `OmsiLaunchW.exe` из `WindowsHost`. Трей — это только адаптер представления: он не владеет ни OMSI, ни восстановлением после сбоя, а его действие остановки передаёт сигнал по тому же каноническому пути остановки через владельца, что и `session stop` (см. [справочник CLI](cli.md) и [локальное управление](local-control.md)).
 
@@ -60,7 +60,7 @@
 | `Presentation` | `Splash` | всегда | `Managed` или `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | всегда | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-Разделы `Environment` и `Vehicle` никогда не могут появиться в выполняющемся сеансе Beta 3: запрос даты, времени, года, погоды или любого поля транспортного средства игрока делает план неисполнимым, поэтому такой сеанс не запускается (см. [известные ограничения](known-limitations.md)). Они предусмотрены для будущих build и покрыты офлайн-тестом презентера.
+Раздел `Environment` появляется в выполняющемся сеансе Beta 4, если были запрошены дата, время, год или погода (эти запросы экспериментальные, см. [известные ограничения](known-limitations.md)). Раздел `Vehicle` никогда не может появиться в выполняющемся сеансе: запрос любого поля транспортного средства игрока делает план неисполнимым, поэтому такой сеанс не запускается. Он предусмотрен для будущего build и покрыт офлайн-тестом презентера.
 
 Подтверждение в runtime (UI на pt-BR, runtime-проверка `T01`): сеанс NEW_MAP на карте Grundorf показал `Sessão em execução`; `Sessão`: `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1`; `Apresentação`: `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

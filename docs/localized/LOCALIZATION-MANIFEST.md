@@ -1,6 +1,6 @@
-# OmsiLaunch 0.1.0-beta3 Localization Manifest
+# OmsiLaunch 0.1.0-beta4 Localization Manifest
 
-The English pages under `docs/` are the canonical (`en-US`) and normative documentation of OmsiLaunch `0.1.0-beta3`. Each directory under `docs/localized/` is a complete translation of the page set below, written from the final English Beta 3 pages. Translations are not alternative specifications: where a translation disagrees with the English page, the English page and the code are authoritative.
+The English pages under `docs/` are the canonical (`en-US`) and normative documentation of OmsiLaunch `0.1.0-beta4`. Each directory under `docs/localized/` is a complete translation of the page set below, written from the final English Beta 4 pages. Translations are not alternative specifications: where a translation disagrees with the English page, the English page and the code are authoritative.
 
 ## Locales
 

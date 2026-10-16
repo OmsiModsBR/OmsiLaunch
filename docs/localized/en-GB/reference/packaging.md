@@ -1,9 +1,9 @@
 # Packaging and Release Layout
 
-<!-- l10n: source=reference/packaging.md -->
-> British English edition of the [canonical page](../../../reference/packaging.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+> British English edition of the [canonical page](../../../reference/packaging.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
-This page describes the OmsiLaunch `0.1.0-beta3` release package: what `tools\New-ReleasePackage.ps1` produces, the fields of `release-manifest.json`, how the controller uses the manifest at runtime to verify the permanent plugin closure, how the package is installed into and removed from an OMSI installation root, what the `.omsilaunch` directory contains after use, and the validation scripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Product identity comes from `OmsiLaunch.Version.props`. Installation steps for users are in [installation](../getting-started/installation.md); the plugin closure's runtime role is in [permanent plugin](../concepts/permanent-plugin.md).
+This page describes the OmsiLaunch `0.1.0-beta4` release package: what `tools\New-ReleasePackage.ps1` produces, the fields of `release-manifest.json`, how the controller uses the manifest at runtime to verify the permanent plugin closure, how the package is installed into and removed from an OMSI installation root, what the `.omsilaunch` directory contains after use, and the validation scripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Product identity comes from `OmsiLaunch.Version.props`. Installation steps for users are in [installation](../getting-started/installation.md); the plugin closure's runtime role is in [permanent plugin](../concepts/permanent-plugin.md).
 
 ## Product identity (`OmsiLaunch.Version.props`)
 
@@ -11,13 +11,13 @@ This page describes the OmsiLaunch `0.1.0-beta3` release package: what `tools\Ne
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Manifest `product`, Windows `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro` | Windows `LegalCopyright` |
-| `OmsiLaunchProductVersion` | `0.1.0-beta3` | Manifest `product_version`, Windows `ProductVersion`, assembly informational version (`/version`), public ZIP name |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchProductVersion` | `0.1.0-beta4` | Manifest `product_version`, Windows `ProductVersion`, assembly informational version (`/version`), public ZIP name |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Managed assembly version base |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Assembly and Windows file version |
 | `OmsiLaunchPackageAlias` | `current` | Manifest `package_alias`, staging folder and alias ZIP name |
 
-`Directory.Build.props` sets `InformationalVersion` to `OmsiLaunchProductVersion` without a source revision, so `OmsiLaunch.exe /version` prints exactly `0.1.0-beta3`.
+`Directory.Build.props` sets `InformationalVersion` to `OmsiLaunchProductVersion` without a source revision, so `OmsiLaunch.exe /version` prints exactly `0.1.0-beta4`.
 
 ## Build (`tools\New-ReleasePackage.ps1`)
 
@@ -44,7 +44,7 @@ The package is then assembled in a brand-new, uniquely named staging directory (
 | every file under `docs\` except `docs\localized\` (the English documentation, same directory structure) | `.omsilaunch\docs\` (so `.omsilaunch\docs\reference\cli.md`, the path printed by the CLI usage text, exists; documentation audit BUG-08). Links from `docs\README.md` to the repository-root summaries (`PUBLIC-API.md` and others) resolve only in the source repository. |
 | `docs\localized\LOCALIZATION-MANIFEST.md` and `docs\localized\<locale>\**` for each locale listed in that manifest (`pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` and `ja-JP`) | `.omsilaunch\docs\localized\` (same structure); a listed locale that is missing aborts the script |
 
-Then it hashes every staged file, writes `release-manifest.json` at the package root as UTF-8 **without** a BOM (the result no longer depends on the PowerShell edition), runs `Test-ReleasePackageIntegrity.ps1` on the stage, re-compares every staged plugin file and `OmsiLaunch.Native.x86.dll` with its build output, compresses the stage, **extracts the archive into a fresh temporary directory and validates the extracted closure against the same manifest** (the archived manifest must be byte-identical to the validated one), then publishes the stage as `OmsiLaunch-current`, the archive as `OmsiLaunch-current.zip`, copies it to `OmsiLaunch-<product_version>.zip` (`OmsiLaunch-0.1.0-beta3.zip`) and writes `OmsiLaunch-0.1.0-beta3.zip.sha256` containing `<SHA-256>  <file name>`. Any missing artefact aborts the script. The script does not build; run `Invoke-OfflineValidation.ps1` (or the individual `dotnet build` / MSBuild steps) first.
+Then it hashes every staged file, writes `release-manifest.json` at the package root as UTF-8 **without** a BOM (the result no longer depends on the PowerShell edition), runs `Test-ReleasePackageIntegrity.ps1` on the stage, re-compares every staged plugin file and `OmsiLaunch.Native.x86.dll` with its build output, compresses the stage, **extracts the archive into a fresh temporary directory and validates the extracted closure against the same manifest** (the archived manifest must be byte-identical to the validated one), then publishes the stage as `OmsiLaunch-current`, the archive as `OmsiLaunch-current.zip`, copies it to `OmsiLaunch-<product_version>.zip` (`OmsiLaunch-0.1.0-beta4.zip`) and writes `OmsiLaunch-0.1.0-beta4.zip.sha256` containing `<SHA-256>  <file name>`. Any missing artefact aborts the script. The script does not build; run `Invoke-OfflineValidation.ps1` (or the individual `dotnet build` / MSBuild steps) first.
 
 ## Package layout
 
@@ -69,7 +69,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 .omsilaunch\
   assets\splash\{PTB,ENG,DEU,FRA}.bmp   640x480 24-bit managed splash assets
   docs\                               English documentation (README.md, getting-started\, reference\, concepts\, status\, ...)
-  docs\localized\<locale>\             translations of the 0.1.0-beta3 pages (not normative)
+  docs\localized\<locale>\             translations of the 0.1.0-beta4 pages (not normative)
   examples\release-session.example.json
   examples\session-profiles\rmg-leste\profile.yaml
 ```
@@ -81,11 +81,11 @@ Only the root product files, `plugins\OmsiLaunch.*` and `.omsilaunch\` are produ
 | Field | Type | Meaning |
 |---|---|---|
 | `product` | string | `OmsiLaunch` |
-| `product_version` | string | `0.1.0-beta3` |
+| `product_version` | string | `0.1.0-beta4` |
 | `package_alias` | string | `current` |
 | `control_protocol` | string | `0.1`; must match `PublicCapabilityRegistry.ProtocolVersion` |
-| `target_profile` | string | `Omsi23004_692EBFBF`, the only supported build profile |
-| `supported_executable_hashes` | string[] | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (runtime validated) and `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` (Steam LAA, `pending_beta_field_validation`) |
+| `requirement` | string | `OMSI 2` |
+| `known_layouts` | object[] | `build_id` and `code_sha256` of each known layout (`Omsi23004`, `13ec110a...c028`); a fast path, not a requirement |
 | `configuration` | string | `Release` or `Debug` |
 | `generated_utc` | string | ISO-8601 build time |
 | `files[]` | object[] | `path` (forward slashes, relative to the package root), `bytes`, `sha256` (upper-case hex) for every packaged file |
@@ -106,7 +106,7 @@ Plugin files are never staged, snapshotted, restored or removed by a session; th
 
 ## Installation into the OMSI root
 
-1. Verify the archive: compare `OmsiLaunch-0.1.0-beta3.zip` against `OmsiLaunch-0.1.0-beta3.zip.sha256`.
+1. Verify the archive: compare `OmsiLaunch-0.1.0-beta4.zip` against `OmsiLaunch-0.1.0-beta4.zip.sha256`.
 2. Extract the archive **directly into the OMSI installation root** (the directory containing `Omsi.exe`). This places the root files, `plugins\OmsiLaunch.*` (beside any third-party plugins) and `.omsilaunch\`.
 3. Keep `release-manifest.json` beside `OmsiLaunch.exe`: it enables manifest-based plugin integrity. The manifest and the binaries must come from the same package: new binaries over an older manifest (or the reverse) make every start fail with `OL_E_PERMANENT_PLUGIN_HASH_MISMATCH`. `Test-ReleasePresentation.ps1 -InstallPackage` now copies the manifest together with the product files; it used to skip it, which left an older manifest beside newer binaries (Round A RA-007).
 4. Check coherence read-only with `tools\Test-ReleasePackageIntegrity.ps1 -PackagePath <zip> -InstallationRoot <root>`: `installation_comparison.coherent_with_package` must be `true`.

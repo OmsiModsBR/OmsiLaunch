@@ -1,7 +1,7 @@
 # Ciclo di vita della sessione
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> Traduzione della [pagina originale in inglese](../../../concepts/session-lifecycle.md) di OmsiLaunch 0.1.0-beta3. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> Traduzione della [pagina originale in inglese](../../../concepts/session-lifecycle.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
 Questa pagina descrive come una sessione OmsiLaunch attraversa `SessionState` da `Created` a `Completed` o `Failed`: quale componente imposta ciascuno stato, quali eventi di telemetria del plugin guidano le transizioni, come funziona il timeout di avvio, che cosa significa l'arresto (terminazione forzata), che cosa restituisce `WaitForAsync`, quali stati sono terminali, quali stati non sono mai o quasi mai osservabili e quali garanzie offre l'owner della CLI. Tutto il contenuto è tratto da `OmsiLaunchService.StartAsync`, `SuperviseAsync` e `ApplyTelemetry` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), `PluginRuntime` (`src/OmsiLaunch.Plugin/PluginRuntime.cs`) e `OwnerSession` (`tools/OmsiLaunch.Cli/Program.cs`).
 
@@ -80,7 +80,7 @@ La ripianificazione mantiene il `SessionId` del chiamante, quindi l'id nell'hand
 
 Il supervisore viene eseguito su un task del thread pool ed esegue un ciclo ogni 100 ms finché OMSI non è terminato o non è stato richiesto un arresto:
 
-1. Leggere il campione di telemetria più recente (uno slot a valore più recente con una sequenza del produttore; i campioni incoerenti vengono scartati; eventi consecutivi identici sono distinti perché la sequenza differisce). Ogni nuovo campione viene aggiunto a `RuntimeEvents` e mappato da `ApplyTelemetry`.
+1. Leggere, in ordine, ogni evento di telemetria che il plugin ha confermato dall'ultima lettura (un event ring; un lettore rimasto indietro riceve `telemetry.lost` con il conteggio). Ogni evento viene aggiunto a `RuntimeEvents` e mappato da `ApplyTelemetry`.
 2. Se la sessione è `Failed`, uscire dal ciclo.
 3. Se la sessione non è ancora `Running` e la scadenza (`StartupTimeoutSeconds` dopo l'ingresso nel supervisore) è trascorsa: `Fail` con `OL_E_STARTUP_TIMEOUT` se è stato raggiunto `PluginBootstrap`, altrimenti `OL_E_PLUGIN_NOT_LOADED`; uscire dal ciclo.
 

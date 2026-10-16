@@ -2,4 +2,5 @@
   <!-- Build profiles are data-only and must be loadable by both the x64 host
        and the in-process x86 plugin. -->
   <PropertyGroup><TargetFramework>net6.0-windows</TargetFramework><Platforms>AnyCPU;x64</Platforms><PlatformTarget>AnyCPU</PlatformTarget><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\OmsiLaunch.NativeResolution\OmsiLaunch.NativeResolution.csproj" /></ItemGroup>
 </Project>

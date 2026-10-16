@@ -1,9 +1,9 @@
 # First Session
 
-<!-- l10n: source=getting-started/first-session.md -->
-> British English edition of the [canonical page](../../../getting-started/first-session.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=getting-started/first-session.md source-sha256=3985b8db122dfbbfeabd69692a21620d4e3d381f398197b61be2c500be1f3170 -->
+> British English edition of the [canonical page](../../../getting-started/first-session.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
-This page walks through the first managed OMSI session with OmsiLaunch `0.1.0-beta3`: planning without starting OMSI, starting with explicit flags, starting with a predefined session profile, controlling and stopping the session, and finding the diagnostics afterwards. It assumes the package is installed as described in [installation](installation.md). Every flag is specified in the [CLI reference](../reference/cli.md); more invocations are in [CLI examples](../reference/cli-examples.md).
+This page walks through the first managed OMSI session with OmsiLaunch `0.1.0-beta4`: planning without starting OMSI, starting with explicit flags, starting with a predefined session profile, controlling and stopping the session, and finding the diagnostics afterwards. It assumes the package is installed as described in [installation](installation.md). Every flag is specified in the [CLI reference](../reference/cli.md); more invocations are in [CLI examples](../reference/cli-examples.md).
 
 ## What a session does
 
@@ -35,7 +35,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 
 What happens, in order:
 
-1. The plan is printed (`Plan: READY profile=Omsi23004_692EBFBF`).
+1. The plan is printed (`Plan: READY profile=Omsi23004` on the known layout).
 2. Recovery of any older pending journal, lease acquisition, snapshot, journal, overlays, plugin integrity check, `Omsi.exe` start.
 3. The tray icon appears (`OmsiLaunch is running`); see [Windows tray](../reference/windows-tray.md).
 4. When gameplay is entered, the `Running` status is printed as JSON (`"State": 14`). The default startup timeout is 180 s (`/startup-timeout:<1..600>` to change it).
@@ -52,7 +52,7 @@ Flags that request a date, time, year, weather or a player vehicle (`/date`, `/t
 
 ## 3. Start with a predefined session profile
 
-A session profile is a YAML file under `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` that fixes the map, the entrypoint and up to five presets of settings (schema `omsilaunch.session-profile/v1`; full reference in [session profiles](../reference/session-profiles.md)). Create `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`:
+A session profile is a YAML file under `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` that fixes the map, the entrypoint and up to 99 presets of settings (schema `omsilaunch.session-profile/v1`; full reference in [session profiles](../reference/session-profiles.md)). Create `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`:
 
 ```yaml
 schema: omsilaunch.session-profile/v1
@@ -88,7 +88,7 @@ OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /n
 OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /new
 ```
 
-Rules to remember: the `id` must equal the directory name; the index is `1..5`; explicit flags that would override a profile-owned field (`/map`, `/entrypoint-index`, a `/set` key the preset owns, splash flags when the preset has `presentation`) are rejected with `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (exit `2`); the `new:` block applies only with `/new`; with `/saved:<file.osn>` the situation's map must be listed under `compatibility.maps`. The packaged `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` illustrates the complete schema, but its `new:` block sets `date`, `time` and `weather`, which this build cannot apply, so copy it only after removing those keys.
+Rules to remember: the `id` must equal the directory name; the index is `1..99`; explicit flags that would override a profile-owned field (`/map`, `/entrypoint-index`, a `/set` key the preset owns, splash flags when the preset has `presentation`) are rejected with `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (exit `2`); the `new:` block applies only with `/new`; with `/saved:<file.osn>` the situation's map must be listed under `compatibility.maps`. The packaged `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` illustrates the complete schema, but its `new:` block sets `date`, `time` and `weather`, which this build cannot apply, so copy it only after removing those keys.
 
 ## 4. Control the running session
 

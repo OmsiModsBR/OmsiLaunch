@@ -66,7 +66,13 @@ internal static class LocalizationGate
         var path = Path.Combine(root, page);
         var english = File.ReadAllText(englishPath).Replace("\r\n", "\n");
         var translated = File.ReadAllText(path).Replace("\r\n", "\n");
-        if (!translated.Contains(BannerMark + " source=" + page + " -->", StringComparison.Ordinal)) yield return "translation banner missing";
+        // The banner records the SHA-256 of the English page the translation
+        // follows. Any later change of the English page, prose included, makes
+        // the translation stale until it is updated and re-finalized.
+        var banner = Regex.Match(translated, "^" + Regex.Escape(BannerMark + " source=" + page) + " source-sha256=([0-9a-f]{64}|unknown) -->$", RegexOptions.Multiline);
+        if (!banner.Success) yield return "translation banner missing";
+        else if (banner.Groups[1].Value != Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(english))).ToLowerInvariant())
+            yield return "stale translation: the English page changed since it was translated";
         var body = StripL10n(translated);
         var (englishProse, englishCode) = Split(english);
         var (prose, code) = Split(body);

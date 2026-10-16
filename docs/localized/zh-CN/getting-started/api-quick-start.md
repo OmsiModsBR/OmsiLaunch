@@ -1,6 +1,6 @@
 # 公共 API 快速入门
 
-<!-- l10n: source=getting-started/api-quick-start.md -->
+<!-- l10n: source=getting-started/api-quick-start.md source-sha256=cd9b92efa4f35f7a4f8947145e72af4b066eb29e49c6f4435497e0001eadc69c -->
 > 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../getting-started/api-quick-start.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页介绍如何在您自己的 .NET 程序中启动、读取并结束一个 OmsiLaunch 会话。本页假定包已安装在 OMSI 2 目录中（见[安装](installation.md)），并且 `OmsiLaunch.exe /plan` 可以在该目录中正常工作（见[第一个会话](first-session.md)）。完整的契约见[公共 API 参考](../reference/public-api.md)。

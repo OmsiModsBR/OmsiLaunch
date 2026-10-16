@@ -1,7 +1,7 @@
 # 公共 API 清单
 
-<!-- l10n: source=reference/public-api-inventory.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/public-api-inventory.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/public-api-inventory.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页由 `tests/OmsiLaunch.DocumentationTests` 根据编译后的程序集生成（`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`）；当本页与代码不再一致时，文档检查会失败。本页列出 `OmsiLaunch.Api`、`OmsiLaunch.Core` 和 `OmsiLaunch.Process` 导出的每个类型及其稳定性，以及每个公共成员的签名。语义、前置条件、错误和示例记录在各标题所指的页面中（默认：[公共 API](public-api.md)）。稳定性术语：`STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`（出于技术原因而公开，不属于集成接口）、`UNAVAILABLE`（参见[公共 API](public-api.md#stability-vocabulary)）。编译器生成的 record 成员（`Equals`、`GetHashCode`、`ToString`、`Deconstruct`、`<Clone>$`、`EqualityContract`）不予列出。
 
@@ -45,6 +45,8 @@
 | 值 | `Registrations = 6` |
 | 值 | `Addons = 7` |
 | 值 | `Entrypoints = 8` |
+| 值 | `SessionProfiles = 9` |
+| 值 | `RuntimeModules = 10` |
 
 ### `D3DDeviceState`
 
@@ -231,6 +233,48 @@
 | 属性 | `IReadOnlyDictionary<string, OptionalValue<string>> Keyboard { get; init; }` |
 | 属性 | `IReadOnlyDictionary<string, OptionalValue<string>> Controllers { get; init; }` |
 
+### `HofApplyMode`
+
+枚举 (`byte`)，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 值 | `Add = 0` |
+| 值 | `Mirror = 1` |
+
+### `HofManagementSpec`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `HofManagementSpec(IReadOnlyList<HofOperationSpec> Operations)` |
+| 属性 | `IReadOnlyList<HofOperationSpec> Operations { get; init; }` |
+
+### `HofOperationSpec`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `HofOperationSpec(HofSourceKind SourceKind, string Source, IReadOnlyList<string> TargetVehicles, HofApplyMode Mode = Add, IReadOnlyList<string> Files = null)` |
+| 属性 | `HofSourceKind SourceKind { get; init; }` |
+| 属性 | `string Source { get; init; }` |
+| 属性 | `IReadOnlyList<string> TargetVehicles { get; init; }` |
+| 属性 | `HofApplyMode Mode { get; init; }` |
+| 属性 | `IReadOnlyList<string> Files { get; init; }` |
+
+### `HofSourceKind`
+
+枚举 (`byte`)，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 值 | `Collection = 0` |
+| 值 | `Directory = 1` |
+| 值 | `Vehicle = 2` |
+| 值 | `File = 3` |
+
 ### `IOmsiLaunch`
 
 接口，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
@@ -242,6 +286,8 @@
 | 方法 | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| 方法 | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| 方法 | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -305,11 +351,12 @@
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30)` |
+| 构造函数 | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30, bool CooperativeShutdown = false)` |
 | 属性 | `bool RestoreConfiguration { get; init; }` |
 | 属性 | `bool SuppressStaleClosecheckWarning { get; init; }` |
 | 属性 | `int StartupTimeoutSeconds { get; init; }` |
 | 属性 | `int ShutdownTimeoutSeconds { get; init; }` |
+| 属性 | `bool CooperativeShutdown { get; init; }` |
 
 ### `LaunchDiagnostic`
 
@@ -328,7 +375,7 @@
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null)` |
+| 构造函数 | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null, HofManagementSpec HofManagement = null, RuntimeModulesSpec Modules = null)` |
 | 属性 | `InstallationSpec Installation { get; init; }` |
 | 属性 | `WorldSpec World { get; init; }` |
 | 属性 | `DateSpec Date { get; init; }` |
@@ -343,6 +390,10 @@
 | 属性 | `SessionPresentationSpec Presentation { get; init; }` |
 | 属性 | `InternetTexturesSpec InternetTextures { get; init; }` |
 | 属性 | `SessionProfileMetadata SessionProfile { get; init; }` |
+| 属性 | `HofManagementSpec HofManagement { get; init; }` |
+| 属性 | `RuntimeModulesSpec Modules { get; init; }` |
+| 属性 | `HofManagementSpec EffectiveHofManagement { get; }` |
+| 属性 | `RuntimeModulesSpec EffectiveModules { get; }` |
 | 属性 | `YearSpec EffectiveYear { get; }` |
 | 属性 | `WeatherSpec EffectiveWeather { get; }` |
 | 属性 | `InputSpec EffectiveInput { get; }` |
@@ -371,6 +422,44 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `bool IsSet { get; }` |
 | 静态属性 | `OptionalValue<T> Unset { get; }` |
 | 静态方法 | `OptionalValue<T> Set(T value)` |
+
+### `PlannedModule`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| 常量 | `string Eligible = "ELIGIBLE"` |
+| 常量 | `string Rejected = "REJECTED"` |
+| 常量 | `string ActivationRequested = "requested"` |
+| 常量 | `string ActivationSettingsFile = "settings-file"` |
+| 常量 | `string ActivationContent = "content"` |
+| 常量 | `string ActivationDefault = "default"` |
+| 属性 | `string Id { get; init; }` |
+| 属性 | `string Version { get; init; }` |
+| 属性 | `string Status { get; init; }` |
+| 属性 | `bool Requested { get; init; }` |
+| 属性 | `string FailurePolicy { get; init; }` |
+| 属性 | `IReadOnlyList<string> Operations { get; init; }` |
+| 属性 | `string Code { get; init; }` |
+| 属性 | `string Reason { get; init; }` |
+| 属性 | `string ManifestSha256 { get; init; }` |
+| 属性 | `string Activation { get; init; }` |
+| 属性 | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| 属性 | `bool IsEligible { get; }` |
+| 属性 | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+
+### `PlannedModuleSetting`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `PlannedModuleSetting(string Key, string Value, string Source)` |
+| 属性 | `string Key { get; init; }` |
+| 属性 | `string Value { get; init; }` |
+| 属性 | `string Source { get; init; }` |
 
 ### `PlannedMutation`
 
@@ -424,7 +513,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null)` |
+| 构造函数 | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null, IReadOnlyList<PublicRuntimeOperation> Operations = null, string NativeCapability = null, string EvidenceNote = null)` |
 | 属性 | `string Id { get; init; }` |
 | 属性 | `string Family { get; init; }` |
 | 属性 | `PublicCapabilityClassification Classification { get; init; }` |
@@ -436,6 +525,11 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `string RuntimeValidation { get; init; }` |
 | 属性 | `string Description { get; init; }` |
 | 属性 | `IReadOnlyList<string> HandleTypes { get; init; }` |
+| 属性 | `IReadOnlyList<PublicRuntimeOperation> Operations { get; init; }` |
+| 属性 | `string NativeCapability { get; init; }` |
+| 属性 | `string EvidenceNote { get; init; }` |
+| 属性 | `IReadOnlyList<PublicRuntimeOperation> EffectiveOperations { get; }` |
+| 属性 | `IReadOnlyList<string> NativeCapabilities { get; }` |
 
 ### `PublicCapabilityKind`
 
@@ -457,9 +551,16 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string ProtocolVersion = "0.1"` |
 | 静态字段 | `IReadOnlyList<PublicCapabilityDescriptor> All` |
 | 静态属性 | `IReadOnlyCollection<string> PublicRuntimeOperationIds { get; }` |
+| 静态属性 | `IReadOnlyList<PublicRuntimeOperation> RuntimeOperations { get; }` |
+| 静态属性 | `IReadOnlyDictionary<string, string> CliRoutes { get; }` |
+| 静态方法 | `PublicCapabilityDescriptor Get(string id)` |
 | 静态方法 | `IReadOnlyList<PublicRuntimeArgumentDescriptor> GetRuntimeArguments(string operation)` |
 | 静态方法 | `bool IsInternalResultKey(string key)` |
+| 静态方法 | `bool IsModuleOperation(string operation)` |
 | 静态方法 | `bool IsPublicRuntimeOperation(string operation)` |
+| 静态方法 | `string NativeCapabilityOf(string operation)` |
+| 静态方法 | `bool TryGet(string id, out PublicCapabilityDescriptor descriptor)` |
+| 静态方法 | `bool TryGetOperation(string operation, out PublicCapabilityDescriptor capability, out PublicRuntimeOperation descriptor)` |
 | 静态方法 | `PublicRuntimeArgumentValidation ValidateRuntimeArguments(string operation, IReadOnlyDictionary<string, string> arguments)` |
 
 ### `PublicErrorCategory`
@@ -488,12 +589,19 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string WINDOWS_HOST_MISSING = "OL_E_WINDOWS_HOST_MISSING"` |
 | 常量 | `string WINDOWS_HOST_START_FAILED = "OL_E_WINDOWS_HOST_START_FAILED"` |
 | 常量 | `string BUILD_VALIDATION_FAILED = "OL_E_BUILD_VALIDATION_FAILED"` |
+| 常量 | `string CAPABILITY_UNRESOLVED = "OL_E_CAPABILITY_UNRESOLVED"` |
 | 常量 | `string UNSUPPORTED_BUILD = "OL_E_UNSUPPORTED_BUILD"` |
 | 常量 | `string UNSUPPORTED_OPERATING_SYSTEM = "OL_E_UNSUPPORTED_OPERATING_SYSTEM"` |
 | 常量 | `string UNSUPPORTED_OS_ARCHITECTURE = "OL_E_UNSUPPORTED_OS_ARCHITECTURE"` |
 | 常量 | `string ENTRYPOINT_NOT_FOUND = "OL_E_ENTRYPOINT_NOT_FOUND"` |
 | 常量 | `string ENTRYPOINT_REQUIRED = "OL_E_ENTRYPOINT_REQUIRED"` |
+| 常量 | `string ENTRYPOINT_NOT_PRESENTED = "OL_E_ENTRYPOINT_NOT_PRESENTED"` |
 | 常量 | `string HOF_NOT_FOUND = "OL_E_HOF_NOT_FOUND"` |
+| 常量 | `string HOF_CONFLICT = "OL_E_HOF_CONFLICT"` |
+| 常量 | `string HOF_INVALID = "OL_E_HOF_INVALID"` |
+| 常量 | `string HOF_PATH_ESCAPE = "OL_E_HOF_PATH_ESCAPE"` |
+| 常量 | `string HOF_SOURCE_NOT_FOUND = "OL_E_HOF_SOURCE_NOT_FOUND"` |
+| 常量 | `string HOF_TARGET_NOT_FOUND = "OL_E_HOF_TARGET_NOT_FOUND"` |
 | 常量 | `string MAP_NOT_FOUND = "OL_E_MAP_NOT_FOUND"` |
 | 常量 | `string NOT_FOUND = "OL_E_NOT_FOUND"` |
 | 常量 | `string REPAINT_NOT_FOUND = "OL_E_REPAINT_NOT_FOUND"` |
@@ -541,6 +649,8 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string PROCESS_WAIT_FAILED = "OL_E_PROCESS_WAIT_FAILED"` |
 | 常量 | `string CAMERA_PRESET_FAMILY_UNSUPPORTED = "OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED"` |
 | 常量 | `string DATE_TIME_APPLY_FAILED = "OL_E_DATE_TIME_APPLY_FAILED"` |
+| 常量 | `string WEATHER_INVALID = "OL_E_WEATHER_INVALID"` |
+| 常量 | `string WEATHER_APPLY_FAILED = "OL_E_WEATHER_APPLY_FAILED"` |
 | 常量 | `string MAKEVEHICLE_BUS_NOT_FOUND = "OL_E_MAKEVEHICLE_BUS_NOT_FOUND"` |
 | 常量 | `string MAKEVEHICLE_DELTA_MULTIPLE = "OL_E_MAKEVEHICLE_DELTA_MULTIPLE"` |
 | 常量 | `string MAKEVEHICLE_DELTA_ZERO = "OL_E_MAKEVEHICLE_DELTA_ZERO"` |
@@ -581,6 +691,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string RUNTIME_STRING_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND"` |
 | 常量 | `string RUNTIME_VALUE_INVALID = "OL_E_RUNTIME_VALUE_INVALID"` |
 | 常量 | `string RUNTIME_VALUE_OUT_OF_RANGE = "OL_E_RUNTIME_VALUE_OUT_OF_RANGE"` |
+| 常量 | `string RUNTIME_CURSOR_INVALID = "OL_E_RUNTIME_CURSOR_INVALID"` |
 | 常量 | `string RUNTIME_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_VARIABLE_NOT_FOUND"` |
 | 常量 | `string RUNTIME_VARIABLE_UNAVAILABLE = "OL_E_RUNTIME_VARIABLE_UNAVAILABLE"` |
 | 常量 | `string TIME_APPLY_FAILED = "OL_E_TIME_APPLY_FAILED"` |
@@ -606,6 +717,25 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string STARTUP_TIMEOUT = "OL_E_STARTUP_TIMEOUT"` |
 | 常量 | `string START_SESSION = "OL_E_START_SESSION"` |
 | 常量 | `string WORLD_START_FAILED = "OL_E_WORLD_START_FAILED"` |
+| 常量 | `string MODULE_MANIFEST_INVALID = "OL_E_MODULE_MANIFEST_INVALID"` |
+| 常量 | `string MODULE_NOT_FOUND = "OL_E_MODULE_NOT_FOUND"` |
+| 常量 | `string MODULE_INTEGRITY = "OL_E_MODULE_INTEGRITY"` |
+| 常量 | `string MODULE_PROTOCOL_UNSUPPORTED = "OL_E_MODULE_PROTOCOL_UNSUPPORTED"` |
+| 常量 | `string MODULE_CAPABILITY_UNRESOLVED = "OL_E_MODULE_CAPABILITY_UNRESOLVED"` |
+| 常量 | `string MODULE_CONTENT_BINDING = "OL_E_MODULE_CONTENT_BINDING"` |
+| 常量 | `string MODULE_COMPONENT_UNSUPPORTED = "OL_E_MODULE_COMPONENT_UNSUPPORTED"` |
+| 常量 | `string MODULE_LOAD_FAILED = "OL_E_MODULE_LOAD_FAILED"` |
+| 常量 | `string MODULE_PHASE_FAILED = "OL_E_MODULE_PHASE_FAILED"` |
+| 常量 | `string MODULE_PHASE_TIMEOUT = "OL_E_MODULE_PHASE_TIMEOUT"` |
+| 常量 | `string MODULE_DISABLED = "OL_E_MODULE_DISABLED"` |
+| 常量 | `string MODULE_NOT_LOADED = "OL_E_MODULE_NOT_LOADED"` |
+| 常量 | `string MODULE_OPERATION_UNKNOWN = "OL_E_MODULE_OPERATION_UNKNOWN"` |
+| 常量 | `string MODULE_OPERATION_FAILED = "OL_E_MODULE_OPERATION_FAILED"` |
+| 常量 | `string MODULE_CLEANUP_INCOMPLETE = "OL_E_MODULE_CLEANUP_INCOMPLETE"` |
+| 常量 | `string MODULE_SESSION_FAILED = "OL_E_MODULE_SESSION_FAILED"` |
+| 常量 | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
+| 常量 | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
+| 常量 | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
 | 常量 | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | 常量 | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | 常量 | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -625,7 +755,13 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string RESTORE_DEFERRED = "OL_E_RESTORE_DEFERRED"` |
 | 常量 | `string RESTORE_FAILED = "OL_E_RESTORE_FAILED"` |
 | 常量 | `string RESTORE_FOREIGN_FILE_RETAINED = "OL_W_RESTORE_FOREIGN_FILE_RETAINED"` |
+| 常量 | `string BUILD_UNRECOGNIZED = "OL_W_BUILD_UNRECOGNIZED"` |
+| 常量 | `string COOPERATIVE_SHUTDOWN_UNAVAILABLE = "OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE"` |
+| 常量 | `string CAPABILITY_PENDING = "OL_W_CAPABILITY_PENDING"` |
+| 常量 | `string MODULE_NOT_LOADED_WARNING = "OL_W_MODULE_NOT_LOADED"` |
+| 常量 | `string MODULE_SETTING_IGNORED = "OL_W_MODULE_SETTING_IGNORED"` |
 | 静态字段 | `IReadOnlyList<PublicErrorDescriptor> All` |
+| 静态方法 | `string FromMessage(string message)` |
 
 ### `PublicErrorDescriptor`
 
@@ -636,6 +772,19 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 构造函数 | `PublicErrorDescriptor(string Code, string Category)` |
 | 属性 | `string Code { get; init; }` |
 | 属性 | `string Category { get; init; }` |
+
+### `PublicEvidence`
+
+静态类，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 常量 | `string RuntimeValidated = "RUNTIME_VALIDATED"` |
+| 常量 | `string StaticallyValidated = "STATICALLY_VALIDATED"` |
+| 常量 | `string Partial = "PARTIAL"` |
+| 常量 | `string RuntimeValidationRequired = "RUNTIME_VALIDATION_REQUIRED"` |
+| 常量 | `string Unavailable = "UNAVAILABLE"` |
+| 静态字段 | `IReadOnlyList<string> All` |
 
 ### `PublicExitCode`
 
@@ -653,6 +802,18 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 值 | `OperationRejected = 7` |
 | 值 | `TransactionRecoveryFailed = 8` |
 | 值 | `InternalError = 10` |
+
+### `PublicMutationPolicy`
+
+静态类，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 常量 | `string None = "none"` |
+| 常量 | `string OmsiState = "omsi-state"` |
+| 常量 | `string SessionResource = "session-resource"` |
+| 常量 | `string SessionPolicy = "session-policy"` |
+| 静态字段 | `IReadOnlyList<string> All` |
 
 ### `PublicRuntimeArgumentDescriptor`
 
@@ -675,6 +836,20 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `bool Accepted { get; init; }` |
 | 属性 | `string ErrorCode { get; init; }` |
 | 属性 | `string Message { get; init; }` |
+
+### `PublicRuntimeOperation`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `PublicRuntimeOperation(string Id, string NativeCapability, IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments, IReadOnlyList<string> CliRoutes, bool Paged = false, string MutationPolicy = "none")` |
+| 属性 | `string Id { get; init; }` |
+| 属性 | `string NativeCapability { get; init; }` |
+| 属性 | `IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments { get; init; }` |
+| 属性 | `IReadOnlyList<string> CliRoutes { get; init; }` |
+| 属性 | `bool Paged { get; init; }` |
+| 属性 | `string MutationPolicy { get; init; }` |
 
 ### `RecoveryStatus`
 
@@ -733,11 +908,60 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data)` |
+| 构造函数 | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data, long? SessionTickMilliseconds = default)` |
 | 属性 | `string Type { get; init; }` |
 | 属性 | `DateTimeOffset TimestampUtc { get; init; }` |
 | 属性 | `long Sequence { get; init; }` |
 | 属性 | `IReadOnlyDictionary<string, string> Data { get; init; }` |
+| 属性 | `long? SessionTickMilliseconds { get; init; }` |
+
+### `RuntimeModuleSettingSummary`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `RuntimeModuleSettingSummary(string Key, string Type, string Default, bool AllowsAuto = false, string Minimum = null, string Maximum = null, IReadOnlyList<string> Choices = null, string Flag = null, string Description = null)` |
+| 属性 | `string Key { get; init; }` |
+| 属性 | `string Type { get; init; }` |
+| 属性 | `string Default { get; init; }` |
+| 属性 | `bool AllowsAuto { get; init; }` |
+| 属性 | `string Minimum { get; init; }` |
+| 属性 | `string Maximum { get; init; }` |
+| 属性 | `IReadOnlyList<string> Choices { get; init; }` |
+| 属性 | `string Flag { get; init; }` |
+| 属性 | `string Description { get; init; }` |
+
+### `RuntimeModuleSummary`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `RuntimeModuleSummary(string Id, string Version, string Name, string Activation, bool IsValid, IReadOnlyList<string> Operations, string ContentBindingMap = null, string ErrorCode = null, string ErrorMessage = null, IReadOnlyList<RuntimeModuleSettingSummary> Settings = null)` |
+| 属性 | `string Id { get; init; }` |
+| 属性 | `string Version { get; init; }` |
+| 属性 | `string Name { get; init; }` |
+| 属性 | `string Activation { get; init; }` |
+| 属性 | `bool IsValid { get; init; }` |
+| 属性 | `IReadOnlyList<string> Operations { get; init; }` |
+| 属性 | `string ContentBindingMap { get; init; }` |
+| 属性 | `string ErrorCode { get; init; }` |
+| 属性 | `string ErrorMessage { get; init; }` |
+| 属性 | `IReadOnlyList<RuntimeModuleSettingSummary> Settings { get; init; }` |
+
+### `RuntimeModulesSpec`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyList<string> Disable = null, IReadOnlyDictionary<string, string> Settings = null)` |
+| 属性 | `IReadOnlyList<string> Enable { get; init; }` |
+| 属性 | `IReadOnlyList<string> Disable { get; init; }` |
+| 属性 | `IReadOnlyDictionary<string, string> Settings { get; init; }` |
+| 属性 | `IReadOnlyList<string> EffectiveDisable { get; }` |
+| 属性 | `IReadOnlyDictionary<string, string> EffectiveSettings { get; }` |
 
 ### `RuntimePlatformInfo`
 
@@ -799,7 +1023,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable)` |
+| 构造函数 | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable, IReadOnlyList<PlannedModule> PlannedModules = null)` |
 | 属性 | `Guid SessionId { get; init; }` |
 | 属性 | `string BuildProfileId { get; init; }` |
 | 属性 | `LaunchSpec Spec { get; init; }` |
@@ -812,6 +1036,8 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `IReadOnlyList<PlannedMutation> PlannedMutations { get; init; }` |
 | 属性 | `IReadOnlyList<LaunchDiagnostic> Diagnostics { get; init; }` |
 | 属性 | `bool IsRunnable { get; init; }` |
+| 属性 | `IReadOnlyList<PlannedModule> PlannedModules { get; init; }` |
+| 属性 | `IReadOnlyList<PlannedModule> EffectivePlannedModules { get; }` |
 
 ### `SessionPresentationSpec`
 
@@ -840,6 +1066,35 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `int PresetIndex { get; init; }` |
 | 属性 | `string PresetName { get; init; }` |
 | 属性 | `string PackagePath { get; init; }` |
+
+### `SessionProfilePresetSummary`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `SessionProfilePresetSummary(int Index, string Id, string Name)` |
+| 属性 | `int Index { get; init; }` |
+| 属性 | `string Id { get; init; }` |
+| 属性 | `string Name { get; init; }` |
+
+### `SessionProfileSummary`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `SessionProfileSummary(string Id, string Name, string Version, string Author, IReadOnlyList<string> CompatibleMaps, string MapIdentity, IReadOnlyList<SessionProfilePresetSummary> Presets, bool IsValid, string ErrorCode, string ErrorMessage)` |
+| 属性 | `string Id { get; init; }` |
+| 属性 | `string Name { get; init; }` |
+| 属性 | `string Version { get; init; }` |
+| 属性 | `string Author { get; init; }` |
+| 属性 | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
+| 属性 | `string MapIdentity { get; init; }` |
+| 属性 | `IReadOnlyList<SessionProfilePresetSummary> Presets { get; init; }` |
+| 属性 | `bool IsValid { get; init; }` |
+| 属性 | `string ErrorCode { get; init; }` |
+| 属性 | `string ErrorMessage { get; init; }` |
 
 ### `SessionState`
 
@@ -890,13 +1145,38 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 值 | `Native = 0` |
 | 值 | `Managed = 1` |
 
+### `StartDateTime`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `StartDateTime(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)` |
+| 属性 | `int? Year { get; init; }` |
+| 属性 | `int? DayOfYear { get; init; }` |
+| 属性 | `int? Hour { get; init; }` |
+| 属性 | `int? Minute { get; init; }` |
+| 属性 | `int? Second { get; init; }` |
+| 属性 | `bool IsEmpty { get; }` |
+
+### `StartWeather`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `StartWeather(WeatherMode Mode, string Preset = "", string Icao = "")` |
+| 属性 | `WeatherMode Mode { get; init; }` |
+| 属性 | `string Preset { get; init; }` |
+| 属性 | `string Icao { get; init; }` |
+
 ### `StartupHandoff`
 
 密封 record，位于 `OmsiLaunch.Api`。稳定性：`INTERNAL`。语义： [public-api](public-api.md).
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "")` |
+| 构造函数 | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "", IReadOnlyList<StartupModule> Modules = null, bool PluginTrace = false, bool NativeTrace = false, StartDateTime Start = null, StartWeather Weather = null)` |
 | 属性 | `Guid SessionId { get; init; }` |
 | 属性 | `string BuildProfileId { get; init; }` |
 | 属性 | `WorldMode WorldMode { get; init; }` |
@@ -908,6 +1188,11 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `DateTimeMode TimeMode { get; init; }` |
 | 属性 | `string EntrypointIdentity { get; init; }` |
 | 属性 | `string SituationIdentity { get; init; }` |
+| 属性 | `IReadOnlyList<StartupModule> Modules { get; init; }` |
+| 属性 | `bool PluginTrace { get; init; }` |
+| 属性 | `bool NativeTrace { get; init; }` |
+| 属性 | `StartDateTime Start { get; init; }` |
+| 属性 | `StartWeather Weather { get; init; }` |
 
 ### `StartupHandoffWire`
 
@@ -916,9 +1201,39 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 成员 | 签名 |
 | --- | --- |
 | 常量 | `uint Magic = 1330402120` |
-| 常量 | `ushort Version = 4` |
+| 常量 | `ushort Version = 7` |
+| 常量 | `int MaxModules = 64` |
 | 静态方法 | `byte[] Serialize(StartupHandoff value)` |
 | 静态方法 | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
+
+### `StartupModule`
+
+密封 record，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| 属性 | `string RelativeDirectory { get; init; }` |
+| 属性 | `string ManifestSha256 { get; init; }` |
+| 属性 | `string Settings { get; init; }` |
+
+### `TelemetryRingWire`
+
+静态类，位于 `OmsiLaunch.Api`。稳定性：`INTERNAL`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 常量 | `uint Magic = 1381256271` |
+| 常量 | `int Version = 1` |
+| 常量 | `int SlotCount = 64` |
+| 常量 | `int SlotSize = 2048` |
+| 常量 | `int HeaderSize = 64` |
+| 常量 | `int Capacity = 131136` |
+| 常量 | `int MaxPayload = 2036` |
+| 静态方法 | `void Initialize(MemoryMappedViewAccessor view)` |
+| 静态方法 | `bool IsRing(MemoryMappedViewAccessor view)` |
+| 静态方法 | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long, long> ReadSince(MemoryMappedViewAccessor view, long after)` |
+| 静态方法 | `bool Write(MemoryMappedViewAccessor view, byte[] payload)` |
 
 ### `TimeSpec`
 
@@ -989,6 +1304,15 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 ## `OmsiLaunch.Core`
 
+### `HofPlanningException`
+
+密封类，位于 `OmsiLaunch.Core`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 构造函数 | `HofPlanningException(string code, string message)` |
+| 属性 | `string Code { get; }` |
+
 ### `LaunchValidation`
 
 静态类，位于 `OmsiLaunch.Core`。稳定性：`INTERNAL`。语义： [public-api](public-api.md).
@@ -996,7 +1320,16 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 成员 | 签名 |
 | --- | --- |
 | 静态方法 | `bool IsMapIdentity(string value)` |
+| 静态方法 | `bool IsSha256(string value)` |
 | 静态方法 | `IReadOnlyList<LaunchDiagnostic> Validate(LaunchSpec spec)` |
+
+### `ModuleDataStore`
+
+静态类，位于 `OmsiLaunch.Core`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 静态方法 | `bool Clear(string installationRoot, string moduleId)` |
 
 ### `OmsiLaunchRuntimePaths`
 
@@ -1021,6 +1354,8 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 方法 | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| 方法 | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| 方法 | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | 方法 | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -1048,7 +1383,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior)` |
+| 构造函数 | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior, IReadOnlyList<HofOperationSpec> Hofs, RuntimeModulesSpec Modules = null)` |
 | 属性 | `int Index { get; init; }` |
 | 属性 | `string Id { get; init; }` |
 | 属性 | `string Name { get; init; }` |
@@ -1056,6 +1391,8 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `SessionPresentationSpec Presentation { get; init; }` |
 | 属性 | `InternetTexturesSpec InternetTextures { get; init; }` |
 | 属性 | `LaunchBehaviorSpec Behavior { get; init; }` |
+| 属性 | `IReadOnlyList<HofOperationSpec> Hofs { get; init; }` |
+| 属性 | `RuntimeModulesSpec Modules { get; init; }` |
 
 ### `SessionPlanner`
 
@@ -1074,8 +1411,11 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | --- | --- |
 | 常量 | `string Schema = "omsilaunch.session-profile/v1"` |
 | 常量 | `long MaxBytes = 262144` |
+| 常量 | `int MinPresetIndex = 1` |
+| 常量 | `int MaxPresetIndex = 99` |
 | 静态字段 | `IReadOnlyDictionary<string, IReadOnlyList<string>> SchemaKeys` |
 | 静态方法 | `LaunchSpec Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` |
+| 静态方法 | `IReadOnlyList<SessionProfileSummary> Discover(string installationRoot)` |
 | 静态方法 | `SessionProfilePackage Load(string installationRoot, string id, int presetIndex)` |
 | 静态方法 | `void ValidateCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode)` |
 
@@ -1100,6 +1440,24 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
 | 属性 | `ProfileNew New { get; init; }` |
 | 属性 | `ProfilePreset Preset { get; init; }` |
+
+### `StartDateTimeResolver`
+
+静态类，位于 `OmsiLaunch.Core`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 常量 | `int MinimumYear = 1900` |
+| 常量 | `int MaximumYear = 2200` |
+| 静态方法 | `StartDateTime Resolve(LaunchSpec spec, DateTime now, out string error)` |
+
+### `StartWeatherResolver`
+
+静态类，位于 `OmsiLaunch.Core`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 静态方法 | `StartWeather Resolve(LaunchSpec spec, out string error)` |
 
 ## `OmsiLaunch.Process`
 
@@ -1135,7 +1493,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `string Name { get; }` |
 | 静态方法 | `CurrentTelemetryStore Create(Guid sessionId)` |
 | 方法 | `void Dispose()` |
-| 方法 | `ValueTuple<int, string>? ReadLatest()` |
+| 方法 | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long> ReadNew()` |
 
 ### `CurrentWindowsX64Platform`
 
@@ -1196,6 +1554,22 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `int ThreadId { get; }` |
 | 属性 | `ProcessIdentity Identity { get; }` |
 | 方法 | `void Dispose()` |
+
+### `ModuleSessionProcess`
+
+密封类，位于 `OmsiLaunch.Process`。稳定性：`STABLE_BETA`。语义： [public-api](public-api.md).
+
+| 成员 | 签名 |
+| --- | --- |
+| 常量 | `int MaxLineBytes = 65536` |
+| 属性 | `int ProcessId { get; }` |
+| 属性 | `bool HasExited { get; }` |
+| 属性 | `int? ExitCode { get; }` |
+| 方法 | `void Dispose()` |
+| 方法 | `void Kill()` |
+| 静态方法 | `ModuleSessionProcess Start(string executable, string workingDirectory, Guid sessionId, Action<string> onLine)` |
+| 方法 | `bool TryWriteLine(string line)` |
+| 方法 | `bool WaitForExit(TimeSpan timeout)` |
 
 ### `OmsiProcessState`
 

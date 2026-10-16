@@ -1,7 +1,7 @@
 # 永久外掛程式
 
-<!-- l10n: source=concepts/permanent-plugin.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../concepts/permanent-plugin.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=concepts/permanent-plugin.md source-sha256=f18a0812b1fa4194aa62d0fa6366ba35b3140f830d4c9b12f57c2f82e2cfb8c3 -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../concepts/permanent-plugin.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 OmsiLaunch 透過一個外掛程式從 OMSI 處理程序內部控制 OMSI；該外掛程式作為產品的一部分，只安裝一次，位於 `plugins\OmsiLaunch.*` 之下。工作階段從不會暫存、複製、建立快照、還原或移除它。本頁說明封閉集合包含哪些檔案、OMSI 如何載入它、主機如何在每次啟動前驗證它、主機與外掛程式如何溝通（交接區、遙測、執行階段信箱），以及在未透過 OmsiLaunch 啟動 OMSI 時外掛程式會做什麼。來源：`src/OmsiLaunch.Process/RuntimeDeployment.cs`（`RuntimeArtifactSet`、`ReleaseManifest`、三個共用記憶體儲存區）、`src/OmsiLaunch.Plugin/CurrentDnneAdapter.cs`、`src/OmsiLaunch.Plugin/PluginRuntime.cs`、`src/OmsiLaunch.Plugin/OmsiLaunch.Plugin.opl`、`src/OmsiLaunch.Api/StartupHandoff.cs` 與 `src/OmsiLaunch.Api/RuntimeControlProtocol.cs`。
 
@@ -48,7 +48,7 @@ OmsiLaunch 透過一個外掛程式從 OMSI 處理程序內部控制 OMSI；該�
 
 只會使用資訊清單中的 `plugins/` 項目；資訊清單是資料，絕非政策。資訊清單由發行打包工具產生，含有每個暫存檔案的 SHA-256。當控制器從 OMSI 根目錄執行時（發行配置），來源與目的地是同一個目錄；因此在沒有資訊清單時，檢查會降級為存在性與自我一致性，這就是發行套件一律附帶 `release-manifest.json` 的原因。不相符時的修正方式：重新安裝套件，使 `plugins\` 與 `release-manifest.json` 一致。
 
-外掛程式會在處理程序內再驗證一次組建：`NativeServices.ValidateBuild` 只接受設定檔識別 `Omsi23004_692EBFBF`，並要求 `NativeValidateBuild` 對執行中的執行檔驗證成功；失敗時發出遙測 `plugin.build.invalid`，主機將其對應為 `OL_E_BUILD_VALIDATION_FAILED`。請參閱[相容性](../reference/compatibility.md)。
+在修補任何內容之前，外掛程式會針對載入的映像解析並驗證組建目錄中的每個原生目標，並將已驗證的表格交給 `OmsiLaunch.Native.x86.dll`（後者不含任何 OMSI 位址）（遙測 `native.capabilities`）。`boot.headless-start` 或世界模式功能無法使用的啟動，會以 `plugin.capability.unresolved`（`OL_E_CAPABILITY_UNRESOLVED`）失敗；處於非預期狀態的即時啟動表單，則會以 `plugin.build.invalid`（`OL_E_BUILD_VALIDATION_FAILED`）失敗。請參閱[相容性](../reference/compatibility.md)。
 
 <a id="host-to-plugin-environment-variables"></a>
 ## 主機到外掛程式：環境變數
@@ -75,7 +75,7 @@ OmsiLaunch 透過一個外掛程式從 OMSI 處理程序內部控制 OMSI；該�
 <a id="telemetry-slot"></a>
 ## 遙測槽位
 
-`OmsiLaunch.Telemetry.<session>` 是一個 4096 位元組的最新值槽位：`length`（位移 0 的 int32）、`sequence`（位移 4 的 int32）、位移 8 的 UTF-8 JSON `{ "name": ..., "data": { ... } }`。產生者會先使長度失效、寫入承載、發布新的序號，最後才發布長度。主機每 100 ms 取樣一次，將複製期間長度或序號發生變化的樣本視為撕裂並略過，且只處理序號與上一次不同的樣本，因此相同的連續事件仍可區分。事件會附加到 `SessionStatus.RuntimeEvents`（上限為最後 256 個），並驅動語意生命週期（`plugin.started`、`world.starting`、`gameplay.entered`、失敗）。由於只保留最新值，快於主機 100 ms 取樣的一連串事件可能會遺失中間事件；外掛程式會在 `gameplay.entered` 之後將 D3D 生命週期事件延後 2 s，使 `Running` 邊界絕不會被遮蔽。
+`OmsiLaunch.Telemetry.<session>` 是一個事件環狀緩衝區（Beta 4，`TelemetryRingWire`）：64 位元組的標頭（magic `OLTR`、版本 1、槽位數、槽位大小、已提交的序號）與 64 個編號的 2048 位元組槽位，每個槽位存放一個 UTF-8 JSON 事件 `{ "name": ..., "data": { ... }, "tick": <ms> }`（`tick` 是外掛程式單調遞增的工作階段時鐘）。外掛程式是唯一的寫入者：它先使槽位失效、寫入、提交該槽位的序號，然後發布環狀緩衝區的序號。主機每 100 ms 依序讀取自上次讀取以來提交的每個事件；複製期間被覆寫的槽位會被計為遺失，絕不會以撕裂的形式交付。落後超過 64 個事件的主機會收到帶有確切計數的執行階段事件 `telemetry.lost`。大於槽位的事件會被指名它的 `telemetry.oversized` 取代。事件會附加到 `SessionStatus.RuntimeEvents`（上限為最後 256 個），並驅動語意生命週期（`plugin.started`、`world.starting`、`gameplay.entered`、模組與失敗事件）。
 
 <a id="runtime-command-mailbox"></a>
 ## 執行階段命令信箱

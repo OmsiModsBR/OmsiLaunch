@@ -1,9 +1,9 @@
 # CLI-voorbeelden
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/cli-examples.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/cli-examples.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
-Minimale, correcte aanroepen van `OmsiLaunch.exe` voor OmsiLaunch `0.1.0-beta3`, elk met de verwachte exitcode van het proces en een opmerking over wat wordt gewijzigd en hersteld. Elk voorbeeld wordt uitgevoerd vanuit de OMSI-installatiemap (`<OMSI_PATH>`), tenzij anders vermeld; de syntaxis is gedefinieerd in de [CLI-referentie](cli.md) en de exitcodes in [exitcodes](exit-codes.md). Aan elke opdracht kan `--json` worden toegevoegd om de gestructureerde envelope te krijgen.
+Minimale, correcte aanroepen van `OmsiLaunch.exe` voor OmsiLaunch `0.1.0-beta4`, elk met de verwachte exitcode van het proces en een opmerking over wat wordt gewijzigd en hersteld. Elk voorbeeld wordt uitgevoerd vanuit de OMSI-installatiemap (`<OMSI_PATH>`), tenzij anders vermeld; de syntaxis is gedefinieerd in de [CLI-referentie](cli.md) en de exitcodes in [exitcodes](exit-codes.md). Aan elke opdracht kan `--json` worden toegevoegd om de gestructureerde envelope te krijgen.
 
 <a id="conventions"></a>
 ## Conventies
@@ -21,7 +21,7 @@ Minimale, correcte aanroepen van `OmsiLaunch.exe` voor OmsiLaunch `0.1.0-beta3`,
 ```text
 OmsiLaunch.exe /version
 ```
-Exit `0`. Drukt `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family` af. Wijzigt niets.
+Exit `0`. Drukt `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family` af. Wijzigt niets.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Exit `0` (`2` als `handle`, `name` of `value` ontbreekt). Wijzigt één numerieke scriptvariabele van dat voertuig. Wordt niet teruggedraaid.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Exit `7`. Altijd geweigerd met `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; er wordt niets gewijzigd.
+Exit `0`. Schrijft het bronweerrecord van OMSI en stopt live METAR-updates; OMSI leidt mist, licht, actuele wind en luchtvochtigheid ervan af bij zijn volgende weertick zonder pauze. Elke waarde wordt gecontroleerd voordat er iets wordt geschreven (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, exit `7`). Een afgeleide sleutel zoals `relative_humidity` retourneert `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` en noemt de sleutel die in plaats daarvan moet worden ingesteld. Niet teruggedraaid. EXPERIMENTAL: runtimevalidatie in afwachting.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Exit `0`. Schakelt over op live METAR-weer voor dat station; OMSI downloadt het bij zijn volgende weerupdate. EXPERIMENTAL: runtimevalidatie in afwachting.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Exit `0`. `scripts string set` loopt via het eigen `SetStringVariable` van OMSI en retourneert de teruggelezen waarde; een naam die het voertuigscript niet declareert, retourneert `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (exit `7`). `scripts trigger` activeert een trigger zoals de invoerafhandelaars van OMSI dat doen (`1` indrukken, `0` loslaten); het voertuigscript voert die direct uit. Trigger- en variabelenamen worden per voertuigmodel gedefinieerd; de bovenstaande zijn voorbeelden. Niet teruggedraaid. EXPERIMENTAL: runtimevalidatie in afwachting.
 
 <a id="spawn"></a>
 ## Spawnen

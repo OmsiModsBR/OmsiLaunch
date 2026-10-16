@@ -256,20 +256,33 @@ internal static class HardeningTests
         finally { Directory.Delete(root, true); }
     }
 
-    // S-25: samples carry a producer sequence, so identical consecutive events
-    // are distinct and an empty slot is not a sample.
+    // S-25 / Beta 4 telemetry ring: every event keeps its own numbered slot.
+    // A burst arrives complete and in order, identical consecutive events stay
+    // distinct, a torn slot is never delivered, and a reader that falls behind
+    // by more than the ring reports exactly how many events it lost.
     public static void TelemetrySequenceSamples()
     {
         using var store = CurrentTelemetryStore.Create(Guid.NewGuid());
         using var mapping = MemoryMappedFile.OpenExisting(store.Name, MemoryMappedFileRights.ReadWrite);
-        Require(store.ReadLatest() is null, "empty slot produced a sample");
-        var payload = Encoding.UTF8.GetBytes("{\"name\":\"plugin.started\",\"data\":{}}");
-        Publish(mapping, payload, 1);
-        var first = store.ReadLatest(); Require(first is { Sequence: 1 } && first.Value.Payload.Contains("plugin.started", StringComparison.Ordinal), "first sample was not read");
-        Publish(mapping, payload, 2);
-        var second = store.ReadLatest(); Require(second is { Sequence: 2 }, "identical payload with a new sequence was collapsed");
-        using (var view = mapping.CreateViewAccessor(0, 4096, MemoryMappedFileAccess.ReadWrite)) { view.Write(0, 0); view.Flush(); }
-        Require(store.ReadLatest() is null, "invalidated slot produced a sample");
+        using var view = mapping.CreateViewAccessor(0, TelemetryRingWire.Capacity, MemoryMappedFileAccess.ReadWrite);
+        var empty = store.ReadNew(); Require(empty.Events.Count == 0 && empty.Lost == 0, "empty ring produced events");
+        byte[] Event(string name) => Encoding.UTF8.GetBytes("{\"name\":\"" + name + "\",\"data\":{}}");
+        // A PluginStart-like burst written before the host polls once.
+        foreach (var name in new[] { "native.capabilities", "internet-textures.suppressed", "plugin.started", "plugin.started" }) Require(TelemetryRingWire.Write(view, Event(name)), "ring write failed");
+        var burst = store.ReadNew();
+        Require(burst.Lost == 0 && burst.Events.Select(e => e.Sequence).SequenceEqual(new long[] { 1, 2, 3, 4 }), "a burst was not delivered complete and in order");
+        Require(burst.Events[0].Payload.Contains("native.capabilities", StringComparison.Ordinal) && burst.Events[3].Payload.Contains("plugin.started", StringComparison.Ordinal), "burst payloads differ");
+        Require(store.ReadNew().Events.Count == 0, "events were delivered twice");
+        // Falling behind by more than the ring.
+        for (var i = 0; i < TelemetryRingWire.SlotCount + 10; i++) TelemetryRingWire.Write(view, Event("tick." + i));
+        var behind = store.ReadNew();
+        Require(behind.Lost == 10 && behind.Events.Count == TelemetryRingWire.SlotCount && behind.Events[0].Payload.Contains("tick.10", StringComparison.Ordinal), "lost events were not counted exactly");
+        // A slot being rewritten (sequence invalidated) is lost, not torn.
+        TelemetryRingWire.Write(view, Event("last"));
+        var committed = view.ReadInt64(16);
+        view.Write(TelemetryRingWire.HeaderSize + ((committed - 1) % TelemetryRingWire.SlotCount) * TelemetryRingWire.SlotSize, 0L);
+        var torn = store.ReadNew(); Require(torn.Events.Count == 0 && torn.Lost == 1, "an invalidated slot was delivered");
+        Require(!TelemetryRingWire.Write(view, new byte[TelemetryRingWire.MaxPayload + 1]), "an oversized payload was written");
     }
 
     // S-04: recovery through the API takes the installation lease.
@@ -559,11 +572,6 @@ internal static class HardeningTests
         catch (ObjectDisposedException) { }
     }
 
-    private static void Publish(MemoryMappedFile mapping, byte[] payload, int sequence)
-    {
-        using var view = mapping.CreateViewAccessor(0, 4096, MemoryMappedFileAccess.ReadWrite);
-        view.Write(0, 0); view.WriteArray(8, payload, 0, payload.Length); view.Write(4, sequence); view.Write(0, payload.Length); view.Flush();
-    }
     private static bool ContainsSequence(byte[] haystack, byte[] needle)
     {
         for (var index = 0; index + needle.Length <= haystack.Length; index++) if (haystack.AsSpan(index, needle.Length).SequenceEqual(needle)) return true;

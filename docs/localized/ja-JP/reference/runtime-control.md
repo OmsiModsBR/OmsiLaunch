@@ -1,7 +1,7 @@
 # ランタイム制御
 
-<!-- l10n: source=reference/runtime-control.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/runtime-control.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/runtime-control.md source-sha256=b79a9850e602d765b5b38aa36000259df855a06801f97d18558f1cf962b396d5 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/runtime-control.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 ランタイム制御とは、OmsiLaunch が実行中の OMSI セッション内で実行する読み取り・書き込み・アクション操作の集合です。このページでは、ランタイム制御に到達する 3 つの方法（オーナー API、CLI クライアント、ローカルコントロールプレーン）、要求が呼び出し元からプラグインへ届き、戻ってくるまでの流れ、ハンドルと要求 ID の仕組み、適用されるタイムアウト、意図的にジャーナルに記録しないもの、引数と結果の規約を、ファミリーごとの実例とともに説明します。引数、結果キー、エラーを含む操作の一覧そのものは[ケイパビリティ](capabilities.md)にあります。ソース: `OmsiLaunchService.ExecuteRuntimeAsync`、`CurrentRuntimeCommandStore`（`src/OmsiLaunch.Process/RuntimeDeployment.cs`）、`CurrentRuntimeCommandMailbox` と `CurrentRuntimeControl`（`src/OmsiLaunch.Plugin/CurrentRuntimeControl.cs`）、`LocalControlPlane` と `CliInput`（`tools/OmsiLaunch.Cli/`）。
 
@@ -38,7 +38,7 @@ CLI クライアントとコントロールプレーンは、オーナーに接�
 | セッションへのバインド | プラグインは、セッション GUID が自身のものでない要求を無視し（そしてクリアし）ます。ホストは、セッションまたは要求 id が一致しない応答を拒否します（`OL_E_RUNTIME_RESPONSE_INVALID`）。 |
 | タイムアウト | 期限を過ぎると、ホストはスロットをアイドルに戻し、`TimeoutException("OL_E_RUNTIME_REQUEST_TIMEOUT")` をスローします。 |
 | 遅延応答 | プラグインは、スロットがまだ自身の要求 id を保持している場合にのみ応答を公開します。放棄された要求への応答は破棄されます。それでも応答が書き込まれた場合、次のホスト要求は古い `responded` スロットを見つけて破棄し、処理を続行します。その古い応答が新しい要求と**同じ**要求 id を持つ場合、ホストは `OL_E_RUNTIME_REQUEST_ID_REUSED` をスローします。したがって、呼び出し元はセッション内で要求 id を決して再利用してはいけません。 |
-| サイズ | スロットより大きい要求は格納前に拒否されます（`ArgumentOutOfRangeException`）。収まらない上限付きリストの結果はプラグインが短縮します（末尾の行を削除し、`truncated=true`、小さくなった `returned_count`）。それ以外のサイズ超過の応答は、型付きの `OL_E_RUNTIME_RESPONSE_TOO_LARGE` エラーに置き換えられます。 |
+| サイズ | スロットより大きい要求は格納前に拒否されます（`ArgumentOutOfRangeException`）。収まらないリストのページはプラグインが短縮します（末尾の行を削除し、`truncated=true`、小さくなった `returned_count`、最初に削除された行を指す `next_cursor`）。それ以外のサイズ超過の応答は、型付きの `OL_E_RUNTIME_RESPONSE_TOO_LARGE` エラーに置き換えられます。 |
 | チャネルのクローズ | セッション終了後は `OL_E_RUNTIME_CHANNEL_CLOSED` です。 |
 
 要求 id は呼び出し元が選ぶ `ulong` です。CLI は固定の範囲を使用します。`/runtime:` には `10_001`、転送されるコントロールプレーンの要求には `50_001+`、読み取りバッチには `1+`、D3D バッチには `20_000+`、`D3DRuntimeApi` には `30_000+` を使います。インテグレーターは、セッションごとに単調増加するカウンターを使用してください。
@@ -68,7 +68,7 @@ CLI クライアントとコントロールプレーンは、オーナーに接�
 
 - 引数は文字列のキーと値のペアです。CLI では、コマンドワードの後の `--key=value` がランタイム引数になります（`OmsiLaunch.exe vehicles get --handle=rv-000001`）。`/runtime:<op>` では `/runtime-arg:key=value` が同等の指定です。数値はインバリアントカルチャ（小数点は `.`）を使用し、ブール値は `true`/`false` です。
 - コマンドワードは `CliInput.HierarchicalRoutes` によって操作 id に対応付けられます（例: `time get` -> `time.read`、`vehicles summary` -> `road-vehicles.read`、`scripts variable set` -> `vehicle.variable.set`）。ルートの完全な表は [CLI リファレンス](cli.md)にあります。D3D 操作にはコマンドワードのルートがありません。`/runtime:d3d.status` または `/runtime:d3d.texture.create --width=8 --height=8 --format=A8R8G8B8` を使用してください。
-- 結果はフラットな文字列の辞書です。リストは `<row>.<n>.<field>` 形式のキー（`vehicle.0.handle`、`track.3.filename`、`name.12`）と `count`、上限付きの場合は `returned_count` と `truncated` を使います。
+- 結果はフラットな文字列の辞書です。リストは `<row>.<n>.<field>` 形式のキー（`vehicle.0.handle`、`track.3.filename`、`name.12`）と、ページのフィールド `count`、`returned_count`、`truncated`、`next_cursor` を使います（[ページネーション](capabilities.md#pagination)を参照）。
 - 失敗には `Succeeded=false` と `OL_E_` の `ErrorCode` が含まれ、プラグイン側の失敗では `detail` も含まれます（D3D では `native_status`、予期しない障害では `exception` も含まれます）。
 
 <a id="cli-envelope---json"></a>
@@ -114,7 +114,7 @@ else Console.WriteLine(result.Values!["value"]);
 | --- | --- | --- |
 | セッション | `OmsiLaunch.exe session status --json` | `SessionId`、`State`、診断情報、上限付きのランタイムイベント一覧を読み取ります。 |
 | 時刻 | `OmsiLaunch.exe time get` の後に `OmsiLaunch.exe time set --hour=7 --minute=30` | 時計を読み取り、プロファイル済みの `SetTime` で設定して読み戻し値を返します。 |
-| 天候 | `OmsiLaunch.exe weather get` と `OmsiLaunch.exe weather actual get` | 現在の天候状態と actual/ICAO の天候状態を読み取ります。`OmsiLaunch.exe weather set --wind_speed=1` は `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` を返します。 |
+| 天候 | `OmsiLaunch.exe weather get` と `OmsiLaunch.exe weather actual get` | 現在の天候状態と actual/ICAO の天候状態を読み取ります。`OmsiLaunch.exe weather set --wind_speed=5` は手動の天候（OMSI のソースレコード。ライブ METAR は停止します）を設定し、`OmsiLaunch.exe weather metar set --icao=EDDF` はライブ METAR 天候に切り替えます。どちらもランタイム検証されるまで EXPERIMENTAL です。 |
 | マップ | `OmsiLaunch.exe map get` | マップの識別情報、名前、説明、タイル数、年の範囲、通行方向。 |
 | カメラ | `OmsiLaunch.exe camera set --field_of_view=50` の後に `OmsiLaunch.exe camera lock --family=0 --preset=1` と `OmsiLaunch.exe camera unlock` | FOV を書き込み、運転士ファミリーをプリセット 1 で固定し（プレイヤー車両が必要です。例: 保存済みシチュエーション）、ポリシーを解除します。 |
 | 車両 | `OmsiLaunch.exe vehicles summary`、`OmsiLaunch.exe vehicles list`、`OmsiLaunch.exe vehicles get --handle=rv-000001` | 件数、ハンドル、1 台のスナップショット。 |
@@ -122,7 +122,7 @@ else Console.WriteLine(result.Values!["value"]);
 | プレイヤー | `OmsiLaunch.exe player get` | ヘッドレス開始では `present=false`、それ以外ではプレイヤーのスナップショット。 |
 | 人物オブジェクト | `OmsiLaunch.exe humans summary`、`OmsiLaunch.exe humans list`、`OmsiLaunch.exe humans get --handle=hb-000001` | 件数、ハンドル、1 体のスナップショット。 |
 | 時刻表 | `OmsiLaunch.exe timetable get`、`OmsiLaunch.exe timetable tracks list`、`OmsiLaunch.exe timetable logs list` | マネージャーの件数、上限付きの track 行、時刻表のログ。 |
-| スクリプト | `OmsiLaunch.exe scripts variable list --handle=rv-000001`、`OmsiLaunch.exe scripts variable get --handle=rv-000001 --name=Refresh_Strings`、`OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --value=1`、`OmsiLaunch.exe scripts string get --handle=rv-000001 --name=act_route` | 数値変数の一覧/読み取り/書き込み、文字列変数の読み取り。 |
+| スクリプト | `OmsiLaunch.exe scripts variable list --handle=rv-000001`、`OmsiLaunch.exe scripts variable get --handle=rv-000001 --name=Refresh_Strings`、`OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --value=1`、`OmsiLaunch.exe scripts string get --handle=rv-000001 --name=act_route`、`OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110`、`OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1` | 数値変数の一覧/読み取り/書き込み、文字列変数の読み取り/書き込み、スクリプトトリガーとサウンドトリガー（文字列の書き込みとトリガーは、ランタイム検証されるまで EXPERIMENTAL です）。 |
 | 定数とカーブ | `OmsiLaunch.exe constants list --handle=rv-000001`、`OmsiLaunch.exe constants get --handle=rv-000001 --name=antrieb_getr_version`、`OmsiLaunch.exe curves list --handle=rv-000001`、`OmsiLaunch.exe curves evaluate --handle=rv-000001 --name=retarder_stufe1 --x=0.5` | 車両の定数とカーブの評価。名前はモデル固有です。`list` コマンドが返す名前を使用してください（これらは `situations\Linie 5.osn` のプレイヤーバスで一覧表示されたものです）。 |
 | HOF | `OmsiLaunch.exe hof get --handle=rv-000001` | 車両定義の HOF メタデータ。 |
 | 運転士と乗車券 | `OmsiLaunch.exe drivers list`、`OmsiLaunch.exe tickets get` | 運転士のレコード、乗車券パック。 |

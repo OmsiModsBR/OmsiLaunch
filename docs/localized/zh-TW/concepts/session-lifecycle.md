@@ -1,7 +1,7 @@
 # 工作階段生命週期
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../concepts/session-lifecycle.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../concepts/session-lifecycle.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁說明 OmsiLaunch 工作階段如何在 `SessionState` 中從 `Created` 前進到 `Completed` 或 `Failed`：每個狀態由哪個元件設定、哪些外掛程式遙測事件驅動狀態轉換、啟動逾時如何運作、停止代表什麼（強制終止）、`WaitForAsync` 回傳什麼、哪些狀態是終止狀態、哪些狀態從未或幾乎無法觀察到，以及 CLI 擁有者提供哪些保證。本頁內容全部取自 `OmsiLaunchService.StartAsync`、`SuperviseAsync` 與 `ApplyTelemetry`（`src/OmsiLaunch.Core/OmsiLaunchService.cs`）、`PluginRuntime`（`src/OmsiLaunch.Plugin/PluginRuntime.cs`）以及 `OwnerSession`（`tools/OmsiLaunch.Cli/Program.cs`）。
 
@@ -80,7 +80,7 @@ SuperviseAsync ─ background task ───────────────
 
 監督程式在執行緒集區工作上執行，每 100 ms 循環一次，直到 OMSI 結束或收到停止要求：
 
-1. 讀取最新的遙測樣本（附有產生者序號的最新值槽位；撕裂的樣本會被略過；相同的連續事件因序號不同而仍可區分）。每個新樣本都會附加到 `RuntimeEvents`，並由 `ApplyTelemetry` 對應處理。
+1. 依序讀取外掛程式自上次讀取以來提交的每個遙測事件（事件環狀緩衝區；落後的讀取端會收到附帶計數的 `telemetry.lost`）。每個事件都會附加到 `RuntimeEvents`，並由 `ApplyTelemetry` 對應處理。
 2. 若工作階段為 `Failed`，離開迴圈。
 3. 若工作階段尚未 `Running` 且期限（監督程式進入後 `StartupTimeoutSeconds`）已過：若已達 `PluginBootstrap`，以 `OL_E_STARTUP_TIMEOUT` 呼叫 `Fail`，否則以 `OL_E_PLUGIN_NOT_LOADED`；離開迴圈。
 

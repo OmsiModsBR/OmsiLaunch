@@ -1,9 +1,9 @@
 # 封裝與發行配置
 
-<!-- l10n: source=reference/packaging.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/packaging.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/packaging.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-本頁說明 OmsiLaunch `0.1.0-beta3` 的發行套件：`tools\New-ReleasePackage.ps1` 產生哪些內容、`release-manifest.json` 的各個欄位、控制器在執行階段如何利用資訊清單（manifest）驗證永久外掛程式封閉集（closure）、套件如何安裝到 OMSI 安裝根目錄以及如何從中移除、使用後 `.omsilaunch` 目錄包含哪些內容，以及各驗證指令碼（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）。產品識別資訊來自 `OmsiLaunch.Version.props`。給使用者的安裝步驟請見[安裝](../getting-started/installation.md)；外掛程式封閉集在執行階段扮演的角色請見[永久外掛程式](../concepts/permanent-plugin.md)。
+本頁說明 OmsiLaunch `0.1.0-beta4` 的發行套件：`tools\New-ReleasePackage.ps1` 產生哪些內容、`release-manifest.json` 的各個欄位、控制器在執行階段如何利用資訊清單（manifest）驗證永久外掛程式封閉集（closure）、套件如何安裝到 OMSI 安裝根目錄以及如何從中移除、使用後 `.omsilaunch` 目錄包含哪些內容，以及各驗證指令碼（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）。產品識別資訊來自 `OmsiLaunch.Version.props`。給使用者的安裝步驟請見[安裝](../getting-started/installation.md)；外掛程式封閉集在執行階段扮演的角色請見[永久外掛程式](../concepts/permanent-plugin.md)。
 
 <a id="product-identity-omsilaunchversionprops"></a>
 ## 產品識別資訊（`OmsiLaunch.Version.props`）
@@ -12,13 +12,13 @@
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | 資訊清單的 `product`、Windows 的 `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows 的 `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro` | Windows 的 `LegalCopyright` |
-| `OmsiLaunchProductVersion` | `0.1.0-beta3` | 資訊清單的 `product_version`、Windows 的 `ProductVersion`、組件資訊版本（`/version`）、公開 ZIP 檔名 |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows 的 `LegalCopyright` |
+| `OmsiLaunchProductVersion` | `0.1.0-beta4` | 資訊清單的 `product_version`、Windows 的 `ProductVersion`、組件資訊版本（`/version`）、公開 ZIP 檔名 |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Managed 組件版本的基準 |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | 組件版本與 Windows 檔案版本 |
 | `OmsiLaunchPackageAlias` | `current` | 資訊清單的 `package_alias`、暫存資料夾與別名 ZIP 檔名 |
 
-`Directory.Build.props` 將 `InformationalVersion` 設為 `OmsiLaunchProductVersion`，且不附加原始碼修訂版本，因此 `OmsiLaunch.exe /version` 會精確輸出 `0.1.0-beta3`。
+`Directory.Build.props` 將 `InformationalVersion` 設為 `OmsiLaunchProductVersion`，且不附加原始碼修訂版本，因此 `OmsiLaunch.exe /version` 會精確輸出 `0.1.0-beta4`。
 
 <a id="build-toolsnew-releasepackageps1"></a>
 ## 組建（`tools\New-ReleasePackage.ps1`）
@@ -46,7 +46,7 @@
 | `docs\` 底下除 `docs\localized\` 以外的所有檔案（英文文件，目錄結構相同） | `.omsilaunch\docs\`（因此 CLI 用法說明中列印的路徑 `.omsilaunch\docs\reference\cli.md` 確實存在；文件稽核 BUG-08）。從 `docs\README.md` 連到儲存庫根目錄摘要（`PUBLIC-API.md` 等）的連結，只有在原始碼儲存庫中才能解析。 |
 | `docs\localized\LOCALIZATION-MANIFEST.md`，以及該資訊清單所列每個地區設定的 `docs\localized\<locale>\**`（`pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` 與 `ja-JP`） | `.omsilaunch\docs\localized\`（結構相同）；若所列的某個地區設定不存在，指令碼會中止 |
 
-接著，指令碼會計算每個已暫存檔案的雜湊，在套件根目錄以 UTF-8 **不含** BOM 的格式寫入 `release-manifest.json`（結果不再取決於 PowerShell 版本），對暫存區執行 `Test-ReleasePackageIntegrity.ps1`，再將每個已暫存的外掛程式檔案與 `OmsiLaunch.Native.x86.dll` 重新與其組建輸出比對，壓縮暫存區，**將封存檔解壓縮到一個全新的暫存目錄，並以同一份資訊清單驗證解壓縮後的封閉集**（封存檔中的資訊清單必須與已驗證的資訊清單逐位元組相同），然後將暫存區發布為 `OmsiLaunch-current`、將封存檔發布為 `OmsiLaunch-current.zip`，並複製為 `OmsiLaunch-<product_version>.zip`（`OmsiLaunch-0.1.0-beta3.zip`），最後寫入內容為 `<SHA-256>  <file name>` 的 `OmsiLaunch-0.1.0-beta3.zip.sha256`。任何產出物遺失都會使指令碼中止。此指令碼不會進行組建；請先執行 `Invoke-OfflineValidation.ps1`（或個別的 `dotnet build`／MSBuild 步驟）。
+接著，指令碼會計算每個已暫存檔案的雜湊，在套件根目錄以 UTF-8 **不含** BOM 的格式寫入 `release-manifest.json`（結果不再取決於 PowerShell 版本），對暫存區執行 `Test-ReleasePackageIntegrity.ps1`，再將每個已暫存的外掛程式檔案與 `OmsiLaunch.Native.x86.dll` 重新與其組建輸出比對，壓縮暫存區，**將封存檔解壓縮到一個全新的暫存目錄，並以同一份資訊清單驗證解壓縮後的封閉集**（封存檔中的資訊清單必須與已驗證的資訊清單逐位元組相同），然後將暫存區發布為 `OmsiLaunch-current`、將封存檔發布為 `OmsiLaunch-current.zip`，並複製為 `OmsiLaunch-<product_version>.zip`（`OmsiLaunch-0.1.0-beta4.zip`），最後寫入內容為 `<SHA-256>  <file name>` 的 `OmsiLaunch-0.1.0-beta4.zip.sha256`。任何產出物遺失都會使指令碼中止。此指令碼不會進行組建；請先執行 `Invoke-OfflineValidation.ps1`（或個別的 `dotnet build`／MSBuild 步驟）。
 
 <a id="package-layout"></a>
 ## 套件配置
@@ -72,7 +72,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 .omsilaunch\
   assets\splash\{PTB,ENG,DEU,FRA}.bmp   640x480 24-bit managed splash assets
   docs\                               English documentation (README.md, getting-started\, reference\, concepts\, status\, ...)
-  docs\localized\<locale>\             translations of the 0.1.0-beta3 pages (not normative)
+  docs\localized\<locale>\             translations of the 0.1.0-beta4 pages (not normative)
   examples\release-session.example.json
   examples\session-profiles\rmg-leste\profile.yaml
 ```
@@ -84,11 +84,11 @@ plugins\                             the permanent plugin closure (9 files, all 
 | 欄位 | 型別 | 意義 |
 |---|---|---|
 | `product` | string | `OmsiLaunch` |
-| `product_version` | string | `0.1.0-beta3` |
+| `product_version` | string | `0.1.0-beta4` |
 | `package_alias` | string | `current` |
 | `control_protocol` | string | `0.1`；必須與 `PublicCapabilityRegistry.ProtocolVersion` 相符 |
-| `target_profile` | string | `Omsi23004_692EBFBF`，唯一支援的組建設定檔 |
-| `supported_executable_hashes` | string[] | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243`（已於執行階段驗證）與 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759`（Steam LAA，`pending_beta_field_validation`） |
+| `requirement` | string | `OMSI 2` |
+| `known_layouts` | object[] | 每個已知配置的 `build_id` 與 `code_sha256`（`Omsi23004`、`13ec110a...c028`）；僅為快速路徑，並非必要條件 |
 | `configuration` | string | `Release` 或 `Debug` |
 | `generated_utc` | string | ISO-8601 格式的組建時間 |
 | `files[]` | object[] | 每個封裝檔案的 `path`（使用正斜線，相對於套件根目錄）、`bytes`、`sha256`（大寫十六進位） |
@@ -111,7 +111,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 <a id="installation-into-the-omsi-root"></a>
 ## 安裝到 OMSI 根目錄
 
-1. 驗證封存檔：將 `OmsiLaunch-0.1.0-beta3.zip` 與 `OmsiLaunch-0.1.0-beta3.zip.sha256` 比對。
+1. 驗證封存檔：將 `OmsiLaunch-0.1.0-beta4.zip` 與 `OmsiLaunch-0.1.0-beta4.zip.sha256` 比對。
 2. 將封存檔**直接解壓縮到 OMSI 安裝根目錄**（包含 `Omsi.exe` 的目錄）。這會放置根目錄檔案、`plugins\OmsiLaunch.*`（與任何第三方外掛程式並存）以及 `.omsilaunch\`。
 3. 將 `release-manifest.json` 保留在 `OmsiLaunch.exe` 旁：它能啟用以資訊清單為基礎的外掛程式完整性檢查。資訊清單與二進位檔必須來自同一個套件：若新的二進位檔搭配較舊的資訊清單（或反之），每次啟動都會以 `OL_E_PERMANENT_PLUGIN_HASH_MISMATCH` 失敗。`Test-ReleasePresentation.ps1 -InstallPackage` 現在會將資訊清單連同產品檔案一起複製；它過去會略過資訊清單，導致較舊的資訊清單留在較新的二進位檔旁（Round A RA-007）。
 4. 以 `tools\Test-ReleasePackageIntegrity.ps1 -PackagePath <zip> -InstallationRoot <root>` 進行唯讀的一致性檢查：`installation_comparison.coherent_with_package` 必須為 `true`。

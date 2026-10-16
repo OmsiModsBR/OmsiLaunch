@@ -1,7 +1,7 @@
 # LaunchSpec 参考
 
-<!-- l10n: source=reference/launchspec.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/launchspec.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/launchspec.md source-sha256=fc6d2fffb75e37ffbd49ece3a88aa84e08c55696a149f74e35f98b492b79caef -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/launchspec.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页是 `LaunchSpec` 的规范性参考。`LaunchSpec` 是描述单个 OmsiLaunch 会话的请求记录。本页说明：它的 C# 结构（`OmsiLaunch.Api`）；CLI 加载的 JSON 文件形式（`/spec:<path>`，`tools/OmsiLaunch.Cli/LaunchSpecJson.cs`）；每个属性的类型、默认值、校验规则和当前效果；使计划不可运行的校验规则；以及 CLI 参数、spec 文件和会话配置档之间的优先级。本页只记录当前代码实际执行的行为。
 
@@ -28,7 +28,7 @@
 | 属性名 | 即 C# 属性名（`Installation`、`RootPath` 等）。加载时匹配不区分大小写；CLI 写出时使用 PascalCase。 |
 | 枚举 | 整数（没有字符串枚举转换器）。`"Mode": 0` 有效；`"Mode": "NewMap"` 会被当作格式错误的 JSON 拒绝。取值列于[枚举](#enumerations)。 |
 | `OptionalValue<T>` | 一个对象 `{ "Presence": 0 | 1, "Value": <T or null> }`。`Presence` 为 0 表示 `Unset`（值被忽略），为 1 表示 `Set`（值必须存在且非 null；`Set` 而值为 null 的情况不会被校验，其行为等同于无效值）。省略的 `OptionalValue` 成员即为 `Unset`。只读成员 `IsSet` 会出现在 CLI 写出的输出中，加载时被接受并忽略。 |
-| 可选记录 | `Year`、`Weather`、`Input`、`Diagnostics`、`Presentation`、`InternetTextures`、`SessionProfile` 可以为 `null` 或省略；`Effective*` 访问器会以默认值替代。 |
+| 可选记录 | `Year`、`Weather`、`Input`、`Diagnostics`、`Presentation`、`InternetTextures`、`SessionProfile`、`HofManagement`、`Modules` 可以为 `null` 或省略；`Effective*` 访问器会以默认值替代。 |
 | 必需记录 | `Installation`、`World`、`Date`、`Time`、`Environment`（须包含全部八个字典，空时使用 `{}`）、`Behavior` 必须是存在的对象。它们不会被校验：为 `null` 或缺失时，会在后续因空引用而失败，CLI 将其报告为 `OL_E_INTERNAL`（exit 10）或 `OL_E_INVALID_ARGUMENT`（exit 2）。 |
 | 未知属性 | 在绑定之前即被拒绝：`OL_E_SPEC_UNKNOWN_PROPERTY: $.Path.Name`（路径使用文件中所写的成员名）。字典内容（`Environment.*`）不作为属性检查。 |
 | 根节点 | 必须是 JSON 对象，否则为 `OL_E_SPEC_INVALID`。最大嵌套深度为 32。 |
@@ -45,10 +45,10 @@
   // Comments and trailing commas are accepted. Enums are integers.
   "Installation": {
     "RootPath": ".",                          // "." = directory that contains OmsiLaunch.exe (CLI only)
-    "ExpectedExecutableSha256": null          // carried, not consumed
+    "ExpectedExecutableSha256": null          // optional pin of Omsi.exe
   },
   "World": {
-    "Mode": 0,                                // 0 NewMap, 1 SavedSituation, 2 LastMapState (unavailable)
+    "Mode": 0,                                // 0 NewMap, 1 SavedSituation, 2 LastMapState
     "MapIdentity": { "Presence": 1, "Value": "maps\\Grundorf\\global.cfg" },
     "SituationIdentity": { "Presence": 0, "Value": null },
     "PresentedEntrypointIndex": { "Presence": 1, "Value": 1 },
@@ -68,10 +68,11 @@
     "Sound": {}, "AiPassengers": {}, "Keyboard": {}, "Controllers": {}
   },
   "Behavior": {
-    "RestoreConfiguration": true,             // carried, restore always happens
+    "RestoreConfiguration": true,             // must be true
     "SuppressStaleClosecheckWarning": true,
     "StartupTimeoutSeconds": 180,             // 1..600
-    "ShutdownTimeoutSeconds": 30              // carried, not consumed
+    "ShutdownTimeoutSeconds": 30,             // with CooperativeShutdown
+    "CooperativeShutdown": false              // opt-in
   },
   "Input": null,
   "Diagnostics": null,
@@ -89,7 +90,7 @@
 }
 ```
 
-在版本（build）支持的情况下，显式日期写作 `"Date": { "Mode": 1, "Value": { "Presence": 1, "Value": { "Year": 2024, "Month": 5, "Day": 1 } } }`，时间写作 `{ "Mode": 1, "Value": { "Presence": 1, "Value": { "Hour": 7, "Minute": 30, "Second": 0 } } }`。在当前版本（build）上，两者都会使计划不可运行（见下文）。
+在版本（build）支持的情况下，显式日期写作 `"Date": { "Mode": 1, "Value": { "Presence": 1, "Value": { "Year": 2024, "Month": 5, "Day": 1 } } }`，时间写作 `{ "Mode": 1, "Value": { "Presence": 1, "Value": { "Hour": 7, "Minute": 30, "Second": 0 } } }`。两者仅适用于 NEW_MAP 会话（`EXPERIMENTAL`；见下文）。
 
 <a id="property-reference"></a>
 ## 属性参考
@@ -103,37 +104,39 @@
 | --- | --- | --- | --- | --- | --- |
 | `Installation` | `InstallationSpec` 对象 | 是 | 无 | 是 | `STABLE_BETA` |
 | `World` | `WorldSpec` 对象 | 是 | 无 | 是 | `STABLE_BETA` |
-| `Date` | `DateSpec` 对象 | 是 | 无 | 会被校验；除 `Unset` 外的任何模式均不可运行 | `PARTIAL` |
-| `Time` | `TimeSpec` 对象 | 是 | 无 | 会被校验；除 `Unset` 外的任何模式均不可运行 | `PARTIAL` |
+| `Date` | `DateSpec` 对象 | 是 | 无 | 是，仅限 NEW_MAP（参见 [`DateSpec`](#datespec-timespec-yearspec)） | `EXPERIMENTAL` |
+| `Time` | `TimeSpec` 对象 | 是 | 无 | 是，仅限 NEW_MAP | `EXPERIMENTAL` |
 | `PlayerVehicle` | `OptionalValue<PlayerVehicleSpec>` | 否 | `Unset` | 为诊断信息而解析；设置任何字段均不可运行 | `PARTIAL` |
 | `Environment` | `EnvironmentSpec` 对象 | 是 | 无 | 是（语义化的 `options.cfg` 覆盖层） | `STABLE_BETA` |
 | `Behavior` | `LaunchBehaviorSpec` 对象 | 是 | 无 | 部分使用（参见该记录） | `STABLE_BETA` / `PARTIAL` |
-| `Year` | `YearSpec` 对象或 null | 否 | `null` → `EffectiveYear` = 模式 `Unset` | 除 `Unset` 外的任何模式均不可运行 | `PARTIAL` |
-| `Weather` | `WeatherSpec` 对象或 null | 否 | `null` → `EffectiveWeather` = 模式 `Unset` | 除 `Unset` 外的任何模式均不可运行 | `PARTIAL` |
-| `Input` | `InputSpec` 对象或 null | 否 | `null` → `EffectiveInput` = 两者均未设置 | 设置任何文档均不可运行 | `PARTIAL` |
+| `Year` | `YearSpec` 对象或 null | 否 | `null` → `EffectiveYear` = 模式 `Unset` | 是，仅限 NEW_MAP | `EXPERIMENTAL` |
+| `Weather` | `WeatherSpec` 对象或 null | 否 | `null` → `EffectiveWeather` = 模式 `Unset` | 是，适用于每种世界模式，在世界启动后立即应用（见 [`WeatherSpec`](#weatherspec)） | `EXPERIMENTAL` |
+| `Input` | `InputSpec` 对象或 null | 否 | `null` → `EffectiveInput` = 两者均未设置 | 是（参见 [`InputSpec`](#inputspec)） | `EXPERIMENTAL` |
 | `Diagnostics` | `DiagnosticsSpec` 对象或 null | 否 | `null` → `EffectiveDiagnostics` = 默认值 | 仅携带 | `PARTIAL` |
 | `Presentation` | `SessionPresentationSpec` 对象或 null | 否 | `null` → `EffectivePresentation` = 托管启动画面、无语言、无自定义目录、显示托盘 | 是 | `STABLE_BETA` |
 | `InternetTextures` | `InternetTexturesSpec` 对象或 null | 否 | `null` → `EffectiveInternetTextures` = `Native` | 是 | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | `SessionProfileMetadata` 对象或 null | 否 | `null` | 仅用于来源记录（`session_profile.selected` 计划诊断信息） | `STABLE_BETA` |
+| `HofManagement` | `HofManagementSpec` 对象或 null | 否 | `null` → `EffectiveHofManagement` = 无操作 | 是（会话 HOF 覆盖层，参见 [HOF 管理](hof-management.md)） | `STABLE_BETA` |
+| `Modules` | `RuntimeModulesSpec` 对象（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）或 null | 否 | `null` → `EffectiveModules` = 没有被请求、被禁用或被设置的内容 | 否（模块绝不会通过 OmsiLaunch 触及安装文件；参见[运行时模块](../../../reference/runtime-modules.md)） | `EXPERIMENTAL` |
 
-只读访问器（出现在 CLI 的 JSON 输出中，加载时被忽略）：`EffectiveYear`、`EffectiveWeather`、`EffectiveInput`、`EffectiveDiagnostics`、`EffectivePresentation`、`EffectiveInternetTextures`。
+只读访问器（出现在 CLI 的 JSON 输出中，加载时被忽略）：`EffectiveYear`、`EffectiveWeather`、`EffectiveInput`、`EffectiveDiagnostics`、`EffectivePresentation`、`EffectiveInternetTextures`、`EffectiveHofManagement`、`EffectiveModules`。
 
 ### `InstallationSpec`
 
 | 属性 | 类型 | 默认值 | 有效值 | 使用情况 | 稳定性 |
 | --- | --- | --- | --- | --- | --- |
 | `RootPath` | string | 必需 | 包含 `Omsi.exe` 和 `plugins\` 的目录。参见[路径规则](#path-rules)。为空或仅含空白 → `OL_E_INSTALLATION_NOT_FOUND`。 | 是 | `STABLE_BETA` |
-| `ExpectedExecutableSha256` | string 或 null | `null` | 任意字符串。 | 当前代码中没有使用方：主机总是对 `Omsi.exe` 计算哈希并与构建配置比较，从不与此值比较。 | `PARTIAL`（仅携带，当前无效果） |
+| `ExpectedExecutableSha256` | string 或 null | `null` | `null`，或 64 个十六进制数字（否则为 `OL_E_INVALID_ARGUMENT`）。 | 可选的固定值：设置后，除非 `Omsi.exe` 的 SHA-256 与之相等，否则计划不可运行（`OL_E_UNSUPPORTED_BUILD`，数据 `expected_sha256` 和 `file_sha256`）。 | `STABLE_BETA` |
 
 ### `WorldSpec`
 
 | 属性 | 类型 | 默认值 | 有效值 | 使用情况 | 稳定性 |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | `WorldMode` int | 必需 | `0` `NewMap`、`1` `SavedSituation`、`2` `LastMapState`（`LastSituation` 是值同为 2 的已过时别名）。 | 是；`LastMapState` → `OL_E_CAPABILITY_UNAVAILABLE` | `NewMap`、`SavedSituation`：`STABLE_BETA`；`LastMapState`：`UNAVAILABLE` |
+| `Mode` | `WorldMode` int | 必需 | `0` `NewMap`、`1` `SavedSituation`、`2` `LastMapState`（`LastSituation` 是值同为 2 的已弃用别名）。 | 是；`LastMapState` 需要 `MapIdentity` 和该地图的 `laststn.osn`（`OL_E_MAP_NOT_FOUND`、`OL_E_SITUATION_NOT_FOUND`） | `NewMap`、`SavedSituation`：`STABLE_BETA`；`LastMapState`：`EXPERIMENTAL` |
 | `MapIdentity` | `OptionalValue<string>` | `Unset` | 对于 `NewMap`：必需，形式为 `maps\<dir>\global.cfg`（不区分大小写，接受 `/`，不得含 `..`），且必须已安装。对于 `SavedSituation` 被忽略（地图由 `.osn` 提供）。 | 是（交接） | `STABLE_BETA` |
 | `SituationIdentity` | `OptionalValue<string>` | `Unset` | 对于 `SavedSituation`：必需，为已安装的 `situations\...\<file>.osn` 标识（即 `DiscoverAsync(Situations)` / `/list:situations` 返回的标识）。 | 是（交接） | `STABLE_BETA` |
 | `PresentedEntrypointIndex` | `OptionalValue<int>` | `Unset` | 对于未设置 `EntrypointIdentity` 的 `NewMap`：必需，`>= 0`，是该地图在 OMSI 所呈现的入口点列表中的索引。未设置时以 `-1` 发送给插件。 | 是（交接） | `STABLE_BETA` |
-| `EntrypointIdentity` | `OptionalValue<string>` | `Unset` | 原始入口点标签或发现标识。设置它会使计划不可运行（`world.entrypoint-identity`、`RUNTIME_PARTIAL`、`OL_E_CAPABILITY_UNAVAILABLE`）。 | 仅携带 | `PARTIAL` |
+| `EntrypointIdentity` | `OptionalValue<string>` | `Unset` | 精确（区分大小写）的入口点标签或发现标识。规划器会把它解析为 OMSI 所呈现的标签，启动时选择该标签（`world.entrypoint-identity`）；OMSI 不呈现的记录会被拒绝（`OL_E_ENTRYPOINT_NOT_PRESENTED`），未知的也会被拒绝（`OL_E_ENTRYPOINT_NOT_FOUND`）。 | 仅携带 | `RUNTIME_VALIDATION_REQUIRED` |
 | `Entrypoint` | `EntrypointSpec`（只读） | 计算得出 | 设置了 `EntrypointIdentity` 时 `Mode` = `Identity`，否则设置了索引时为 `PresentedIndex`，否则为 `Unset`；`PresentedIndex`、`Identity` 与输入一致。 | 派生 | `STABLE_BETA` |
 
 <a id="datespec-timespec-yearspec"></a>
@@ -141,16 +144,16 @@
 
 | 属性 | 类型 | 默认值 | 有效值 | 使用情况 | 稳定性 |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | `DateTimeMode` int | 必需（`Year`：记录为 null 时为 `0`） | `0` `Unset`、`1` `Explicit`、`2` `System`。 | `Explicit`/`System` → `unsupported` 条目（`world.explicit-date`、`world.explicit-time`、`world.explicit-year`，`STATICALLY_PARTIAL`）以及 `OL_E_CAPABILITY_UNAVAILABLE`。这些模式也会被复制到启动交接中，模式不为 `Unset` 时插件会拒绝（由于计划不可运行，实际不会执行到这一步）。 | `PARTIAL` |
-| `Value` | `OptionalValue<SemanticDate>` / `OptionalValue<SemanticTime>` / `OptionalValue<int>` | `Unset` | `SemanticDate`：`Year`、`Month` 1..12、`Day` 1..31；`SemanticTime`：`Hour` 0..23、`Minute` 0..59、`Second` 0..59。`Mode` 为 `Explicit` 时必须设置（否则为 `OL_E_DATE_TIME_APPLY_FAILED`），`Mode` 不为 `Explicit` 时必须不设置（否则为 `OL_E_INVALID_ARGUMENT`）。`YearSpec.Value` 不会被校验。 | 仅校验 | `PARTIAL` |
+| `Mode` | `DateTimeMode` int | 必需（`Year`：记录为 null 时为 `0`） | `0` `Unset`、`1` `Explicit`、`2` `System`。 | NEW_MAP：`Explicit` 使用 `Value`，`System` 在规划会话时使用电脑时钟；`Unset` 保留 OMSI 自身的值（其选项和 Start 窗体）。控制器会把该请求解析为 OMSI 的启动时钟（年、年内第几天、时、分、秒；能力 `world.explicit-date`、`world.explicit-time`、`world.explicit-year`），启动交接（版本 7）携带它，插件在 OMSI 的 `NewSituation` 之前立即写入它，因此 OMSI 会在地图加载之前依据所请求的日期推导季节和日历。启动之后会回读正在运行的时钟；若不一致，或 OMSI 使用固定的启动时间，启动会以 `OL_E_DATE_TIME_APPLY_FAILED` 失败。`SavedSituation`：`Unset` 以外的模式为 `OL_E_CAPABILITY_UNAVAILABLE`（情景自带其时间）。 | `EXPERIMENTAL` |
+| `Value` | `OptionalValue<SemanticDate>` / `OptionalValue<SemanticTime>` / `OptionalValue<int>` | `Unset` | `SemanticDate`：真实存在的日历日期（`Day` 对该月和该年有效）；`SemanticTime`：`Hour` 0..23、`Minute` 0..59、`Second` 0..59；年份 1900..2200。`YearSpec` 设置年份（当两者同时给出时，也设置 `Date` 的年份）。闰年的 12 月 31 日会被拒绝：OMSI 的日历无法表示第 366 天。无效的值：`OL_E_DATE_TIME_APPLY_FAILED`。`Mode` 为 `Explicit` 时必须设置，否则必须不设置（`OL_E_INVALID_ARGUMENT`）。 | 是 | `EXPERIMENTAL` |
 
 ### `WeatherSpec`
 
 | 属性 | 类型 | 默认值 | 有效值 | 使用情况 | 稳定性 |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | `WeatherMode` int | 记录为 null 时为 `0` | `0` `Unset`、`1` `Preset`、`2` `Icao`、`3` `RealCurrent`。 | 除 `Unset` 外的任何模式 → `weather` 不支持条目以及 `OL_E_CAPABILITY_UNAVAILABLE`。 | `PARTIAL` |
-| `Preset` | `OptionalValue<string>` | `Unset` | 预设名称（不校验）。 | 仅携带 | `PARTIAL` |
-| `Icao` | `OptionalValue<string>` | `Unset` | ICAO 代码（不校验）。 | 仅携带 | `PARTIAL` |
+| `Mode` | `WeatherMode` int | 记录为 null 时为 `0` | `0` `Unset`、`1` `Preset`、`2` `Icao`、`3` `RealCurrent`。 | `Unset` 以外的任何模式都要求 `world.weather`；插件在世界启动后立即应用它（适用于每种世界模式；它会覆盖已保存情景的天气）。失败会使启动以 `OL_E_WEATHER_APPLY_FAILED` 失败。 | `EXPERIMENTAL` |
+| `Preset` | `OptionalValue<string>` | `Unset` | 安装的 `weather` 文件夹中的某个文件，按名称或 `weather\<name>.owt` 指定；在规划时检查（`OL_E_WEATHER_INVALID`）。 | 交接 | `EXPERIMENTAL` |
+| `Icao` | `OptionalValue<string>` | `Unset` | 四个字母或数字（否则为 `OL_E_WEATHER_INVALID`）；由 `Icao` 模式使用。 | 交接 | `EXPERIMENTAL` |
 
 <a id="playervehiclespec-inside-playervehicle"></a>
 ### `PlayerVehicleSpec`（位于 `PlayerVehicle` 内）
@@ -164,7 +167,7 @@
 | `Registration` | `OptionalValue<string>` | `Unset` | 任意字符串。 | `OL_E_CAPABILITY_UNAVAILABLE` | `PARTIAL` |
 | `Enabled` | bool（只读） | 计算得出 | 设置了 `Model` 时为 `true`。交接中作为 `PlayerVehicleEnabled` 携带的是 `PlayerVehicle.IsSet`。 | 派生 | `PARTIAL` |
 
-`Presence` 为 1 但所有字段均未设置的 `PlayerVehicle` 会被接受，且不产生任何效果。在当前版本（build）上，设置任何字段都会使计划不可运行（`STATICALLY_PARTIAL`）。
+`Presence` 为 1 但所有字段均未设置的 `PlayerVehicle` 会被接受，且不产生任何效果。在当前版本（build）上，设置任何字段都会使计划不可运行（`UNAVAILABLE`）。
 
 ### `EnvironmentSpec`
 
@@ -214,17 +217,18 @@
 
 | 属性 | 类型 | 默认值 | 有效值 | 使用情况 | 稳定性 |
 | --- | --- | --- | --- | --- | --- |
-| `RestoreConfiguration` | bool | `true` | 任意 | 没有使用方：会话拥有的文件总是被精确还原。 | `PARTIAL`（仅携带，当前无效果） |
+| `RestoreConfiguration` | bool | `true` | 仅 `true` | 精确还原是强制的：`false` 会以 `OL_E_INVALID_ARGUMENT` 被拒绝。 | `STABLE_BETA` |
 | `SuppressStaleClosecheckWarning` | bool | `true` | 任意 | `true`：会话开始前已存在的 `closecheck` 文件会在启动时被永久删除（诊断信息 `closecheck.stale-removed` 附带其 SHA-256；失败时为 `OL_E_CLOSECHECK_REMOVE_FAILED`）。`false`：已存在的 `closecheck` 保持不动，且不算作会话删除项。OMSI 在会话期间写入的 `closecheck` 总是在还原时被删除。 | `STABLE_BETA` |
 | `StartupTimeoutSeconds` | int | `180` | 1..600（否则 `StartSessionAsync` 抛出 `ArgumentOutOfRangeException`；CLI `/startup-timeout` 强制 1..600；配置档要求 > 0）。这是从监管器启动到 `Running` 的时间预算；超时后会话以 `OL_E_STARTUP_TIMEOUT`（插件已启动）或 `OL_E_PLUGIN_NOT_LOADED` 失败。 | 是 | `STABLE_BETA` |
-| `ShutdownTimeoutSeconds` | int | `30` | 任意 int（CLI `/shutdown-timeout` 为 1..600） | 没有使用方：监管器立即用 `TerminateProcess` 终止 OMSI；不存在协作式关闭的等待。 | `PARTIAL`（仅携带，当前无效果） |
+| `ShutdownTimeoutSeconds` | int | `30` | 1..600（CLI `/shutdown-timeout`） | 配合 `CooperativeShutdown`：OMSI 在被终止之前可自行退出的时间。没有它时，OMSI 会被立即终止。 | `EXPERIMENTAL` |
+| `CooperativeShutdown` | bool | `false` | 任意（CLI `/cooperative-shutdown`） | `true`：结束正在运行的会话时，通过 OMSI 自身的退出例程（`TForm_main.CloseOMSI`：保存选项和地图的 `laststn.osn`，终结插件）请求 OMSI 退出，而不是终止它；在 `ShutdownTimeoutSeconds` 之后它会被终止（`OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE`）。还原在退出之后执行，因此会话拥有的文件仍会回到其原始字节。 | `EXPERIMENTAL` |
 
 ### `InputSpec`
 
 | 属性 | 类型 | 默认值 | 使用情况 | 稳定性 |
 | --- | --- | --- | --- | --- |
-| `KeyboardDocument` | `OptionalValue<string>` | `Unset` | 设置后 → `input.keyboard` 不支持（`STATICALLY_PARTIAL`）以及 `OL_E_CAPABILITY_UNAVAILABLE`。键盘 PATCH/REPLACE 执行未实现。 | `PARTIAL` |
-| `ControllerDocument` | `OptionalValue<string>` | `Unset` | 设置后 → `input.controller` 不支持以及 `OL_E_CAPABILITY_UNAVAILABLE`。 | `PARTIAL` |
+| `KeyboardDocument` | `OptionalValue<string>` | `Unset` | OMSI 格式的键盘文件的路径（绝对路径，或相对于安装目录）。会话用它代替 `Inputs\keyboard.cfg`（事务覆盖层：安装中的文件在结束时按字节还原）。该文件必须存在、不超过 1 MiB，并至少包含一条 `[entry]` 绑定；否则为 `OL_E_INVALID_ARGUMENT`。 | `EXPERIMENTAL` |
+| `ControllerDocument` | `OptionalValue<string>` | `Unset` | OMSI 格式的控制器文件的路径，会话以同样的方式用它代替 `Inputs\gamectrler.cfg`。它必须至少包含一个 `[ctrl]` 设备；否则为 `OL_E_INVALID_ARGUMENT`。 | `EXPERIMENTAL` |
 
 ### `DiagnosticsSpec`
 
@@ -234,8 +238,8 @@
 | `Verbose` | bool | `false` | 没有使用方。 | `PARTIAL` |
 | `OmsiLogAll` | bool | `false` | 没有使用方。 | `PARTIAL` |
 | `ProcessTrace` | bool | `false` | 没有使用方。 | `PARTIAL` |
-| `PluginTrace` | bool | `false` | 没有使用方。 | `PARTIAL` |
-| `NativeTrace` | bool | `false` | 没有使用方。 | `PARTIAL` |
+| `PluginTrace` | bool | `false` | 启动交接标志：插件会为每个运行时操作写入 `plugin.trace.operation` 事件（操作、结果、代码、以微秒计的耗时）；它们通过遥测环到达 `<root>\.omsilaunch\diagnostics\<sessionId>-host.log`。 | `EXPERIMENTAL` |
+| `NativeTrace` | bool | `false` | 启动交接标志：原生层会把每次钩子的安装和移除（`native.trace`：边界、所有者、目标、结果）报告到同一个宿主跟踪中。 | `EXPERIMENTAL` |
 
 CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace-process`、`/trace-plugin`、`/trace-native` 会填充这些布尔值（`/logall` 设置 `Verbose`、`ProcessTrace`、`PluginTrace`、`NativeTrace`）；它们与 spec 中的值做逻辑或（OR）运算。
 
@@ -255,6 +259,22 @@ CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 | `Mode` | `InternetTexturesMode` int | `0`（`Native`） | `0` `Native`：不做任何更改。`1` `Disabled`：插件抑制 OMSI 进程内的下载器（遥测 `internet-textures.suppressed` / `internet-textures.suppression.failed`）。`2` `Override`：`.itx` 配置文件以覆盖层形式替换为 `Texture\standard.itx`；其目标文件和 `Texture\standard.ipr` 成为会话删除项。 | 是 | `Native`：`STABLE_BETA`；`Disabled`、`Override`：`EXPERIMENTAL` |
 | `OverrideProfilePath` | `OptionalValue<string>` | `Unset` | `Override` 时必需（`OL_E_ITX_PROFILE_REQUIRED`）。一个由成对行组成的文本文件：先是绝对的 `http`/`https` URL，然后是相对于安装根目录的目标路径；该路径必须包含 `Texture\` 组成部分、不是根路径、不含 `..`、不以 `\` 开头，且不经过任何 junction/symlink（`OL_E_ITX_PROFILE_INVALID`、`OL_E_ITX_TARGET_OUTSIDE_TEXTURE_PATH`）。参见[路径规则](#path-rules)。 | 是 | `EXPERIMENTAL` |
 
+### `HofManagementSpec`
+
+| 属性 | 类型 | 默认值 | 有效值 | 是否使用 | 稳定性 |
+| --- | --- | --- | --- | --- | --- |
+| `Operations` | `HofOperationSpec` 数组 | 无 | 按顺序应用；解析、冲突规则和限制参见 [HOF 管理](hof-management.md)。 | 是 | `STABLE_BETA` |
+
+`HofOperationSpec` 成员：`SourceKind`（`HofSourceKind` int）、`Source`（string）、`TargetVehicles`（车辆标识或 `Vehicles\` 之下文件夹的数组，至少一个）、`Mode`（`HofApplyMode` int，默认 `0` `Add`）、`Files`（`.hof` 文件名数组，null 表示全部）。问题会作为计划诊断信息 `OL_E_HOF_*` 报告。
+
+### `RuntimeModulesSpec`
+
+| 属性 | 类型 | 默认值 | 有效值 | 是否使用 | 稳定性 |
+| --- | --- | --- | --- | --- | --- |
+| `Enable` | 模块 id 数组 | 无 | 安装在 `plugins\OmsiLaunch.Modules` 之下的模块 id；参见[运行时模块](../../../reference/runtime-modules.md)。无法加载的被请求模块是计划诊断信息 `OL_E_MODULE_*`（计划不可运行）。 | 是 | `EXPERIMENTAL` |
+| `Disable` | 模块 id 数组或 null | 无 | 使默认模块、内容模块或设置文件模块不进入会话（计划诊断信息 `module.disabled`）。同时被启用和禁用的模块为 `OL_E_MODULE_SETTING_INVALID`。只读访问器 `EffectiveDisable`。 | 是 | `EXPERIMENTAL` |
+| `Settings` | 字符串对象或 null | 无 | `"<module id>.<key>": "<value>"`。优先于设置文件 `.omsilaunch\modules.ini` 和清单中的默认值。无效的值或模块未声明的键为 `OL_E_MODULE_SETTING_INVALID`（计划不可运行）；为会话未加载的模块给出的设置项为 `OL_W_MODULE_SETTING_IGNORED`。生效的值位于 `PlannedModule.Settings`。只读访问器 `EffectiveSettings`。 | 是 | `EXPERIMENTAL` |
+
 ### `SessionProfileMetadata`
 
 | 属性 | 类型 | 使用情况 | 稳定性 |
@@ -271,6 +291,8 @@ CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 | `WeatherMode` | `Unset` = 0、`Preset` = 1、`Icao` = 2、`RealCurrent` = 3 |
 | `SplashMode` | `Unset` = 0、`Native` = 0（别名）、`Managed` = 1 |
 | `InternetTexturesMode` | `Native` = 0、`Disabled` = 1、`Override` = 2 |
+| `HofSourceKind` | `Collection` = 0、`Directory` = 1、`Vehicle` = 2、`File` = 3 |
+| `HofApplyMode` | `Add` = 0、`Mirror` = 1 |
 | `Presence` | `Unset` = 0、`Set` = 1 |
 | `EntrypointMode`（只读 `Entrypoint.Mode`） | `Unset` = 0、`PresentedIndex` = 1、`Identity` = 2 |
 
@@ -293,8 +315,8 @@ CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 | `OL_E_SITUATION_MAP_NOT_FOUND` | `SavedSituation`：`.osn` 中指定的地图未安装 | `SessionPlanner` |
 | `OL_E_UNSUPPORTED_OPERATING_SYSTEM` | 不是 x64 操作系统上以 x64 主机进程运行的 Windows 10+（`runtime.current-windows-x64`） | `SessionPlanner` |
 | `OL_E_INSTALLATION_NOT_WRITABLE` | 根目录不存在、设置了只读属性，或没有 `plugins\` 子目录（`transaction.exact-restore`） | `SessionPlanner` |
-| `OL_E_UNSUPPORTED_BUILD` | `Omsi.exe` 不存在，或其大小/SHA-256 既不是配置指纹（`692EBFBF...`，8 503 440 字节），也不是允许列表中的哈希（`omsi.profile.OMSI23004`） | `SessionPlanner` |
-| `OL_E_CAPABILITY_UNAVAILABLE` | `World.Mode` = `LastMapState`；设置了 `EntrypointIdentity`；`Date`/`Time`/`Year` 模式不为 `Unset`；`Weather` 模式不为 `Unset`；设置了任何 `PlayerVehicle` 字段；设置了 `Input.KeyboardDocument` 或 `Input.ControllerDocument` | `SessionPlanner` |
+| `OL_E_UNSUPPORTED_BUILD` | 不是 OMSI 2 安装：`Omsi.exe` 不存在、不是 32 位 x86 PE 映像、没有 OMSI 2（2.x）版本，或没有 `maps\` / `Vehicles\` 目录（`omsi.omsi2`）。哈希不是判断标准。 | `SessionPlanner` |
+| `OL_E_CAPABILITY_UNAVAILABLE` | 设置了 `EntrypointIdentity`；`SavedSituation` 下 `Date`/`Time`/`Year` 模式不为 `Unset`；`Weather` 模式不为 `Unset`；设置了任何 `PlayerVehicle` 字段 | `SessionPlanner` |
 | `OL_E_VEHICLE_NOT_FOUND`、`OL_E_REPAINT_NOT_FOUND`、`OL_E_HOF_NOT_FOUND` | `PlayerVehicle.Model` / `Repaint` / `Hof` 未安装（在 `OL_E_CAPABILITY_UNAVAILABLE` 之外额外报告） | `SessionPlanner` |
 | `OL_E_UNKNOWN_SETTING`、`OL_E_SETTING_NOT_WRITABLE` | `Environment` 中的某个键不在目录中 / 不可写 | `SessionPlanner` |
 | `OL_E_SESSION_PRESENTATION_INVALID` | 构建启动画面/ITX 计划时抛出异常；消息中携带 `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`、`OL_E_SPLASH_ASSET_MISSING`、`OL_E_SPLASH_FORMAT_UNSUPPORTED`、`OL_E_ITX_PROFILE_REQUIRED`、`OL_E_ITX_PROFILE_MISSING`、`OL_E_ITX_PROFILE_INVALID` 或 `OL_E_ITX_TARGET_OUTSIDE_TEXTURE_PATH` | `SessionPlanner` |
@@ -316,7 +338,7 @@ CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 5. 提供了 `/date`、`/time`、`/year`、`/weather*` 时，它们覆盖种子（`system` 选择 `DateTimeMode.System`）。
 6. `/no-vehicle` 清除 `PlayerVehicle`；单独的 `/vehicle`、`/repaint`、`/hof`、`/fleet`、`/registration` 覆盖种子中玩家车辆的对应字段。
 7. `/set:<key>=<value>` 条目被加入 `Environment.General`（检查键，不检查值）；其他七个分组原样来自种子。
-8. `/startup-timeout` 和 `/shutdown-timeout` 仅在提供时覆盖种子；否则依次采用 spec、配置档，最后是默认值 180 s / 30 s。`ShutdownTimeoutSeconds` 对监管器而言是 `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT`。
+8. `/startup-timeout` 和 `/shutdown-timeout` 仅在提供时覆盖种子；否则依次采用 spec、配置档，最后是默认值 180 s / 30 s。`ShutdownTimeoutSeconds` 在使用 `/cooperative-shutdown` 时生效（它与 spec 的值按“或”合并）。
 9. 提供了 `/splash`、`/splash-language`、`/splash-assets`、`/internet-textures`、`/internet-textures-profile` 时，它们覆盖种子；`SuppressTrayIcon` 仅来自种子。
 10. 诊断参数与种子做逻辑或（OR）运算。
 
@@ -338,14 +360,6 @@ CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 
 | 字段 | 当前效果 | 稳定性 |
 | --- | --- | --- |
-| `Installation.ExpectedExecutableSha256` | 无（主机依据构建配置对 `Omsi.exe` 计算哈希） | `PARTIAL` |
-| `Behavior.RestoreConfiguration` | 无（还原总是执行） | `PARTIAL` |
-| `Behavior.ShutdownTimeoutSeconds` | 无（强制终止；`ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT`） | `PARTIAL` |
-| `Diagnostics.*` | 无（主机跟踪总是写入） | `PARTIAL` |
-| `Input.KeyboardDocument`、`Input.ControllerDocument` | 设置后计划不可运行 | `PARTIAL` |
-| `Date`、`Time`、`Year`（模式不为 `Unset`） | 计划不可运行（`STATICALLY_PARTIAL`） | `PARTIAL` |
-| `Weather`（模式不为 `Unset`） | 计划不可运行（`STATICALLY_PARTIAL`） | `PARTIAL` |
-| `PlayerVehicle.*`（设置了任何字段） | 为诊断信息解析内容，计划不可运行（`STATICALLY_PARTIAL`） | `PARTIAL` |
-| `World.EntrypointIdentity` | 计划不可运行（`RUNTIME_PARTIAL`） | `PARTIAL` |
-| `World.Mode` = `LastMapState` / `LastSituation` | 计划不可运行（`UNSUPPORTED_FOR_CURRENT_PROFILE`） | `UNAVAILABLE` |
+| `Diagnostics.Log`、`Verbose`、`OmsiLogAll`、`ProcessTrace` | 无（主机跟踪总是写入） | `PARTIAL` |
+| `PlayerVehicle.*`（设置了任何字段） | 为诊断信息解析内容，计划不可运行（`UNAVAILABLE`） | `PARTIAL` |
 | `SessionProfile` | 仅来源诊断信息 | `STABLE_BETA` |

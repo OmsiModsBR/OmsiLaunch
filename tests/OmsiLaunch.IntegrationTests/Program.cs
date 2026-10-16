@@ -37,6 +37,158 @@ if (savedNative.Situation != savedHandoff.SituationIdentity || !savedEvents.Any(
 Environment.SetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME", name);
 Console.WriteLine("PASS handoff.saved-situation-v4");
 
+// Beta 4: a start whose world-mode capability is not resolved on this build
+// is rejected before any hook is armed, and names the missing capability.
+var blockedEvents = new List<(string Name, IReadOnlyDictionary<string, string> Data)>();
+var blockedNative = new FakeNative { MissingCapabilities = "world.new-map" };
+if (new PluginRuntime(blockedNative, (eventName, data) => blockedEvents.Add((eventName, data))).Start(_ => throw new InvalidOperationException("An unresolved capability must not schedule a start.")))
+    throw new InvalidOperationException("PluginRuntime accepted a start whose capability is unresolved.");
+if (blockedNative.Armed || !blockedEvents.Any(x => x.Name == "plugin.capability.unresolved" && x.Data.TryGetValue("capabilities", out var missing) && missing == "world.new-map"))
+    throw new InvalidOperationException("An unresolved capability did not produce plugin.capability.unresolved.");
+Console.WriteLine("PASS plugin-runtime.capability-unresolved-blocks-start");
+
+// Runtime Modules v1 through the real bridge environment: the null test
+// module is loaded from its own directory in its own load context, armed,
+// told gameplay is ready, reached through module.<id>.<operation> dispatch,
+// and stopped with its tracked resource released.
+{
+    var moduleRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-module-integration-" + Guid.NewGuid().ToString("N"));
+    var savedHandoffName = Environment.GetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME");
+    var savedChannel = Environment.GetEnvironmentVariable("OMSILAUNCH_RUNTIME_CHANNEL");
+    try
+    {
+        var moduleDirectory = Path.Combine(moduleRoot, "plugins", "OmsiLaunch.Modules", "null-test");
+        Directory.CreateDirectory(moduleDirectory);
+        var component = Path.Combine(moduleDirectory, "OmsiLaunch.Module.NullTest.dll");
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Module.NullTest.dll"), component);
+        var componentSha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(component)));
+        var manifestBytes = System.Text.Encoding.UTF8.GetBytes("{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"null-test\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 1, \"max\": 1 }, \"required_capabilities\": [\"bridge.events\"], " +
+            "\"components\": [ { \"kind\": \"managed\", \"path\": \"OmsiLaunch.Module.NullTest.dll\", \"sha256\": \"" + componentSha + "\", \"entry\": \"OmsiLaunch.Module.NullTest.NullTestModule\" } ], \"failure_policy\": \"disable-module\", " +
+            "\"operations\": [ { \"id\": \"ping\", \"kind\": \"read\", \"arguments\": [ { \"name\": \"text\" } ] }, { \"id\": \"fail\", \"kind\": \"action\" } ] }");
+        File.WriteAllBytes(Path.Combine(moduleDirectory, "module.json"), manifestBytes);
+        var manifestSha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes));
+        var moduleHandoff = handoff with { SessionId = Guid.NewGuid(), Modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\null-test", manifestSha) } };
+        var moduleBytes = StartupHandoffWire.Serialize(moduleHandoff); var moduleName = "OmsiLaunch.ModuleTest." + moduleHandoff.SessionId.ToString("N");
+        using var moduleMapping = MemoryMappedFile.CreateNew(moduleName, moduleBytes.Length, MemoryMappedFileAccess.ReadWrite);
+        using (var view = moduleMapping.CreateViewAccessor(0, moduleBytes.Length, MemoryMappedFileAccess.Write)) view.WriteArray(0, moduleBytes, 0, moduleBytes.Length);
+        Environment.SetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME", moduleName);
+        Environment.SetEnvironmentVariable("OMSILAUNCH_RUNTIME_CHANNEL", null);
+        var moduleEvents = new List<(string Name, IReadOnlyDictionary<string, string> Data)>();
+        void Record(string eventName, IReadOnlyDictionary<string, string> data) { lock (moduleEvents) moduleEvents.Add((eventName, data)); }
+        Action? moduleCallback = null;
+        var moduleRuntime = new PluginRuntime(new FakeNative(), Record, new FakeRuntimeControl(), h => new OmsiLaunch.Runtime.Modules.ModuleHost(new PluginModuleEnvironment(h, Record)), moduleRoot);
+        if (!moduleRuntime.Start(action => moduleCallback = action) || moduleCallback is null) throw new InvalidOperationException("A start with a module was not accepted: " + string.Join(", ", moduleEvents.Select(x => x.Name)));
+        if (!moduleEvents.Any(x => x.Name == "module.null-test.armed") || moduleRuntime.Modules?.Status.Single().State != OmsiLaunch.Runtime.Modules.ModuleState.Armed) throw new InvalidOperationException("The module was not loaded and armed: " + string.Join(", ", moduleEvents.Select(x => x.Name + " " + string.Join(",", x.Data.Values))));
+        moduleCallback();
+        if (!moduleEvents.Any(x => x.Name == "module.null-test.gameplay-ready")) throw new InvalidOperationException("The module was not told gameplay is ready.");
+        var dispatch = new PluginRuntime.ModuleDispatch(new FakeRuntimeControl(), moduleRuntime.Modules!);
+        var ping = dispatch.Execute(new RuntimeCommand(moduleHandoff.SessionId, 1, "module.null-test.ping", new Dictionary<string, string> { ["text"] = "hello" }));
+        if (!ping.Succeeded || ping.Values?["echo"] != "hello") throw new InvalidOperationException("module.null-test.ping did not reach the module.");
+        var failed = dispatch.Execute(new RuntimeCommand(moduleHandoff.SessionId, 2, "module.null-test.fail", null));
+        if (failed.Succeeded || failed.ErrorCode != PublicErrorCodes.RUNTIME_VALUE_OUT_OF_RANGE) throw new InvalidOperationException("A typed module failure lost its code: " + failed.ErrorCode);
+        var product = dispatch.Execute(new RuntimeCommand(moduleHandoff.SessionId, 3, "time.read", null));
+        if (!product.Succeeded) throw new InvalidOperationException("Product operations must still reach the runtime control.");
+        moduleRuntime.Shutdown();
+        if (!moduleEvents.Any(x => x.Name == "module.null-test.stopping") || !moduleEvents.Any(x => x.Name == "module.null-test.released") || !moduleEvents.Any(x => x.Name == "module.cleanup" && x.Data["result"] == "complete"))
+            throw new InvalidOperationException("The module was not stopped and released.");
+        // A module.json changed after planning is refused in process.
+        File.AppendAllText(Path.Combine(moduleDirectory, "module.json"), " ");
+        var refusedEvents = new List<(string Name, IReadOnlyDictionary<string, string> Data)>();
+        var refused = new PluginRuntime(new FakeNative(), (n, d) => refusedEvents.Add((n, d)), new FakeRuntimeControl(), h => new OmsiLaunch.Runtime.Modules.ModuleHost(new PluginModuleEnvironment(h, (n, d) => refusedEvents.Add((n, d)))), moduleRoot);
+        refused.Start(_ => { });
+        if (!refusedEvents.Any(x => x.Name == "module.load.failed" && x.Data["code"] == PublicErrorCodes.MODULE_INTEGRITY)) throw new InvalidOperationException("A module.json changed after planning was loaded.");
+        refused.Shutdown();
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME", savedHandoffName);
+        Environment.SetEnvironmentVariable("OMSILAUNCH_RUNTIME_CHANNEL", savedChannel);
+        try { Directory.Delete(moduleRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+}
+Console.WriteLine("PASS plugin-runtime.modules-lifecycle");
+// DNNE loads the plugin into an isolated load context, not the default one
+// (round B found modules failing there: their contracts were looked up in the
+// default context). The plugin and its product assemblies are loaded into
+// such a context here, and a module is created through the bridge
+// environment of that context: it must implement that context's contract.
+{
+    var moduleRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-isolated-module-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        var directory = Path.Combine(moduleRoot, "plugins", "OmsiLaunch.Modules", "null-test");
+        Directory.CreateDirectory(directory);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Module.NullTest.dll"), Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"));
+        var componentSha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"))));
+        var manifestBytes = System.Text.Encoding.UTF8.GetBytes("{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"null-test\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 1, \"max\": 1 }, " +
+            "\"components\": [ { \"kind\": \"managed\", \"path\": \"OmsiLaunch.Module.NullTest.dll\", \"sha256\": \"" + componentSha + "\", \"entry\": \"OmsiLaunch.Module.NullTest.NullTestModule\" } ], \"failure_policy\": \"disable-module\" }");
+        File.WriteAllBytes(Path.Combine(directory, "module.json"), manifestBytes);
+        var isolated = new IsolatedPluginContext(AppContext.BaseDirectory);
+        var plugin = isolated.LoadFromAssemblyPath(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Plugin.dll"));
+        var contracts = isolated.LoadFromAssemblyName(new System.Reflection.AssemblyName("OmsiLaunch.Runtime.Modules"));
+        var api = isolated.LoadFromAssemblyName(new System.Reflection.AssemblyName("OmsiLaunch.Api"));
+        if (contracts == typeof(OmsiLaunch.Runtime.Modules.ModuleHost).Assembly || api == typeof(StartupHandoff).Assembly) throw new InvalidOperationException("The test context is not isolated.");
+        var discovered = contracts.GetType("OmsiLaunch.Runtime.Modules.ModuleCatalog", true)!.GetMethod("InspectPlanned")!.Invoke(null, new object[] { directory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes)) })!;
+        var manifest = discovered.GetType().GetProperty("Manifest")!.GetValue(discovered) ?? throw new InvalidOperationException("The isolated catalog did not read the manifest.");
+        var worldMode = Enum.ToObject(api.GetType("OmsiLaunch.Api.WorldMode", true)!, 0);
+        var dateMode = Enum.ToObject(api.GetType("OmsiLaunch.Api.DateTimeMode", true)!, 0);
+        var handoffType = api.GetType("OmsiLaunch.Api.StartupHandoff", true)!;
+        var isolatedHandoff = handoffType.GetConstructors().Single().Invoke(new object?[] { Guid.NewGuid(), "Omsi23004", worldMode, @"maps\Grundorf\global.cfg", 1, true, false, dateMode, dateMode, "", "", null, false, false, null, null });
+        var environmentType = plugin.GetType("OmsiLaunch.Plugin.PluginModuleEnvironment", true)!;
+        Action<string, IReadOnlyDictionary<string, string>> ignore = (_, _) => { };
+        var environment = environmentType.GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Single().Invoke(new object?[] { isolatedHandoff, ignore });
+        object? module;
+        try { module = environmentType.GetMethod("CreateModule")!.Invoke(environment, new[] { manifest, directory }); }
+        catch (System.Reflection.TargetInvocationException error) { throw new InvalidOperationException("A module cannot be created in an isolated plugin context: " + error.InnerException?.Message, error.InnerException); }
+        if (module is null || !contracts.GetType("OmsiLaunch.Runtime.Modules.IRuntimeModule", true)!.IsInstanceOfType(module)) throw new InvalidOperationException("The module does not implement the isolated context's IRuntimeModule.");
+    }
+    finally { try { Directory.Delete(moduleRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+}
+Console.WriteLine("PASS plugin-runtime.modules-isolated-load-context");
+// A module that declares bridge.hooks.d3d9 makes the bridge observe the
+// Direct3D device before gameplay-ready (round B: device hooks found no
+// device); a module without it leaves the lazy D3D behavior unchanged.
+foreach (var declaresDirect3D in new[] { false, true })
+{
+    var moduleRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-d3d-module-" + Guid.NewGuid().ToString("N"));
+    var savedHandoffName = Environment.GetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME");
+    var savedChannel = Environment.GetEnvironmentVariable("OMSILAUNCH_RUNTIME_CHANNEL");
+    try
+    {
+        var directory = Path.Combine(moduleRoot, "plugins", "OmsiLaunch.Modules", "d3d-test");
+        Directory.CreateDirectory(directory);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Module.NullTest.dll"), Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"));
+        var componentSha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"))));
+        var manifestBytes = System.Text.Encoding.UTF8.GetBytes("{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"d3d-test\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 1, \"max\": 1 }, " +
+            (declaresDirect3D ? "\"optional_capabilities\": [\"bridge.hooks.d3d9\"], " : "") +
+            "\"components\": [ { \"kind\": \"managed\", \"path\": \"OmsiLaunch.Module.NullTest.dll\", \"sha256\": \"" + componentSha + "\", \"entry\": \"OmsiLaunch.Module.NullTest.NullTestModule\" } ], \"failure_policy\": \"disable-module\" }");
+        File.WriteAllBytes(Path.Combine(directory, "module.json"), manifestBytes);
+        var d3dHandoff = handoff with { SessionId = Guid.NewGuid(), Modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\d3d-test", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes))) } };
+        var d3dBytes = StartupHandoffWire.Serialize(d3dHandoff); var d3dName = "OmsiLaunch.D3DModuleTest." + d3dHandoff.SessionId.ToString("N");
+        using var d3dMapping = MemoryMappedFile.CreateNew(d3dName, d3dBytes.Length, MemoryMappedFileAccess.ReadWrite);
+        using (var view = d3dMapping.CreateViewAccessor(0, d3dBytes.Length, MemoryMappedFileAccess.Write)) view.WriteArray(0, d3dBytes, 0, d3dBytes.Length);
+        Environment.SetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME", d3dName);
+        Environment.SetEnvironmentVariable("OMSILAUNCH_RUNTIME_CHANNEL", null);
+        var d3dEvents = new List<string>();
+        var control = new FakeRuntimeControl();
+        Action? d3dCallback = null;
+        var d3dRuntime = new PluginRuntime(new FakeNative(), (name, _) => d3dEvents.Add(name), control, h => new OmsiLaunch.Runtime.Modules.ModuleHost(new PluginModuleEnvironment(h, (name, _) => d3dEvents.Add(name))), moduleRoot);
+        if (!d3dRuntime.Start(action => d3dCallback = action) || d3dCallback is null) throw new InvalidOperationException("The D3D module start was not accepted: " + string.Join(", ", d3dEvents));
+        if (control.Direct3DActivated) throw new InvalidOperationException("Direct3D was observed before gameplay.");
+        d3dCallback();
+        if (control.Direct3DActivated != declaresDirect3D) throw new InvalidOperationException("Direct3D activation before gameplay-ready: expected " + declaresDirect3D + ".");
+        if (!d3dEvents.Contains("module.d3d-test.gameplay-ready")) throw new InvalidOperationException("The module did not hear gameplay-ready.");
+        d3dRuntime.Shutdown();
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("OMSILAUNCH_HANDOFF_NAME", savedHandoffName);
+        Environment.SetEnvironmentVariable("OMSILAUNCH_RUNTIME_CHANNEL", savedChannel);
+        try { Directory.Delete(moduleRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+}
+Console.WriteLine("PASS plugin-runtime.modules-direct3d-activation");
+
 var command = new RuntimeCommand(handoff.SessionId, 7, "time.read"); var commandBytes = RuntimeCommandWire.SerializeRequest(command);
 using (var view = runtimeMapping.CreateViewAccessor(0, 65_536, MemoryMappedFileAccess.ReadWrite)) { view.Write(4, commandBytes.Length); view.WriteArray(8, commandBytes, 0, commandBytes.Length); view.Write(0, 1); view.Flush(); }
 // Lifecycle probing is deferred until OMSI crosses gameplay readiness.
@@ -67,7 +219,115 @@ if (boundedState != 2 || !bounded.Succeeded || bounded.Values!["truncated"] != "
     || int.Parse(bounded.Values["returned_count"], System.Globalization.CultureInfo.InvariantCulture) != boundedRows.Length || boundedRows.Length == 0
     || !boundedRows.SequenceEqual(Enumerable.Range(0, boundedRows.Length)) || boundedBytes > 65_536 - 8)
     throw new InvalidOperationException("An oversized bounded list was not truncated to fit the slot (state " + boundedState + ", code " + bounded.ErrorCode + ", rows " + boundedRows.Length + ").");
+// Beta 4 pagination: the next page starts at the first row that was dropped.
+if (bounded.Values["next_cursor"] != "i:" + boundedRows.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)) throw new InvalidOperationException("A shortened list did not continue at its first dropped row: " + bounded.Values["next_cursor"]);
 Console.WriteLine("PASS plugin-runtime.bounded-list-fits-slot");
+// ListPage: cursor and limit parsing, and the page fields.
+{
+    var page = OmsiLaunch.Interop.ListPage.From(new Dictionary<string, string> { ["cursor"] = "i:256", ["limit"] = "10" });
+    if (page.StartIndex() != 256 || page.Take(128) != 10 || OmsiLaunch.Interop.ListPage.From(new Dictionary<string, string> { ["limit"] = "999" }).Take(128) != 128) throw new InvalidOperationException("ListPage parsing failed.");
+    foreach (var bad in new[] { "h:1", "i:-1", "x", "i:", "i:1a" })
+    {
+        try { new OmsiLaunch.Interop.ListPage(bad).StartIndex(); throw new InvalidOperationException("an invalid cursor was accepted: " + bad); }
+        catch (ArgumentException error) when (PublicErrorCodes.FromMessage(error.Message) == PublicErrorCodes.RUNTIME_CURSOR_INVALID) { }
+    }
+    try { OmsiLaunch.Interop.ListPage.From(new Dictionary<string, string> { ["limit"] = "0" }); throw new InvalidOperationException("limit 0 was accepted"); }
+    catch (ArgumentOutOfRangeException error) when (PublicErrorCodes.FromMessage(error.Message) == PublicErrorCodes.RUNTIME_VALUE_OUT_OF_RANGE) { }
+    var middle = new Dictionary<string, string>(); OmsiLaunch.Interop.ListPage.CompleteIndex(middle, 300, 128, 128);
+    var last = new Dictionary<string, string>(); OmsiLaunch.Interop.ListPage.CompleteIndex(last, 300, 256, 44);
+    if (middle["next_cursor"] != "i:256" || middle["truncated"] != "true" || last.ContainsKey("next_cursor") || last["truncated"] != "false" || last["returned_count"] != "44") throw new InvalidOperationException("Page fields are wrong.");
+    var handles = new Dictionary<string, string>(); OmsiLaunch.Interop.ListPage.CompleteHandles(handles, 5, 2, 17, more: true);
+    if (handles["next_cursor"] != "h:17" || OmsiLaunch.Interop.ListPage.HandleNumber("rv-000017") != 17 || new OmsiLaunch.Interop.ListPage("h:17").AfterHandle() != 17) throw new InvalidOperationException("Handle page fields are wrong.");
+}
+Console.WriteLine("PASS runtime-lists.pagination");
+// Native hook engine (Beta 4): IAT, stacked slot, foreign-overwrite and
+// prologue/trampoline hooks on fixtures inside the native bridge itself.
+unsafe
+{
+    var nativeDirectory = new DirectoryInfo(AppContext.BaseDirectory);
+    while (nativeDirectory is not null && !File.Exists(Path.Combine(nativeDirectory.FullName, "OmsiLaunch.sln"))) nativeDirectory = nativeDirectory.Parent;
+    var nativePath = nativeDirectory is null ? "" : Path.Combine(nativeDirectory.FullName, "artifacts", "x86", "Release", "OmsiLaunch.Native.x86.dll");
+    if (!File.Exists(nativePath)) throw new InvalidOperationException("Native bridge not built: " + nativePath);
+    var library = System.Runtime.InteropServices.NativeLibrary.Load(nativePath);
+    var selfCheck = (delegate* unmanaged[Cdecl]<int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeHookSelfCheck");
+    var passed = selfCheck();
+    if (passed != 0x7F) throw new InvalidOperationException("Native hook self-check failed: 0x" + passed.ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+    var count = (delegate* unmanaged[Cdecl]<nint, int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeHookCount");
+    if (count(0) != 0) throw new InvalidOperationException("The self-check left hooks installed.");
+}
+Console.WriteLine("PASS native-hooks.self-check");
+// A native module component through the real bridge environment: loaded,
+// its IAT hook installed through the registry under module:<id>, refusals
+// for unknown and undeclared targets and for a request outside start, and
+// every hook removed before the DLL is unloaded.
+unsafe
+{
+    var repositoryRoot = new DirectoryInfo(AppContext.BaseDirectory);
+    while (repositoryRoot is not null && !File.Exists(Path.Combine(repositoryRoot.FullName, "OmsiLaunch.sln"))) repositoryRoot = repositoryRoot.Parent;
+    var nativeModule = Path.Combine(repositoryRoot!.FullName, "artifacts", "x86", "Release", "tests", "OmsiLaunch.Module.NativeTest.dll");
+    if (!File.Exists(nativeModule)) throw new InvalidOperationException("Native test module not built: " + nativeModule);
+    var count = (delegate* unmanaged[Cdecl]<byte*, int>)System.Runtime.InteropServices.NativeLibrary.GetExport(System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(repositoryRoot.FullName, "artifacts", "x86", "Release", "OmsiLaunch.Native.x86.dll")), "NativeHookCount");
+    int OwnerHooks(string owner) { var bytes = System.Text.Encoding.ASCII.GetBytes(owner + "\0"); fixed (byte* pointer = bytes) return count(pointer); }
+    var moduleRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-native-module-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        var directory = Path.Combine(moduleRoot, "plugins", "OmsiLaunch.Modules", "native-test");
+        Directory.CreateDirectory(directory);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Module.NullTest.dll"), Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"));
+        File.Copy(nativeModule, Path.Combine(directory, "native.dll"));
+        string Sha(string file) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, file))));
+        var manifestBytes = System.Text.Encoding.UTF8.GetBytes("{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"native-test\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 2, \"max\": 2 }, \"required_capabilities\": [\"bridge.events\", \"bridge.hooks.iat\"], " +
+            "\"settings\": [ { \"key\": \"sample\", \"type\": \"integer\", \"default\": 7, \"min\": 0, \"max\": 100000 } ], " +
+            "\"components\": [ { \"kind\": \"managed\", \"path\": \"OmsiLaunch.Module.NullTest.dll\", \"sha256\": \"" + Sha("OmsiLaunch.Module.NullTest.dll") + "\", \"entry\": \"OmsiLaunch.Module.NullTest.NullTestModule\" }, { \"kind\": \"native\", \"path\": \"native.dll\", \"sha256\": \"" + Sha("native.dll") + "\" } ], \"failure_policy\": \"disable-module\" }");
+        File.WriteAllBytes(Path.Combine(directory, "module.json"), manifestBytes);
+        var nativeEvents = new List<(string Name, IReadOnlyDictionary<string, string> Data)>();
+        var host = new OmsiLaunch.Runtime.Modules.ModuleHost(new PluginModuleEnvironment(handoff, (name, data) => nativeEvents.Add((name, data))));
+        host.Load(new[] { new OmsiLaunch.Runtime.Modules.ModuleLoadRequest(directory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes)), new Dictionary<string, string> { ["sample"] = "8192" }) });
+        host.Arm();
+        var started = nativeEvents.FirstOrDefault(x => x.Name == "module.native-test.started").Data;
+        // get_value (bridge protocol 2): the planned setting, 12 with the size
+        // needed for a buffer that is too small, 2 for an unknown name.
+        if (started is null || started["iat"] != "0" || started["missing"] != "2" || started["undeclared"] != "11" || started["chain"] != "1"
+            || started["setting"] != "0" || started["value"] != "8192" || started["small"] != "12" || started["needed"] == "0" || started["unknown"] != "2")
+            throw new InvalidOperationException("Native component start: " + string.Join("; ", nativeEvents.Select(x => x.Name + " " + string.Join(",", x.Data.Select(d => d.Key + "=" + d.Value)))));
+        if (OwnerHooks("module:native-test") != 1) throw new InvalidOperationException("The module's IAT hook is not in the registry.");
+        host.GameplayReady();
+        if (!nativeEvents.Any(x => x.Name == "module.native-test.ready")) throw new InvalidOperationException("gameplay_ready was not called.");
+        host.Stop();
+        var stopped = nativeEvents.FirstOrDefault(x => x.Name == "module.native-test.stopped").Data;
+        if (stopped is null || stopped["late"] != "11") throw new InvalidOperationException("A hook request outside start was not refused.");
+        if (OwnerHooks("module:native-test") != 0 || !nativeEvents.Any(x => x.Name == "module.cleanup" && x.Data["result"] == "complete")) throw new InvalidOperationException("The module's hooks were not removed at cleanup.");
+        // The DLL stays loaded and inert; its bridge table refuses late calls
+        // (checked by the component itself: "late" = 11 above).
+        if (nativeEvents.Any(x => x.Name == "module.hooks.retained")) throw new InvalidOperationException("Hooks were retained.");
+    }
+    finally { try { Directory.Delete(moduleRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+}
+Console.WriteLine("PASS runtime-modules.native-component");
+
+// A module that names a loaded plugin DLL under conflicts.plugins is not
+// loaded in process (OL_E_MODULE_CONFLICT); the plan checks the .opl files,
+// this checks the libraries OMSI actually loaded.
+{
+    var conflictRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-module-conflict-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        var directory = Path.Combine(conflictRoot, "plugins", "OmsiLaunch.Modules", "conflict-test");
+        Directory.CreateDirectory(directory);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Module.NullTest.dll"), Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"));
+        var sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"))));
+        var manifestBytes = System.Text.Encoding.UTF8.GetBytes("{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"conflict-test\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 2, \"max\": 2 }, \"required_capabilities\": [\"bridge.events\"], " +
+            "\"conflicts\": { \"plugins\": [\"kernel32.dll\"] }, \"components\": [ { \"kind\": \"managed\", \"path\": \"OmsiLaunch.Module.NullTest.dll\", \"sha256\": \"" + sha + "\", \"entry\": \"OmsiLaunch.Module.NullTest.NullTestModule\" } ], \"failure_policy\": \"disable-module\" }");
+        File.WriteAllBytes(Path.Combine(directory, "module.json"), manifestBytes);
+        var conflictEvents = new List<(string Name, IReadOnlyDictionary<string, string> Data)>();
+        var host = new OmsiLaunch.Runtime.Modules.ModuleHost(new PluginModuleEnvironment(handoff, (name, data) => conflictEvents.Add((name, data))));
+        host.Load(new[] { new OmsiLaunch.Runtime.Modules.ModuleLoadRequest(directory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes))) });
+        if (host.Status.Count != 0 || !conflictEvents.Any(x => x.Name == "module.load.failed" && x.Data["code"] == PublicErrorCodes.MODULE_CONFLICT))
+            throw new InvalidOperationException("A module next to a conflicting loaded plugin was not refused: " + string.Join("; ", conflictEvents.Select(x => x.Name + " " + string.Join(",", x.Data.Select(d => d.Key + "=" + d.Value)))));
+    }
+    finally { try { Directory.Delete(conflictRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+}
+Console.WriteLine("PASS runtime-modules.plugin-conflict");
 var afterOversize = DispatchFixture(24, "time.read", out var afterOversizeState);
 if (afterOversizeState != 2 || !afterOversize.Succeeded || afterOversize.RequestId != 24) throw new InvalidOperationException("Mailbox was not usable after an oversized response.");
 var thrown = DispatchFixture(25, "fixture.throw", out var thrownState);
@@ -102,15 +362,17 @@ await profiled.WriteFieldAsync("Answer", 43); if (await profiled.ReadFieldAsync<
 memory.WriteUInt32(0xB10 + 0x04, 0xB40); memory.WriteInt32(0xB10 + 0x08, 1); memory.WriteUInt32(0xB40, 0xB80); memory.WriteInt32(0xB7C, 2); memory.WriteBytes(0xB80, new byte[] { (byte)'P', (byte)'T' });
 var ansiList = await new OmsiStringList(memory, 0xB10, OmsiPointerListLayout.DelphiTList, OmsiStringEncoding.Ansi).SnapshotAsync();
 if (ansiList.Count != 1 || ansiList[0] != "PT") throw new InvalidOperationException("TList string marshalling failed.");
-var availability = OmsiRuntimeSurface.Resolve(symbol => symbol == "NewSituation");
-if (!availability.Single(entry => entry.Operation.Id == "program.new-situation").Available || availability.Single(entry => entry.Operation.Id == "weather.write").Available) throw new InvalidOperationException("Runtime surface capability resolution failed.");
 Console.WriteLine("PASS interop.delphi-memory-primitives");
 
 sealed class FakeNative : IPluginNativeServices
 {
     public bool Armed { get; private set; } public string? Map { get; private set; } public int Index { get; private set; } public string? EntrypointIdentity { get; private set; }
     public int BuildValidationCount { get; private set; }
-    public bool ValidateBuild(string profileIdentity) { BuildValidationCount++; return profileIdentity == "Omsi23004_692EBFBF"; }
+    // Capability availability is decided by the in-process resolution; the
+    // fake reports every start capability as resolved unless told otherwise.
+    public string MissingCapabilities { get; init; } = "";
+    public bool ValidateStart(WorldMode mode, out string missing) { BuildValidationCount++; missing = MissingCapabilities; return missing.Length == 0; }
+    public bool CheckLiveStartForm() => true;
     public bool ArmHeadlessStart() { Armed = true; return true; }
     public int StartNewMap(string mapIdentity, int presentedEntrypointIndex, string entrypointIdentity) { Map = mapIdentity; Index = presentedEntrypointIndex; EntrypointIdentity = entrypointIdentity; return 0; }
     public string? Situation { get; private set; }
@@ -121,6 +383,8 @@ sealed class FakeNative : IPluginNativeServices
 
 sealed class FakeRuntimeControl : IPluginRuntimeControl
 {
+    public bool Direct3DActivated { get; private set; }
+    public void ActivateDirect3D() => Direct3DActivated = true;
     private bool emitted;
     public bool ShutdownObserved { get; private set; }
     public RuntimeCommandResult Execute(RuntimeCommand command)
@@ -173,4 +437,18 @@ sealed class FakeMemory : IOmsiMemory
 sealed class FakeObject : OmsiRemoteObject
 {
     public FakeObject(IOmsiMemory memory, uint address) : base(memory, address) { }
+}
+
+// Loads OmsiLaunch assemblies from one directory into its own context, like
+// the isolated component context DNNE uses for the plugin.
+sealed class IsolatedPluginContext : System.Runtime.Loader.AssemblyLoadContext
+{
+    private readonly string directory;
+    public IsolatedPluginContext(string directory) : base("OmsiLaunch.Tests.IsolatedPlugin") => this.directory = directory;
+    protected override System.Reflection.Assembly? Load(System.Reflection.AssemblyName name)
+    {
+        if (name.Name is null || !name.Name.StartsWith("OmsiLaunch.", StringComparison.Ordinal) || name.Name == "OmsiLaunch.Module.NullTest") return null;
+        var path = Path.Combine(directory, name.Name + ".dll");
+        return File.Exists(path) ? LoadFromAssemblyPath(path) : null;
+    }
 }

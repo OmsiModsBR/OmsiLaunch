@@ -1,9 +1,9 @@
 # OmsiLaunch 文档
 
-<!-- l10n: source=README.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../README.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../README.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-这是 OmsiLaunch `0.1.0-beta3`（加固后基线）的规范性英文文档。OmsiLaunch 为且仅为一个 OMSI 2 版本（build）——构建配置 `Omsi23004_692EBFBF`——提供可编程的启动、会话所有权和运行时控制。`docs/` 下的每个页面都描述当前代码的实际行为；页面与代码不一致时，以代码为准，页面视为缺陷。
+这是 OmsiLaunch `0.1.0-beta4`（加固后基线）的规范性英文文档。OmsiLaunch 为已安装的 OMSI 2 提供可编程的启动、会话所有权和运行时控制；每项原生能力都按版本（build）分别解析并校验（参见[兼容性](reference/compatibility.md)）。`docs/` 下的每个页面都描述当前代码的实际行为；页面与代码不一致时，以代码为准，页面视为缺陷。
 
 全文使用的稳定性词汇：`STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`、`UNAVAILABLE`。已解析但不起任何作用的参数标记为 `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT`。除非[运行时验证状态](status/runtime-validation-status.md)中如此说明，否则任何内容都不称为经运行时验证。
 
@@ -27,6 +27,8 @@
 | [CLI 参考](reference/cli.md) | `OmsiLaunch.exe` / `OmsiLaunchW.exe` 的每个参数、命令词和层级路由。 |
 | [CLI 示例](reference/cli-examples.md) | 常见任务的可直接复制粘贴的命令行。 |
 | [LaunchSpec 参考](reference/launchspec.md) | 每个 `LaunchSpec` 属性和枚举值，以及 `/spec` 的 JSON 加载规则。 |
+| [HOF 管理](reference/hof-management.md) | 会话范围内的 HOF 复制与镜像到车辆文件夹：来源、目标、冲突、还原。 |
+| [运行时模块](../../reference/runtime-modules.md) | 随会话在 OMSI 内运行的模块：清单、信任、生命周期、失败策略、操作。 |
 | [会话配置档参考](reference/session-profiles.md) | `profile.yaml` 架构 `omsilaunch.session-profile/v1`、键、限制、优先级。 |
 | [公共 API 参考](reference/public-api.md) | `IOmsiLaunch`、公共记录和枚举，以及每个成员的稳定性。 |
 | [公共 API 清单](reference/public-api-inventory.md) | 自动生成的列表，包含每个公共类型和成员的签名与稳定性。 |
@@ -45,14 +47,15 @@
 | [已知限制](reference/known-limitations.md) | 本 Beta 中不受支持、部分实现或属于已接受的风险的内容。 |
 | [运行时验证状态](status/runtime-validation-status.md) | 哪些已在 OMSI 下运行、哪些仅离线运行、哪些仍需要真实会话。 |
 
-对维护者仍具有规范性的根目录页面：
-[`README.md`](../../../README.md)、[`PUBLIC-API.md`](../../../PUBLIC-API.md)、
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md)、
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md)、
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md)、
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md)、
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md)、
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md)。它们只是概要；上面的页面才是详细参考。历史页面列在[文档清单](../../DOCUMENTATION-MANIFEST.md)中。
+对维护者仍具有规范性的页面：仓库的
+[`README.md`](../../../README.md)、`docs/specs` 下的规范
+（[`PUBLIC-API.md`](../../specs/PUBLIC-API.md)、
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md)、
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md)、
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)）以及 `docs/project` 下的项目页面
+（[`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md)、
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md)、
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)）。它们只是概要；上面的页面才是详细参考。历史页面列在[文档清单](../../DOCUMENTATION-MANIFEST.md)中。
 
 <a id="how-this-documentation-is-kept-in-sync"></a>
 ## 本文档如何保持同步
@@ -76,4 +79,4 @@
 <a id="translations"></a>
 ## 翻译
 
-`docs\localized\<locale>\` 包含本 `0.1.0-beta3` 文档的完整译文，语言区域为 `pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` 和 `ja-JP`。页面集、各语言区域根目录以及有意不翻译的页面列在 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md) 中。译文保留英文页面中的每个命令、参数、标识符、错误码和示例不变，`docs.localization` 门禁会对此进行检查。英文页面仍是规范性来源：译文与英文页面不一致时，以英文页面和代码为准，译文视为缺陷。
+`docs\localized\<locale>\` 包含本 `0.1.0-beta4` 文档的完整译文，语言区域为 `pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` 和 `ja-JP`。页面集、各语言区域根目录以及有意不翻译的页面列在 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md) 中。译文保留英文页面中的每个命令、参数、标识符、错误码和示例不变，`docs.localization` 门禁会对此进行检查。英文页面仍是规范性来源：译文与英文页面不一致时，以英文页面和代码为准，译文视为缺陷。

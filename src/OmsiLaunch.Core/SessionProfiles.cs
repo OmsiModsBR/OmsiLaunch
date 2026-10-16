@@ -1,6 +1,7 @@
 using System.Globalization;
 using OmsiLaunch.Api;
 using OmsiLaunch.Configuration;
+using OmsiLaunch.Runtime.Modules;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
@@ -11,6 +12,10 @@ public static class SessionProfileCompiler
 {
     public const string Schema = "omsilaunch.session-profile/v1";
     public const long MaxBytes = 256 * 1024;
+    // A package holds 1..99 presets; /predefined-profile-index selects one by
+    // its declared index. Beta 3 allowed 1..5.
+    public const int MinPresetIndex = 1;
+    public const int MaxPresetIndex = 99;
     // Every key the strict compiler accepts, by mapping context. Documentation
     // and the documentation gate are derived from this table, and the Mapping
     // calls below must stay in agreement with it.
@@ -22,7 +27,10 @@ public static class SessionProfileCompiler
         ["new.date"] = new[] { "mode", "value" },
         ["new.time"] = new[] { "mode", "value" },
         ["new.weather"] = new[] { "mode", "preset", "icao" },
-        ["preset"] = new[] { "index", "id", "name", "settings", "presentation", "internet-textures", "behavior" },
+        ["preset"] = new[] { "index", "id", "name", "settings", "presentation", "internet-textures", "behavior", "hofs", "modules" },
+        // One entry per runtime module id under modules.
+        ["module"] = new[] { "enabled", "settings" },
+        ["hofs"] = new[] { "package", "collection", "directory", "vehicle", "file", "targets", "files", "mode" },
         ["presentation"] = new[] { "splash" },
         ["presentation.splash"] = new[] { "mode", "language", "assets" },
         ["internet-textures"] = new[] { "mode", "profile" },
@@ -31,10 +39,50 @@ public static class SessionProfileCompiler
 
     public static SessionProfilePackage Load(string installationRoot, string id, int presetIndex)
     {
+        ValidateId(id);
+        if (presetIndex is < MinPresetIndex or > MaxPresetIndex) throw Error("OL_E_SESSION_PROFILE_PRESET_NOT_FOUND", "The session profile preset index must be between 1 and 99.");
+        var parsed = Parse(installationRoot, id);
+        var preset = parsed.Presets.SingleOrDefault(x => x.Index == presetIndex) ?? throw Error("OL_E_SESSION_PROFILE_PRESET_NOT_FOUND", "The requested preset was not found in this session profile.");
+        return new SessionProfilePackage(parsed.RootPath, new(id, parsed.Name, parsed.Version, parsed.Author, preset.Id, preset.Index, preset.Name, parsed.RootPath), parsed.CompatibleMaps, parsed.New, preset);
+    }
+
+    /// <summary>
+    /// Lists every package under <c>.omsilaunch\session-profiles</c>. Each package
+    /// is compiled with the same strict rules as a launch; a package that does
+    /// not compile is reported with its error code instead of being skipped.
+    /// Nothing is written.
+    /// </summary>
+    public static IReadOnlyList<SessionProfileSummary> Discover(string installationRoot)
+    {
+        var profiles = Path.GetFullPath(Path.Combine(installationRoot, ".omsilaunch", "session-profiles"));
+        if (!Directory.Exists(profiles)) return Array.Empty<SessionProfileSummary>();
+        var output = new List<SessionProfileSummary>();
+        foreach (var directory in Directory.EnumerateDirectories(profiles).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+        {
+            var id = Path.GetFileName(directory);
+            try
+            {
+                ValidateId(id);
+                var parsed = Parse(installationRoot, id);
+                output.Add(new(id, parsed.Name, parsed.Version, parsed.Author, parsed.CompatibleMaps, parsed.New.Map,
+                    parsed.Presets.OrderBy(x => x.Index).Select(x => new SessionProfilePresetSummary(x.Index, x.Id, x.Name)).ToArray(), true, null, null));
+            }
+            catch (SessionProfileException exception)
+            {
+                output.Add(new(id, null, null, null, Array.Empty<string>(), null, Array.Empty<SessionProfilePresetSummary>(), false, exception.Code, exception.Message));
+            }
+        }
+        return output;
+    }
+
+    private static void ValidateId(string id)
+    {
         if (string.IsNullOrWhiteSpace(id) || id.IndexOfAny(new[] { '\\', '/', ':' }) >= 0 || id.Contains("..", StringComparison.Ordinal))
             throw Error("OL_E_SESSION_PROFILE_PATH_ESCAPE", "The session profile identifier is not a package directory name.");
-        if (presetIndex is < 1 or > 5) throw Error("OL_E_SESSION_PROFILE_PRESET_NOT_FOUND", "The session profile preset index must be between 1 and 5.");
+    }
 
+    private static ParsedProfile Parse(string installationRoot, string id)
+    {
         var profiles = Path.GetFullPath(Path.Combine(installationRoot, ".omsilaunch", "session-profiles"));
         var root = Confined(profiles, id);
         var yamlPath = Path.Combine(root, "profile.yaml");
@@ -58,9 +106,8 @@ public static class SessionProfileCompiler
             var version = RequiredScalar(rootMap, "version");
             var maps = ReadCompatibility(rootMap);
             var world = rootMap.TryGetValue("new", out var worldNode) ? ReadNew(Mapping(worldNode, "new", "map", "entrypoint-index", "entrypoint", "date", "time", "year", "weather")) : new ProfileNew();
-            var presets = ReadPresets(rootMap, root);
-            var preset = presets.SingleOrDefault(x => x.Index == presetIndex) ?? throw Error("OL_E_SESSION_PROFILE_PRESET_NOT_FOUND", "The requested preset was not found in this session profile.");
-            return new SessionProfilePackage(root, new(id, name, version, author, preset.Id, preset.Index, preset.Name, root), maps, world, preset);
+            var presets = ReadPresets(rootMap, root, installationRoot);
+            return new ParsedProfile(root, name, version, author, maps, world, presets);
         }
         catch (SessionProfileException) { throw; }
         catch (YamlException exception) { throw Error("OL_E_SESSION_PROFILE_INVALID", "Invalid YAML: " + exception.Message); }
@@ -96,11 +143,24 @@ public static class SessionProfileCompiler
             Presentation = profile.Preset.Presentation ?? baseline.Presentation,
             InternetTextures = profile.Preset.InternetTextures ?? baseline.InternetTextures,
             Behavior = profile.Preset.Behavior ?? baseline.Behavior,
+            HofManagement = profile.Preset.Hofs.Count != 0 ? new HofManagementSpec(profile.Preset.Hofs) : baseline.HofManagement,
+            Modules = profile.Preset.Modules is { } modules ? MergeModules(baseline.EffectiveModules, modules) : baseline.Modules,
             SessionProfile = profile.Metadata
         };
     }
 
     public static void ValidateCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode) => ValidateMapCompatibility(profile, installationRoot, world, mode);
+
+    // The preset's modules join what the baseline (a /spec file) asked for;
+    // a module setting the preset names wins over the baseline's.
+    private static RuntimeModulesSpec MergeModules(RuntimeModulesSpec baseline, RuntimeModulesSpec preset)
+    {
+        var settings = new Dictionary<string, string>(baseline.EffectiveSettings, StringComparer.Ordinal);
+        foreach (var pair in preset.EffectiveSettings) settings[pair.Key] = pair.Value;
+        var disable = baseline.EffectiveDisable.Concat(preset.EffectiveDisable).Distinct(StringComparer.Ordinal).ToArray();
+        var enable = baseline.Enable.Where(x => !preset.EffectiveDisable.Contains(x)).Concat(preset.Enable).Distinct(StringComparer.Ordinal).ToArray();
+        return new(enable, disable.Where(x => !preset.Enable.Contains(x)).ToArray(), settings);
+    }
     private static void ValidateMapCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode)
     {
         if (profile.CompatibleMaps.Count == 0) return;
@@ -114,16 +174,16 @@ public static class SessionProfileCompiler
             throw Error("OL_E_SESSION_PROFILE_MAP_MISMATCH", "The selected world is not compatible with this session profile.");
     }
 
-    private static IReadOnlyList<ProfilePreset> ReadPresets(IReadOnlyDictionary<string, YamlNode> root, string packageRoot)
+    private static IReadOnlyList<ProfilePreset> ReadPresets(IReadOnlyDictionary<string, YamlNode> root, string packageRoot, string installationRoot)
     {
-        if (!root.TryGetValue("presets", out var node) || node is not YamlSequenceNode sequence || sequence.Children.Count is < 1 or > 5)
-            throw Error("OL_E_SESSION_PROFILE_INVALID", "A session profile requires between one and five presets.");
+        if (!root.TryGetValue("presets", out var node) || node is not YamlSequenceNode sequence || sequence.Children.Count is < 1 or > MaxPresetIndex)
+            throw Error("OL_E_SESSION_PROFILE_INVALID", "A session profile requires between 1 and 99 presets.");
         var output = new List<ProfilePreset>();
         foreach (var child in sequence.Children)
         {
-            var preset = Mapping(child, "preset", "index", "id", "name", "settings", "presentation", "internet-textures", "behavior");
+            var preset = Mapping(child, "preset", "index", "id", "name", "settings", "presentation", "internet-textures", "behavior", "hofs", "modules");
             var index = int.Parse(RequiredScalar(preset, "index"), CultureInfo.InvariantCulture);
-            if (index is < 1 or > 5 || output.Any(x => x.Index == index)) throw Error("OL_E_SESSION_PROFILE_INVALID", "Preset indexes must be unique values between 1 and 5.");
+            if (index is < MinPresetIndex or > MaxPresetIndex || output.Any(x => x.Index == index)) throw Error("OL_E_SESSION_PROFILE_INVALID", "Preset indexes must be unique values between 1 and 99.");
             var settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (preset.TryGetValue("settings", out var settingsNode))
                 foreach (var pair in Mapping(settingsNode, "settings"))
@@ -138,9 +198,42 @@ public static class SessionProfileCompiler
             LaunchBehaviorSpec? behavior = preset.TryGetValue("behavior", out var behaviorNode)
                 ? ReadBehavior(Mapping(behaviorNode, "behavior", "startup-timeout", "shutdown-timeout"))
                 : null;
-            output.Add(new(index, RequiredScalar(preset, "id"), RequiredScalar(preset, "name"), settings, presentation, internet, behavior));
+            var hofs = preset.TryGetValue("hofs", out var hofsNode) ? ReadHofs(hofsNode, packageRoot, installationRoot) : Array.Empty<HofOperationSpec>();
+            var modules = preset.TryGetValue("modules", out var modulesNode) ? ReadModules(modulesNode) : null;
+            output.Add(new(index, RequiredScalar(preset, "id"), RequiredScalar(preset, "name"), settings, presentation, internet, behavior, hofs, modules));
         }
         return output;
+    }
+
+    // modules: { <module-id>: { enabled: true|false, settings: { <key>: <value> } } }.
+    // Values are validated against the module's declaration when the session
+    // is planned; here only the shape is checked.
+    private static RuntimeModulesSpec ReadModules(YamlNode node)
+    {
+        var enable = new List<string>(); var disable = new List<string>();
+        var settings = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (id, value) in Mapping(node, "modules"))
+        {
+            if (!RuntimeModuleProtocol.IsModuleId(id)) throw Error("OL_E_SESSION_PROFILE_INVALID", "modules: '" + id + "' is not a module id.");
+            var module = Mapping(value, "modules." + id, "enabled", "settings");
+            if (module.TryGetValue("enabled", out var enabledNode))
+            {
+                var enabled = Scalar(enabledNode, "modules." + id + ".enabled").ToLowerInvariant() switch
+                {
+                    "true" => true,
+                    "false" => false,
+                    _ => throw Error("OL_E_SESSION_PROFILE_INVALID", "modules." + id + ".enabled must be true or false.")
+                };
+                (enabled ? enable : disable).Add(id);
+            }
+            if (module.TryGetValue("settings", out var settingsNode))
+                foreach (var (key, setting) in Mapping(settingsNode, "modules." + id + ".settings"))
+                {
+                    if (!RuntimeModuleProtocol.IsSettingKey(key)) throw Error("OL_E_SESSION_PROFILE_INVALID", "modules." + id + ".settings: '" + key + "' is not a setting key.");
+                    settings[id + "." + key] = Scalar(setting, "modules." + id + ".settings." + key);
+                }
+        }
+        return new(enable, disable, settings);
     }
 
     private static ProfileNew ReadNew(IReadOnlyDictionary<string, YamlNode> map)
@@ -182,6 +275,46 @@ public static class SessionProfileCompiler
         int? shutdown = map.TryGetValue("shutdown-timeout", out var shutdownNode) ? int.Parse(Scalar(shutdownNode, "behavior.shutdown-timeout"), CultureInfo.InvariantCulture) : null;
         if (startup is <= 0 || shutdown is <= 0) throw Error("OL_E_SESSION_PROFILE_INVALID", "Profile timeouts must be positive seconds.");
         return new LaunchBehaviorSpec(StartupTimeoutSeconds: startup ?? 180, ShutdownTimeoutSeconds: shutdown ?? 30);
+    }
+    // Each entry names exactly one source: package (a directory inside this
+    // profile package), collection (.omsilaunch\hof\<name>), directory (an
+    // installation-relative directory), vehicle or file. Target and source
+    // existence are checked when the session is planned, not here.
+    private static IReadOnlyList<HofOperationSpec> ReadHofs(YamlNode node, string packageRoot, string installationRoot)
+    {
+        if (node is not YamlSequenceNode sequence || sequence.Children.Count == 0) throw Error("OL_E_SESSION_PROFILE_INVALID", "hofs must be a non-empty sequence.");
+        var output = new List<HofOperationSpec>();
+        foreach (var child in sequence.Children)
+        {
+            var map = Mapping(child, "hofs", "package", "collection", "directory", "vehicle", "file", "targets", "files", "mode");
+            var sources = new[] { "package", "collection", "directory", "vehicle", "file" }.Where(map.ContainsKey).ToArray();
+            if (sources.Length != 1) throw Error("OL_E_SESSION_PROFILE_INVALID", "Each hofs entry requires exactly one of package, collection, directory, vehicle or file.");
+            var value = RequiredScalar(map, sources[0]);
+            HofOperationSpec operation;
+            var targets = Sequence(map, "targets", required: true);
+            var files = Sequence(map, "files", required: false);
+            var mode = (OptionalScalar(map, "mode") ?? "add").ToLowerInvariant() switch { "add" => HofApplyMode.Add, "mirror" => HofApplyMode.Mirror, var other => throw Error("OL_E_SESSION_PROFILE_INVALID", "Unsupported hofs mode: " + other) };
+            if (sources[0] == "package")
+            {
+                var directory = Confined(packageRoot, value);
+                if (!Directory.Exists(directory)) throw Error("OL_E_SESSION_PROFILE_ASSET_MISSING", "Profile HOF directory is missing: " + value);
+                if (!InstallationPaths.TryGetContainedRelativePath(installationRoot, directory, out var relative)) throw Error("OL_E_SESSION_PROFILE_PATH_ESCAPE", "Profile HOF directory is outside the installation.");
+                operation = new(HofSourceKind.Directory, relative, targets, mode, files.Count == 0 ? null : files);
+            }
+            else
+            {
+                var kind = sources[0] switch { "collection" => HofSourceKind.Collection, "directory" => HofSourceKind.Directory, "vehicle" => HofSourceKind.Vehicle, _ => HofSourceKind.File };
+                operation = new(kind, Canonical(value), targets, mode, files.Count == 0 ? null : files);
+            }
+            output.Add(operation);
+        }
+        return output;
+    }
+    private static IReadOnlyList<string> Sequence(IReadOnlyDictionary<string, YamlNode> map, string key, bool required)
+    {
+        if (!map.TryGetValue(key, out var node)) return required ? throw Error("OL_E_SESSION_PROFILE_INVALID", "Missing required property: " + key) : Array.Empty<string>();
+        if (node is not YamlSequenceNode sequence || sequence.Children.Count == 0) throw Error("OL_E_SESSION_PROFILE_INVALID", key + " must be a non-empty sequence.");
+        return sequence.Children.Select(x => Canonical(Scalar(x, key))).ToArray();
     }
     private static IReadOnlyList<string> ReadCompatibility(IReadOnlyDictionary<string, YamlNode> root)
     { if (!root.TryGetValue("compatibility", out var node)) return Array.Empty<string>(); var map = Mapping(node, "compatibility", "maps"); if (!map.TryGetValue("maps", out var values) || values is not YamlSequenceNode sequence) return Array.Empty<string>(); return sequence.Children.Select(x => Canonical(Scalar(x, "compatibility.maps"))).ToArray(); }
@@ -239,6 +372,7 @@ internal static class PathConfinement
         return false;
     }
 }
+internal sealed record ParsedProfile(string RootPath, string Name, string Version, string Author, IReadOnlyList<string> CompatibleMaps, ProfileNew New, IReadOnlyList<ProfilePreset> Presets);
 public sealed record SessionProfilePackage(string RootPath, SessionProfileMetadata Metadata, IReadOnlyList<string> CompatibleMaps, ProfileNew New, ProfilePreset Preset);
 public sealed record ProfileNew(string? Map = null, int? EntrypointIndex = null, string? EntrypointIdentity = null, SemanticDate? Date = null, SemanticTime? Time = null, int? Year = null, WeatherSpec? Weather = null);
-public sealed record ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec? Presentation, InternetTexturesSpec? InternetTextures, LaunchBehaviorSpec? Behavior);
+public sealed record ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec? Presentation, InternetTexturesSpec? InternetTextures, LaunchBehaviorSpec? Behavior, IReadOnlyList<HofOperationSpec> Hofs, RuntimeModulesSpec? Modules = null);

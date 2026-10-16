@@ -53,7 +53,7 @@ Sections appear in this order, and a section is omitted when it has no fields. E
 | `Presentation` | `Splash` | always | `Managed` or `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | always | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-The `Environment` and `Vehicle` sections can never appear in a running Beta 3 session: requesting a date, time, year, weather or any player-vehicle field makes the plan not runnable, so no such session starts (see [known limitations](known-limitations.md)). They exist for future builds and are covered by the offline presenter test.
+The `Environment` section appears in a running Beta 4 session when a date, time, year or weather was requested (those requests are experimental, see [known limitations](known-limitations.md)). The `Vehicle` section can never appear in a running session: requesting any player-vehicle field makes the plan not runnable, so no such session starts. It exists for a future build and is covered by the offline presenter test.
 
 Runtime evidence (pt-BR UI, runtime closure `T01`): a NEW_MAP Grundorf session showed `Sessão em execução`; `Sessão`: `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1`; `Apresentação`: `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

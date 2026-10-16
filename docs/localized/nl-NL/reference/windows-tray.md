@@ -1,7 +1,7 @@
 # Windows-systeemvakindicator
 
-<!-- l10n: source=reference/windows-tray.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/windows-tray.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/windows-tray.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Elke zelfstandige eigenaarsessie (gestart met `OmsiLaunch.exe` of `OmsiLaunchW.exe`) toont een pictogram in het systeemvak (meldingsgebied) dat de sessie weergeeft en waarmee de gebruiker de sessie kan beëindigen. Deze pagina specificeert de indicator zoals die is geïmplementeerd door `SessionTrayIndicator`, `StatusWindow` en `StopConfirmationWindow` in `tools\OmsiLaunch.Cli\WindowsHost.cs`, de alleen-lezen presenter `SessionStatusPresenter` (`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`) en het stringregister `WindowsUiStrings` (`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`), samen met de foutdialoogvensters van `OmsiLaunchW.exe` in `WindowsHost`. Het systeemvak is uitsluitend een presentatieadapter: het is geen eigenaar van OMSI of van de recovery, en de stopactie ervan signaleert hetzelfde canonieke stoppad van de eigenaar als `session stop` (zie de [CLI-referentie](cli.md) en [local control](local-control.md)).
 
@@ -60,7 +60,7 @@ De secties verschijnen in deze volgorde, en een sectie wordt weggelaten als ze g
 | `Presentation` | `Splash` | altijd | `Managed` of `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | altijd | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-De secties `Environment` en `Vehicle` kunnen nooit verschijnen in een actieve Beta 3-sessie: het aanvragen van een datum, tijd, jaar, weersituatie of een willekeurig veld van het spelersvoertuig maakt het plan niet uitvoerbaar, zodat zo'n sessie nooit start (zie [bekende beperkingen](known-limitations.md)). Ze bestaan voor toekomstige builds en worden gedekt door de offline test van de presenter.
+De sectie `Environment` verschijnt in een actieve Beta 4-sessie wanneer een datum, tijd, jaar of weersituatie is aangevraagd (die aanvragen zijn experimenteel, zie [bekende beperkingen](known-limitations.md)). De sectie `Vehicle` kan nooit verschijnen in een actieve sessie: het aanvragen van een willekeurig veld van het spelersvoertuig maakt het plan niet uitvoerbaar, zodat zo'n sessie nooit start. Ze bestaat voor een toekomstige build en wordt gedekt door de offline test van de presenter.
 
 Runtimebewijs (pt-BR-UI, runtime-closure `T01`): een NEW_MAP-sessie op Grundorf toonde `Sessão em execução`; `Sessão`: `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1`; `Apresentação`: `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

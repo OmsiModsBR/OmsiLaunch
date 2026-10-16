@@ -1,9 +1,9 @@
 # 最初のセッション
 
-<!-- l10n: source=getting-started/first-session.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../getting-started/first-session.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=getting-started/first-session.md source-sha256=3985b8db122dfbbfeabd69692a21620d4e3d381f398197b61be2c500be1f3170 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../getting-started/first-session.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-このページでは、OmsiLaunch `0.1.0-beta3` で管理される最初の OMSI セッションを順を追って説明します。OMSI を起動せずにプランを作成する方法、明示的なフラグで開始する方法、事前定義したセッションプロファイルで開始する方法、セッションの制御と停止、そして終了後に診断情報を見つける方法です。パッケージが[インストール](installation.md)の説明どおりにインストールされていることを前提とします。すべてのフラグは [CLI リファレンス](../reference/cli.md)で規定されています。その他の呼び出し例は [CLI の使用例](../reference/cli-examples.md)にあります。
+このページでは、OmsiLaunch `0.1.0-beta4` で管理される最初の OMSI セッションを順を追って説明します。OMSI を起動せずにプランを作成する方法、明示的なフラグで開始する方法、事前定義したセッションプロファイルで開始する方法、セッションの制御と停止、そして終了後に診断情報を見つける方法です。パッケージが[インストール](installation.md)の説明どおりにインストールされていることを前提とします。すべてのフラグは [CLI リファレンス](../reference/cli.md)で規定されています。その他の呼び出し例は [CLI の使用例](../reference/cli-examples.md)にあります。
 
 <a id="what-a-session-does"></a>
 ## セッションが行うこと
@@ -38,7 +38,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 
 実行される処理（順番どおり）:
 
-1. プランが出力されます（`Plan: READY profile=Omsi23004_692EBFBF`）。
+1. プランが出力されます（`Plan: READY profile=Omsi23004`（既知のレイアウトの場合））。
 2. 古い保留中のジャーナルがあればそのリカバリ、リースの取得、スナップショット、ジャーナル、オーバーレイ、プラグインの整合性検査、`Omsi.exe` の起動。
 3. トレイアイコンが表示されます（`OmsiLaunch is running`、OmsiLaunch が実行中であることを示すツールチップ）。[Windows トレイ](../reference/windows-tray.md)を参照してください。
 4. ゲームプレイに入ると、`Running` ステータスが JSON で出力されます（`"State": 14`）。既定の起動タイムアウトは 180 s です（変更するには `/startup-timeout:<1..600>` を使用します）。
@@ -56,7 +56,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 <a id="3-start-with-a-predefined-session-profile"></a>
 ## 3. 事前定義したセッションプロファイルで開始する
 
-セッションプロファイルは `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` に置く YAML ファイルで、マップ、エントリポイント、および最大 5 つの設定プリセットを固定します（スキーマ `omsilaunch.session-profile/v1`。完全なリファレンスは[セッションプロファイル](../reference/session-profiles.md)を参照してください）。`D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml` を作成します。
+セッションプロファイルは `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` に置く YAML ファイルで、マップ、エントリポイント、および最大 99 個の設定プリセットを固定します（スキーマ `omsilaunch.session-profile/v1`。完全なリファレンスは[セッションプロファイル](../reference/session-profiles.md)を参照してください）。`D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml` を作成します。
 
 ```yaml
 schema: omsilaunch.session-profile/v1
@@ -92,7 +92,7 @@ OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /n
 OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /new
 ```
 
-覚えておくべき規則: `id` はディレクトリ名と一致しなければなりません。インデックスは `1..5` です。プロファイルが所有するフィールドを上書きすることになる明示的なフラグ（`/map`、`/entrypoint-index`、プリセットが所有する `/set` キー、プリセットに `presentation` がある場合のスプラッシュ関連フラグ）は `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` で拒否されます（終了コード `2`）。`new:` ブロックは `/new` の場合にのみ適用されます。`/saved:<file.osn>` の場合は、そのシチュエーションのマップが `compatibility.maps` に記載されていなければなりません。パッケージに含まれる `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` はスキーマ全体を示していますが、その `new:` ブロックはこのビルドでは適用できない `date`、`time`、`weather` を設定しているため、コピーする場合はそれらのキーを削除してからにしてください。
+覚えておくべき規則: `id` はディレクトリ名と一致しなければなりません。インデックスは `1..99` です。プロファイルが所有するフィールドを上書きすることになる明示的なフラグ（`/map`、`/entrypoint-index`、プリセットが所有する `/set` キー、プリセットに `presentation` がある場合のスプラッシュ関連フラグ）は `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` で拒否されます（終了コード `2`）。`new:` ブロックは `/new` の場合にのみ適用されます。`/saved:<file.osn>` の場合は、そのシチュエーションのマップが `compatibility.maps` に記載されていなければなりません。パッケージに含まれる `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` はスキーマ全体を示していますが、その `new:` ブロックはこのビルドでは適用できない `date`、`time`、`weather` を設定しているため、コピーする場合はそれらのキーを削除してからにしてください。
 
 <a id="4-control-the-running-session"></a>
 ## 4. 実行中のセッションを制御する

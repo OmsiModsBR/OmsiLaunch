@@ -1,6 +1,6 @@
 # Session Profiles
 
-A session profile is a declarative YAML package that a content author ships with a map or an add-on so that end users can start a reproducible OmsiLaunch session with one command (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..5> /new`). This page is the normative reference for the `omsilaunch.session-profile/v1` format as implemented by `SessionProfileCompiler` in `src/OmsiLaunch.Core/SessionProfiles.cs`, for the precedence rules applied by the CLI (`CliInput.BuildSpecAsync` and `RejectProfileConflicts` in `tools/OmsiLaunch.Cli/Program.cs`), and for the settings catalogue a profile may write (`ConfigurationCatalog`). Everything a profile can do, the CLI flags and the [LaunchSpec](launchspec.md) can also do; a profile only packages those choices.
+A session profile is a declarative YAML package that a content author ships with a map or an add-on so that end users can start a reproducible OmsiLaunch session with one command (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..99> /new`). This page is the normative reference for the `omsilaunch.session-profile/v1` format as implemented by `SessionProfileCompiler` in `src/OmsiLaunch.Core/SessionProfiles.cs`, for the precedence rules applied by the CLI (`CliInput.BuildSpecAsync` and `RejectProfileConflicts` in `tools/OmsiLaunch.Cli/Program.cs`), and for the settings catalogue a profile may write (`ConfigurationCatalog`). Everything a profile can do, the CLI flags and the [LaunchSpec](launchspec.md) can also do; a profile only packages those choices.
 
 Stability: `STABLE_BETA` for parsing, validation, conflict detection and the `settings` / `presentation` / `internet-textures` / `behavior` blocks (offline test `session-profiles.strict-compiler`; the overlay and restore path is runtime validated by RV-005 and RV-006, see [runtime validation status](../status/runtime-validation-status.md)). The `new.date`, `new.time`, `new.year` and `new.weather` keys are `UNAVAILABLE` in this build (see [The `new` block](#new)).
 
@@ -50,7 +50,7 @@ Contexts are named exactly as the compiler names them. Every key listed here is 
 | `version` | string | yes | Package version string (free form, quote it: `"1.0"`); reported in `SessionProfileMetadata.Version`. |
 | `compatibility` | mapping | no | See `compatibility`. |
 | `new` | mapping | no | NEW_MAP defaults. See `new`. |
-| `presets` | sequence of mappings | yes | 1 to 5 preset entries. Zero, more than five, or a non-sequence value is `OL_E_SESSION_PROFILE_INVALID`. |
+| `presets` | sequence of mappings | yes | 1 to 99 preset entries. Zero, more than 99, or a non-sequence value is `OL_E_SESSION_PROFILE_INVALID`. |
 
 ### `compatibility`
 
@@ -66,13 +66,13 @@ The block is read and validated whenever it is present, but it is applied to the
 | --- | --- | --- | --- | --- |
 | `map` | string | no | yes | Map identity in the normalised form `maps\<Map>\global.cfg` (planning requires this exact shape: starts with `maps\`, ends with `\global.cfg`, no `..`). Sets `WorldSpec.MapIdentity`. |
 | `entrypoint-index` | integer | no | yes | Presented entrypoint index (0-based position in OMSI's entrypoint list). Sets `PresentedEntrypointIndex` and clears any entrypoint identity. |
-| `entrypoint` | string | no | yes | Raw entrypoint identity. Sets `EntrypointIdentity` and clears the presented index. If both `entrypoint-index` and `entrypoint` are present, `entrypoint` wins because it is applied last. Entrypoint identity selection is `PARTIAL` (BI-001): planning reports `world.entrypoint-identity` as `RUNTIME_PARTIAL` and the plan is not runnable. Prefer `entrypoint-index`. |
+| `entrypoint` | string | no | yes | Raw entrypoint identity. Sets `EntrypointIdentity` and clears the presented index. If both `entrypoint-index` and `entrypoint` are present, `entrypoint` wins because it is applied last. The value is an exact (case-sensitive) label or a discovery identity; OMSI presents only the first record of each label (`world.entrypoint-identity`, `EXPERIMENTAL`). |
 | `date` | mapping | no | no (`UNAVAILABLE`) | See `new.date`. |
 | `time` | mapping | no | no (`UNAVAILABLE`) | See `new.time`. |
 | `year` | integer | no | no (`UNAVAILABLE`) | Explicit year. |
 | `weather` | mapping | no | no (`UNAVAILABLE`) | See `new.weather`. |
 
-`date`, `time`, `year` and `weather` are compiled into `DateSpec`, `TimeSpec`, `YearSpec` and `WeatherSpec` with `DateTimeMode.Explicit` / the selected `WeatherMode`. The session planner (`src/OmsiLaunch.Core/SessionPlanner.cs`) then reports the capabilities `world.explicit-date`, `world.explicit-time`, `world.explicit-year` and `weather` as `STATICALLY_PARTIAL`, adds `OL_E_CAPABILITY_UNAVAILABLE` to the plan diagnostics and marks the plan **not runnable**. The plugin additionally rejects a handoff whose date or time mode is not `Unset` (`plugin.request.unsupported`). Consequence for this build: a profile that sets any of these four keys can be validated with `/plan` but cannot start a session (exit code 1, `OL_E_PLAN_NOT_RUNNABLE`). Leave them out of profiles intended to run.
+`date`, `time`, `year` and `weather` are compiled into `DateSpec`, `TimeSpec`, `YearSpec` and `WeatherSpec` with `DateTimeMode.Explicit` / the selected `WeatherMode`. The session planner (`src/OmsiLaunch.Core/SessionPlanner.cs`) requires `world.explicit-date`, `world.explicit-time`, `world.explicit-year` and `world.weather`; all four are `EXPERIMENTAL` (closed statically, runtime validation pending). The start date/time applies to NEW_MAP only; the weather applies to every world mode.
 
 #### `new.date`
 
@@ -100,13 +100,15 @@ The block is read and validated whenever it is present, but it is applied to the
 
 | Key | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `index` | integer | yes | | 1 to 5, unique within the profile. Selected with `/predefined-profile-index`. Duplicate or out-of-range: `OL_E_SESSION_PROFILE_INVALID`; an index that exists nowhere in the profile: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
+| `index` | integer | yes | | 1 to 99, unique within the profile; indexes need not be contiguous. Selected with `/predefined-profile-index`. Duplicate or out-of-range: `OL_E_SESSION_PROFILE_INVALID`; an index that exists nowhere in the profile: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
 | `id` | string | yes | | Preset identifier; reported as `SessionProfileMetadata.PresetId`. |
 | `name` | string | yes | | Preset display name; reported as `SessionProfileMetadata.PresetName`. |
 | `settings` | mapping | no | none | Semantic `options.cfg` settings, see [Settings](#settings). Keys are matched case-insensitively against the catalogue. |
 | `presentation` | mapping | no | inherit | Splash presentation, see `presentation`. When absent the preset inherits the baseline (`/spec` value or the CLI default, `Managed`). |
 | `internet-textures` | mapping | no | inherit | See `internet-textures`. |
 | `behavior` | mapping | no | inherit | Timeouts, see `behavior`. |
+| `hofs` | sequence of mappings | no | inherit | Session HOF operations, see `hofs`. When present they replace the baseline `HofManagement`. |
+| `modules` | mapping | no | inherit | Runtime modules, see `modules`. Joined with what a `/spec` file asks for. |
 
 Only the selected preset is applied. Every preset is still parsed and validated, so an error in preset 3 fails a request for preset 1.
 
@@ -141,6 +143,45 @@ A profile cannot set `SessionPresentationSpec.SuppressTrayIcon`; it stays `false
 | `shutdown-timeout` | integer (seconds) | no | 30 | Maps to `LaunchBehaviorSpec.ShutdownTimeoutSeconds`. ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT: the supervisor terminates OMSI directly and never reads this value. |
 
 When the `behavior` block is present, both timeouts are set (given value or default) and replace the baseline `LaunchBehaviorSpec` entirely, including `RestoreConfiguration` and `SuppressStaleClosecheckWarning`, which revert to their defaults (`true`, `true`).
+
+### `hofs`
+
+Each entry is one [HOF management](hof-management.md) operation and names exactly one source key (`package`, `collection`, `directory`, `vehicle` or `file`); zero or several: `OL_E_SESSION_PROFILE_INVALID`. Existence of sources and targets is checked when the session is planned (`OL_E_HOF_*`), except for `package`.
+
+| Key | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `package` | string | one source key | | Directory **relative to the package** holding the `.hof` files the profile ships. Must exist at profile load (`OL_E_SESSION_PROFILE_ASSET_MISSING`); path confinement rules apply. Becomes a `Directory` source. |
+| `collection` | string | one source key | | Name of a collection under `.omsilaunch\hof\`. |
+| `directory` | string | one source key | | Installation-relative directory, for example next to map content. |
+| `vehicle` | string | one source key | | Vehicle identity or folder whose HOFs are copied. |
+| `file` | string | one source key | | Installation-relative `.hof` file. |
+| `targets` | sequence of strings | yes | | Target vehicles (identities or folders below `Vehicles\`). Missing or empty: `OL_E_SESSION_PROFILE_INVALID`. |
+| `files` | sequence of strings | no | all | File names to take from the source. |
+| `mode` | string | no | `add` | `add` or `mirror` (case-insensitive); anything else: `OL_E_SESSION_PROFILE_INVALID`. |
+
+A preset with `hofs` combined with a `/hof-source` flag: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`.
+
+### `modules`
+
+One entry per [runtime module](runtime-modules.md) id (`EXPERIMENTAL`). Each entry is a mapping with these keys (context `module`):
+
+| Key | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `enabled` | `true` or `false` | no | not set | `true` requests the module (`LaunchSpec.Modules.Enable`); `false` keeps it out of the session, including a module loaded by default, by its map or by the settings file (`LaunchSpec.Modules.Disable`). |
+| `settings` | mapping | no | none | Module settings by key (`LaunchSpec.Modules.Settings` as `<id>.<key>`). The values are checked against the module's declared settings when the session is planned (`OL_E_MODULE_SETTING_INVALID`). |
+
+```yaml
+modules:
+  example-preload:
+    enabled: true
+    settings:
+      ram_budget_mb: 8192
+      monitor: false
+  example-hud:
+    enabled: false
+```
+
+A module id that is not `[a-z0-9][a-z0-9-]{1,47}`, an `enabled` other than `true` or `false`, or a setting key that is not `[a-z][a-z0-9_]{0,31}`: `OL_E_SESSION_PROFILE_INVALID`. A module that is not installed is reported when the session is planned (`OL_E_MODULE_NOT_FOUND` for `enabled: true`, `OL_W_MODULE_SETTING_IGNORED` for settings only).
 
 ## Settings
 
@@ -241,6 +282,9 @@ A CLI argument that targets a field the selected profile owns is a conflict, rej
 | `/splash`, `/splash-language`, `/splash-assets` | `presentation` (any) | any |
 | `/internet-textures`, `/internet-textures-profile` | `internet-textures` (any) | any |
 | `/startup-timeout`, `/shutdown-timeout` | `behavior` (any) | any |
+| `/module:<id>` | `modules.<id>.enabled: false` | any |
+| `/no-module:<id>` | `modules.<id>.enabled: true` | any |
+| `/module-setting:<id>.<key>=...` or a module flag | `modules.<id>.settings.<key>` | any |
 
 Not conflicts: `/set` keys the preset does not define (they are added), vehicle flags (`/vehicle`, `/repaint`, `/hof`, `/fleet`, `/registration`, `/no-vehicle`; a profile cannot define a player vehicle), and any world argument under `/saved` (the `new` block is not applied there). `/map`, `/entrypoint` and `/entrypoint-index` are invalid together with `/saved` regardless of profiles (`OL_E_INVALID_ARGUMENT`).
 
@@ -252,7 +296,7 @@ Not conflicts: `/set` keys the preset does not define (they are added), vehicle 
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | `id` is not a plain directory name; `assets` / `profile` leaves the package or traverses a reparse point | 2 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` is not `omsilaunch.session-profile/v1` | 2 |
 | `OL_E_SESSION_PROFILE_INVALID` | size limit, document shape, anchors, unknown key, missing required key, non-scalar value, bad number/date/time, `id` mismatch, preset count/index rules, unsupported mode words, non-positive timeout, `presentation` without `splash`, `override` without `profile` | 2 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` missing, outside 1..5, or no preset with that `index` | 2 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` missing, outside 1..99, or no preset with that `index` | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | a `settings` key is not in the catalogue | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | a `settings` key is catalogued but read-only | 2 |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | `assets` directory or `profile` file does not exist inside the package | 2 |
@@ -260,6 +304,14 @@ Not conflicts: `/set` keys the preset does not define (they are added), vehicle 
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | an explicit CLI argument targets a profile-owned field | 2 |
 
 All of these are raised while the command line is being compiled, before planning. They are `SessionProfileException` (or `ArgumentException` for the conflict) and never start a session. The full catalogue is in [errors](errors.md); exit codes in [exit codes](exit-codes.md).
+
+## Discovering installed profiles
+
+`OmsiLaunch.exe /list:SessionProfiles` (API `ListSessionProfilesAsync`) compiles every package under `.omsilaunch\session-profiles\` and prints one entry per package: `Id`, `Name`, `Version`, `Author`, `CompatibleMaps`, `MapIdentity` and its `Presets` (`Index`, `Id`, `Name`) in index order. A package that does not compile is still listed, with `IsValid: false` and the same `OL_E_SESSION_PROFILE_*` code a launch would report. Nothing is written.
+
+```text
+OmsiLaunch.exe /list:SessionProfiles --json
+```
 
 ## How a profile appears in the API
 

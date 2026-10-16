@@ -73,7 +73,7 @@ The re-plan keeps the caller's `SessionId`, so the id in the handle equals `plan
 
 The supervisor runs on a thread-pool task and loops every 100 ms until OMSI has exited or a stop was requested:
 
-1. Read the latest telemetry sample (a latest-value slot with a producer sequence; torn samples are skipped; identical consecutive events are distinct because the sequence differs). Every new sample is appended to `RuntimeEvents` and mapped by `ApplyTelemetry`.
+1. Read every telemetry event the plugin committed since the last read, in order (an event ring; a reader that fell behind gets `telemetry.lost` with the count). Every event is appended to `RuntimeEvents` and mapped by `ApplyTelemetry`.
 2. If the session is `Failed`, leave the loop.
 3. If the session is not yet `Running` and the deadline (`StartupTimeoutSeconds` after supervisor entry) has passed: `Fail` with `OL_E_STARTUP_TIMEOUT` when `PluginBootstrap` was reached, otherwise `OL_E_PLUGIN_NOT_LOADED`; leave the loop.
 

@@ -1,16 +1,18 @@
 # 已知限制
 
-<!-- l10n: source=reference/known-limitations.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/known-limitations.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/known-limitations.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-本页依据代码列出 OmsiLaunch 0.1.0-beta3 中所有 `UNAVAILABLE`、`PARTIAL` 或属于已接受的风险的内容，以免用户和集成方依赖产品并未提供的行为。每一行给出限制内容、其稳定性、存在的原因，以及详细说明所在的位置。英文文档具有规范性；`docs/localized/` 下的本地化副本的维护程度与英文不同，可能会滞后（见最后一节）。
+本页依据代码列出 OmsiLaunch 0.1.0-beta4 中所有 `UNAVAILABLE`、`PARTIAL` 或属于已接受的风险的内容，以免用户和集成方依赖产品并未提供的行为。每一行给出限制内容、其稳定性、存在的原因，以及详细说明所在的位置。英文文档具有规范性；`docs/localized/` 下的本地化副本的维护程度与英文不同，可能会滞后（见最后一节）。
 
 <a id="compatibility"></a>
 ## 兼容性
 
 | 限制 | 稳定性 | 详细说明 |
 | --- | --- | --- |
-| 仅支持 `Omsi23004_692EBFBF`（`692EBFBF...6243`）；Steam LAA 哈希 `7DAB063D...D759` 在允许列表中，其指纹和计划已通过受控副本验证，但游戏过程需要真正的 Steam 安装（该映像是受 DRM 保护的 Steam 可执行文件） | Steam LAA 为 `PARTIAL` | [兼容性](compatibility.md) |
+| 读取对象布局的能力（车辆、人物对象、天气、地图、摄像机、时刻表、脚本、司机、车票）仅在已知布局（`Omsi23004`）上经过校验；在其他 OMSI 2 版本上，在结构校验器出现之前它们不可用（`OL_E_CAPABILITY_UNRESOLVED`） | 未知版本上为 `PARTIAL` | [兼容性](compatibility.md) |
+| 正版 Steam 可执行文件（受 DRM 保护）尚未经过运行时验证；受控的 LAA 副本已经过验证 | Steam 为 `PARTIAL` | [兼容性](compatibility.md) |
+| 只有已知布局经过运行时验证；与版本无关的解析是在隐去其标识的参考可执行文件上离线验证的 | 未知版本上为 `EXPERIMENTAL` | [运行时验证状态](../status/runtime-validation-status.md) |
 | 仅支持 Windows 10+ x64；不支持 Windows 7/8、XP 和 ARM64 | `UNAVAILABLE` | [兼容性](compatibility.md) |
 | 除控制器使用的 x64 运行时之外，插件还需要 **x86** .NET 6 运行时 | | [兼容性](compatibility.md) |
 
@@ -19,16 +21,14 @@
 
 | 限制 | 稳定性 | 详细说明 |
 | --- | --- | --- |
-| `LAST_MAP_STATE`（`/last`、`WorldMode.LastMapState`）未实现；绝不会以基于时间戳的 `.osn` 回退方案替代 | `UNAVAILABLE`（BI-006） | 计划诊断信息 `OL_E_CAPABILITY_UNAVAILABLE` |
-| 显式或系统的日期、时间和年份（`/date`、`/time`、`/year`，配置档 `new.date`/`new.time`/`new.year`，`DateSpec`/`TimeSpec`/`YearSpec`）会被携带在规格中，但会使计划不可运行；插件拒绝非 `Unset` 的模式 | `UNAVAILABLE`（`STATICALLY_PARTIAL`） | [会话配置档](session-profiles.md)、[launchspec](launchspec.md) |
-| 启动时的天气预设、ICAO 天气和实时天气（`/weather*`、`new.weather`） | `UNAVAILABLE`（`STATICALLY_PARTIAL`，BI-003） | 同上 |
-| 启动时的玩家车辆型号、涂装、HOF、车队编号、车牌号（`/vehicle` 系列、`PlayerVehicleSpec`）会依据内容目录进行解析，但不会应用；请求这些内容会使计划不可运行；确定性的无界面 PlayerVehicle 分配属于未来的扩展 | `UNAVAILABLE`（BI-007） | [能力](capabilities.md) 中的 `player.assign-headless` |
-| 按标识指定入口点（`/entrypoint:<identity>`）未与 OMSI 展示的列表建立对应关系；请使用 `/entrypoint-index` | `PARTIAL`（BI-001） | 计划能力 `world.entrypoint-identity` = `RUNTIME_PARTIAL` |
-| 键盘和控制器文档覆盖层（`InputSpec`、`Environment.Keyboard`、`Environment.Controllers`）会被解析，但任何会话都不会应用 | `UNAVAILABLE`（BI-005） | `input.*` 能力 |
-| `LaunchBehaviorSpec.RestoreConfiguration` 和 `InstallationSpec.ExpectedExecutableSha256` 已声明但从不读取 | `UNAVAILABLE` | [launchspec](launchspec.md) |
-| `ShutdownTimeoutSeconds`（`/shutdown-timeout`，配置档 `shutdown-timeout`）会被接受和携带，但监管器不会使用 | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | [会话生命周期](../concepts/session-lifecycle.md) |
-| `/quiet` 和 `/serve` | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | [CLI](cli.md) |
-| 诊断参数（`/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace-process`、`/trace-plugin`、`/trace-native`）会填充 `DiagnosticsSpec`；可见效果仅限于 `.omsilaunch\diagnostics` 下的宿主跟踪 | `PARTIAL` | [CLI](cli.md) |
+| `LAST_MAP_STATE`（`/last /map:<identity>`）依据对 OMSI 上次状态分支的静态分析实现，且仅经过离线验证 | `EXPERIMENTAL` | [CLI](cli.md) |
+| 显式或系统的日期、时间和年份（`/date`、`/time`、`/year`，配置档 `new.date`/`new.time`/`new.year`）仅适用于 NEW_MAP 启动，并经过离线验证；运行时验证待完成。无法请求闰年的 12 月 31 日（OMSI 的日历会在第 366 天回绕） | `EXPERIMENTAL` | [launchspec](launchspec.md#datespec-timespec-yearspec) |
+| 启动时的天气预设、ICAO 天气和实时天气（`/weather*`、`new.weather`）会在世界启动后立即通过 OMSI 自身的天气加载和 METAR 标志应用（已通过静态分析确定，BI-003）；运行时验证待完成。OMSI 在最初一帧显示的天气可能仍是地图的默认天气 | `EXPERIMENTAL` | [CLI](cli.md) |
+| 启动时的玩家车辆型号、涂装、HOF、车队编号、车牌号（`/vehicle` 系列、`PlayerVehicleSpec`）会依据内容目录进行解析，但不会应用；请求这些内容会使计划不可运行。原生分配序列（通过 OMSI 的位置对话框放置、`MakeVehicle`、各单元的收尾步骤、`CopyTempListIntoMainList`、玩家索引）已通过静态分析确定，但它会创建并注册一辆实时车辆，在能够于运行时验证之前不会实现；计划在后续的 Beta 中提供。已保存情景或 `/last` 会还原其自身的玩家车辆 | `UNAVAILABLE`（BI-007） | [能力](capabilities.md) 中的 `player.assign-headless` |
+| 按标识指定入口点（`/entrypoint:<identity>`）会选择 OMSI 所展示的确切标签（已通过静态分析确定，BI-001）；与 OMSI 自身的对话框一样，无法选择共用同一标签的后续记录。运行时验证待完成 | `EXPERIMENTAL` | 计划能力 `world.entrypoint-identity` |
+| 按键设置键盘和控制器（`Environment.Keyboard`、`Environment.Controllers`）没有已编入目录的键：请改用 `InputSpec` 替换整个文件 | `UNAVAILABLE` | [launchspec](launchspec.md#inputspec) |
+| 协作式关闭（`/cooperative-shutdown`、`Behavior.CooperativeShutdown`）为可选启用，且仅经过离线验证；默认情况下会话结束时会终止 OMSI，`ShutdownTimeoutSeconds` 不起作用 | `EXPERIMENTAL` | [CLI](cli.md) |
+| 诊断参数 `/log`、`/omsi-logall`、`/verbose`、`/trace`、`/trace-process` 会填充 `DiagnosticsSpec`，没有进一步的效果（`.omsilaunch\diagnostics` 下的宿主跟踪始终会写入）；`/trace-plugin` 和 `/trace-native` 会向其中添加插件和原生跟踪事件 | `PARTIAL` | [CLI](cli.md) |
 | `/runtime-batch`、`/runtime-write-batch`、`/d3d-batch` 是验证测试工具 | `INTERNAL` | [CLI](cli.md) |
 
 <a id="session-end-and-process-control"></a>
@@ -57,20 +57,21 @@
 
 | 限制 | 稳定性 | 详细说明 |
 | --- | --- | --- |
-| `weather.set` 被拒绝（`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`）：OMSI 会在下一次天气更新时覆盖两个经过配置分析的风力候选值 | `UNAVAILABLE` | [能力](capabilities.md) |
-| 日历写入（`SetActualDateTime`） | `UNAVAILABLE`（BI-002） | `calendar.set-actual-date-time` |
-| 字符串变量写入、命名触发器、声音触发器（Delphi 托管字符串的所有权问题） | `UNAVAILABLE`（BI-004） | `scripts.string.read` 为只读 |
+| `weather.set` 和 `weather.metar.set` 会写入 OMSI 的源天气记录（已通过静态分析确定）；其在天气刻中的持久性、云类型解析和 METAR 下载有待运行时验证。派生值（湿度、光照系数、实际风）无法设置；OMSI 暂停期间，它们只会在取消暂停后更新 | `EXPERIMENTAL` | [能力](capabilities.md) |
+| `SetActualDateTime` 只是把电脑时钟复制到 OMSI 的启动时钟中（静态分析）；OmsiLaunch 不调用它，而是自行设置启动时钟 | 设计如此 | `calendar.set-actual-date-time` |
+| 字符串变量写入、命名触发器和声音触发器通过 OMSI 自身的方法执行（已通过静态分析确定，BI-004）；它们对车辆脚本的影响有待运行时验证。目标只能是道路车辆 | `EXPERIMENTAL` | `scripts.string.write`、`scripts.trigger` |
 | 不支持车辆重新定位、跨地块空间重新绑定，也没有 ODE 安全的变换控制权；位置字段为只读 | `UNAVAILABLE`（BI-008） | `road-vehicle.read` |
 | `camera.lock` / `camera.unlock` 需要 PlayerVehicle；无界面的 NEW_MAP 启动没有 PlayerVehicle（已保存情景会提供一个） | 设计如此（BI-007） | RV-004 |
 | 运行时变更（`time.set`、`camera.set`、`camera.lock`、`vehicle.variable.set`、生成、随机放置、D3D 纹理）不会记入事务日志，也不会被还原 | 设计如此 | [运行时控制](runtime-control.md) |
-| 句柄指纹盲区：若同一类别、同一定义的对象在两次列表读取之间于同一地址重新创建，则不会被检测为失效；自然移除的生命周期（RV-002）没有安全的运行时制造方式，仍仅离线 | `PARTIAL` | [运行时控制](runtime-control.md) |
+| 句柄是否失效依据 OMSI 自身从不复用的实例编号（`IDCode`）判断，对人物对象则依据消失与重新出现；该机制经过离线验证。自然移除（RV-002：AI 汽车离开已加载的路径网络）仍有待在运行时观察，目前尚未发出 `entity.removed` 事件 | `PARTIAL` | [运行时控制](runtime-control.md) |
 | 结果受 64 KiB 邮箱限制：长列表会被截断（`truncated=true`）；每次 `d3d.texture.update` 的像素负载限制为 48 KiB | 设计如此 | [能力](capabilities.md) |
 | 单飞行通道：每个会话同一时间只处理一个请求；槽忙时返回 `OL_E_RUNTIME_CHANNEL_BUSY`；请求 ID 不得重复使用 | 设计如此 | [运行时控制](runtime-control.md) |
-| 遥测是最新值槽：快于宿主 100 ms 采样间隔的突发事件可能会丢失中间事件（序列号使相同的连续事件保持可区分；撕裂的样本会被跳过） | `PARTIAL` | [永久插件](../concepts/permanent-plugin.md) |
+| 遥测是一个 64 事件的环：落后超过 64 个事件的宿主会丢失最旧的事件，并会被告知丢失了多少（`telemetry.lost`） | `EXPERIMENTAL` | [永久插件](../concepts/permanent-plugin.md) |
+| 模块的 Direct3D 设备钩子是 vtable 钩子：在另一个组件会把设备的原始方法写回的安装上（在回归测试安装上于游戏开始后不久观察到），它们不再被调用，并且在清理时无法移除（`OL_E_MODULE_CLEANUP_INCOMPLETE`；该组件保持加载） | `PARTIAL` | [运行时模块](../../../reference/runtime-modules.md#native-components-and-hooks) |
+| 运行时模块的加载是开放的：OmsiLaunch 不检查模块由谁制作；它只保证模块绝不会在 OmsiLaunch 进程内运行，并且会话程序被限制在其任务范围内（不会有第二个进程，随会话结束而结束） | 设计如此（E21） | [运行时模块](../../../reference/runtime-modules.md#security-boundary) |
+| 模块协议 2（设置、默认激活、设置文件、会话程序、插件冲突、通知、`get_value`）仅经过离线验证 | `EXPERIMENTAL` | [运行时模块](../../../reference/runtime-modules.md) |
 | 已在运行时观察到 D3D 设备重置（`resetting`、`restored`、代次失效）；由于 OMSI 的设备直接进入 `DEVICENOTRESET`，未产生单独的 `lost` 状态转换 | `PARTIAL`（RV-007） | [运行时验证状态](../status/runtime-validation-status.md) |
-| 有界列表结果（`timetable.*.list` 操作、`vehicle.variables.list`、`vehicle.string-variables.list`）最多返回能容纳在 64 KiB 运行时槽中的行；其余行会被省略，并返回 `truncated=true` 和较小的 `returned_count`（文档审计 BUG-05）。此版本不提供分页 | 设计如此 | [能力](capabilities.md) |
-| `timetable.logs.read`、`road-vehicles.list`、`humans.list`、`vehicle.constants.list` 和 `vehicle.curves.list` 不是有界的：大于槽的结果会以 `OL_E_RUNTIME_RESPONSE_TOO_LARGE` 失败（在已测试的地图上，这些操作均未出现此情况） | `PARTIAL` | [能力](capabilities.md) |
-| 自报告的证据字符串（`PublicCapabilityRegistry` `RuntimeValidation`、`GetCapabilitiesAsync` `EvidenceState`）在运行时收尾轮次之后未更新：`camera.lock` 仍显示 `STATICALLY_VALIDATED`，`runtime.d3d.lifecycle.reset` 仍显示 `IMPLEMENTED_NOT_RUNTIME_VALIDATED`。以[运行时验证状态](../status/runtime-validation-status.md)页面为准 | 文档滞后，并非行为差异 | [能力](capabilities.md) |
+| 运行时列表是分页的（`cursor`、`limit`、`next_cursor`）：一页最多包含该列表的最大行数，以及 64 KiB 运行时槽所能容纳的内容 | `EXPERIMENTAL` | [能力](capabilities.md#pagination) |
 | 部分高级的地图/地块/路径/对象图字段未公开；运行时读取器是受构建配置限制的类型化快照，绝不提供任意内存访问 | 设计如此 | [能力](capabilities.md) |
 | 进程内内存读取针对正在运行的 OMSI 采用“先检查后使用”的方式；在检查与读取之间，OMSI 的并发修改可能导致快照不一致（`OL_E_RUNTIME_OPERATION_FAILED`） | 已接受的风险（S-33） | |
 
@@ -99,6 +100,6 @@
 <a id="documentation"></a>
 ## 文档
 
-`docs/` 下的英文页面是此版本的规范性文档。`docs/localized/<locale>/` 包含相同 `0.1.0-beta3` 页面的翻译（参见 [`LOCALIZATION-MANIFEST.md`](../../LOCALIZATION-MANIFEST.md)）；译文与英文文本不一致时，以英文文本和代码为准。其中列出的历史页面和旧版页面仅提供英文版本。
+`docs/` 下的英文页面是此版本的规范性文档。`docs/localized/<locale>/` 包含相同 `0.1.0-beta4` 页面的翻译（参见 [`LOCALIZATION-MANIFEST.md`](../../LOCALIZATION-MANIFEST.md)）；译文与英文文本不一致时，以英文文本和代码为准。其中列出的历史页面和旧版页面仅提供英文版本。
 
 相关页面：[能力](capabilities.md)、[运行时验证状态](../status/runtime-validation-status.md)、[错误](errors.md)。

@@ -53,22 +53,28 @@ public sealed class OmsiRuntimeReaders
         };
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListMapTilesAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListMapTilesAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var map = await ObjectAddressAsync("Map", cancellationToken).ConfigureAwait(false);
         var mapLayout = Layout("Map"); var tileLayout = Layout("MapTile");
         var tiles = await memory.ReadDelphiPointerArrayAsync(await memory.ReadPointer32Async(map + mapLayout["Tiles"], cancellationToken).ConfigureAwait(false), 4_096, cancellationToken).ConfigureAwait(false);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["count"] = tiles.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
-        };
-        for (var index = 0; index < tiles.Length; index++)
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        var end = (int)Math.Min(tiles.Length, (long)start + page.Take(256));
+        ListPage.CompleteIndex(output, tiles.Length, Math.Min(start, tiles.Length), Math.Max(0, end - start));
+        for (var index = start; index < end; index++)
         {
             var address = tiles[index]; if (address == 0) continue;
             var prefix = $"tile.{index}.";
             try
             {
                 output[prefix + "filename"] = await SafeStringAsync(() => ReadAnsiAsync(address + tileLayout["Filename"], cancellationToken)).ConfigureAwait(false);
+                // The tile's grid position and its own index in the map's tile list
+                // (research report beta4-static runtime-map-data-shutdown.md section 2).
+                output[prefix + "x"] = await IntAsync(address, tileLayout, "X", cancellationToken).ConfigureAwait(false);
+                output[prefix + "y"] = await IntAsync(address, tileLayout, "Y", cancellationToken).ConfigureAwait(false);
+                output[prefix + "tile_index"] = await IntAsync(address, tileLayout, "Index", cancellationToken).ConfigureAwait(false);
                 output[prefix + "version"] = await IntAsync(address, tileLayout, "Version", cancellationToken).ConfigureAwait(false);
                 output[prefix + "unsaved"] = (await memory.ReadValueAsync<bool>(address + tileLayout["Unsaved"], cancellationToken).ConfigureAwait(false)).ToString().ToLowerInvariant();
                 output[prefix + "loaded"] = (await memory.ReadValueAsync<bool>(address + tileLayout["Loaded"], cancellationToken).ConfigureAwait(false)).ToString().ToLowerInvariant();
@@ -116,6 +122,17 @@ public sealed class OmsiRuntimeReaders
             , ["pressure"] = await FloatAsync(address, layout, "ActivePressure", cancellationToken).ConfigureAwait(false)
             , ["precipitation"] = (await memory.ReadValueAsync<byte>(address + layout["ActivePrecipitation"], cancellationToken).ConfigureAwait(false)).ToString(System.Globalization.CultureInfo.InvariantCulture)
             , ["precipitation_rate"] = (await memory.ReadValueAsync<byte>(address + layout["ActivePrecipitationRate"], cancellationToken).ConfigureAwait(false)).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            // Source values (what weather.set writes); fog_density and
+            // lightness above are their per-tick projections.
+            , ["set.fog_density"] = await FloatAsync(address, layout, "ActiveFogDensity", cancellationToken).ConfigureAwait(false)
+            , ["set.lightness"] = await FloatAsync(address, layout, "ActiveLightness", cancellationToken).ConfigureAwait(false)
+            , ["cloud_type_name"] = await ReadAnsiAsync(address + layout["ActiveCloudType"], cancellationToken).ConfigureAwait(false) ?? string.Empty
+            , ["cloud_height"] = await FloatAsync(address, layout, "ActiveCloudHeight", cancellationToken).ConfigureAwait(false)
+            , ["ground_moisture"] = await FloatAsync(address, layout, "ActiveGroundMoisture", cancellationToken).ConfigureAwait(false)
+            , ["ground_moisture_cover"] = await FloatAsync(address, layout, "ActiveGroundMoistureCover", cancellationToken).ConfigureAwait(false)
+            , ["ground_wetness"] = await FloatAsync(address, layout, "ActiveGroundWetness", cancellationToken).ConfigureAwait(false)
+            , ["snow"] = (await memory.ReadValueAsync<bool>(address + layout["ActiveSnow"], cancellationToken).ConfigureAwait(false)).ToString().ToLowerInvariant()
+            , ["snow_on_roads"] = (await memory.ReadValueAsync<bool>(address + layout["ActiveSnowOnRoads"], cancellationToken).ConfigureAwait(false)).ToString().ToLowerInvariant()
         };
     }
 
@@ -157,18 +174,32 @@ public sealed class OmsiRuntimeReaders
         };
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListRoadVehiclesAsync(CancellationToken cancellationToken = default)
+    // Handle lists page in handle order: a vehicle that joins between two
+    // pages gets a higher handle and appears on a later page; none is repeated.
+    public const int HandlePageLimit = 1000;
+
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListRoadVehiclesAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var after = page.AfterHandle();
         var addresses = await RoadVehicleAddressesAsync(cancellationToken).ConfigureAwait(false);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["count"] = addresses.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
-        };
+        var entries = new List<(int Position, string Handle, long Number)>();
         for (var index = 0; index < addresses.Length; index++)
         {
             if (addresses[index] == 0) continue;
-            output[$"vehicle.{index}.handle"] = await GetRoadVehicleHandleAsync(addresses[index], cancellationToken).ConfigureAwait(false);
+            var handle = await GetRoadVehicleHandleAsync(addresses[index], cancellationToken).ConfigureAwait(false);
+            entries.Add((index, handle, ListPage.HandleNumber(handle)));
         }
+        return HandlePage("vehicle", addresses.Length, entries, after, page.Take(HandlePageLimit));
+    }
+
+    private static Dictionary<string, string> HandlePage(string row, int count, List<(int Position, string Handle, long Number)> entries, long after, int take)
+    {
+        var ordered = entries.Where(x => x.Number > after).OrderBy(x => x.Number).ToList();
+        var returned = Math.Min(take, ordered.Count);
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var entry in ordered.Take(returned)) output[row + "." + entry.Position.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".handle"] = entry.Handle;
+        ListPage.CompleteHandles(output, count, returned, returned > 0 ? ordered[returned - 1].Number : null, ordered.Count > returned);
         return output;
     }
 
@@ -324,6 +355,23 @@ public sealed class OmsiRuntimeReaders
         return new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["name"] = name, ["value"] = value };
     }
 
+    // The live address of a road vehicle for a native script call. With a
+    // string-variable name, its script must declare it (OMSI's
+    // SetStringVariable silently ignores unknown names). With requireSounds,
+    // the vehicle must have a sound pack.
+    public async ValueTask<uint> ResolveScriptTargetAsync(string handle, string? stringVariable = null, bool requireSounds = false, CancellationToken cancellationToken = default)
+    {
+        if (stringVariable is not null) await ReadRoadVehicleStringVariableAsync(handle, stringVariable, cancellationToken).ConfigureAwait(false);
+        var address = await ResolveRoadVehicleHandleAsync(handle, cancellationToken).ConfigureAwait(false);
+        var layout = Layout("ScriptVariables");
+        if (await memory.ReadPointer32Async(address + layout["ComplMapObject"], cancellationToken).ConfigureAwait(false) == 0 ||
+            await memory.ReadPointer32Async(address + layout["ComplObjectInstance"], cancellationToken).ConfigureAwait(false) == 0)
+            throw new InvalidOperationException("OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE");
+        if (requireSounds && await memory.ReadPointer32Async(address + layout["SoundPack"], cancellationToken).ConfigureAwait(false) == 0)
+            throw new InvalidOperationException("OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE: the vehicle has no sound pack");
+        return address;
+    }
+
     public async ValueTask<IReadOnlyDictionary<string, string>> ReadRoadVehicleConstantAsync(string handle, string name, CancellationToken cancellationToken = default)
     {
         var (constants, _) = await ResolveScriptConstantsAsync(handle, cancellationToken).ConfigureAwait(false);
@@ -335,13 +383,17 @@ public sealed class OmsiRuntimeReaders
         return new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["name"] = name, ["value"] = values[index].ToString(System.Globalization.CultureInfo.InvariantCulture) };
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListRoadVehicleConstantsAsync(string handle, bool curves, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListRoadVehicleConstantsAsync(string handle, bool curves, ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var (constants, _) = await ResolveScriptConstantsAsync(handle, cancellationToken).ConfigureAwait(false);
         var layout = Layout("ScriptConstants");
         var names = await memory.ReadStringArrayAsync(constants + layout[curves ? "FunctionNames" : "Names"], OmsiStringEncoding.Ansi, maximumElements: checked((int)layout["MaximumElements"]), cancellationToken: cancellationToken).ConfigureAwait(false);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["count"] = names.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) };
-        for (var index = 0; index < names.Length; index++) output[$"name.{index}"] = names[index] ?? string.Empty;
+        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle };
+        var end = (int)Math.Min(names.Length, (long)start + page.Take(512));
+        for (var index = start; index < end; index++) output[$"name.{index}"] = names[index] ?? string.Empty;
+        ListPage.CompleteIndex(output, names.Length, Math.Min(start, names.Length), Math.Max(0, end - start));
         return output;
     }
 
@@ -377,31 +429,39 @@ public sealed class OmsiRuntimeReaders
         return new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["name"] = name, ["x"] = x.ToString(System.Globalization.CultureInfo.InvariantCulture), ["value"] = result.ToString(System.Globalization.CultureInfo.InvariantCulture) };
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ReadRoadVehicleHofsAsync(string handle, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ReadRoadVehicleHofsAsync(string handle, ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var vehicle = await ResolveRoadVehicleHandleAsync(handle, cancellationToken).ConfigureAwait(false);
         var layout = Layout("RoadVehicleDefinition");
         var definition = await memory.ReadPointer32Async(vehicle + layout["Definition"], cancellationToken).ConfigureAwait(false);
         if (definition == 0) throw new InvalidOperationException("OL_E_RUNTIME_HOF_UNAVAILABLE");
         var hofs = await memory.ReadDelphiPointerArrayAsync(await memory.ReadPointer32Async(definition + layout["Hofs"], cancellationToken).ConfigureAwait(false), 1_024, cancellationToken).ConfigureAwait(false);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["count"] = hofs.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) };
-        for (var index = 0; index < hofs.Length; index++)
+        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle };
+        var end = (int)Math.Min(hofs.Length, (long)start + page.Take(256));
+        for (var index = start; index < end; index++)
         {
             if (hofs[index] == 0) continue;
             output[$"hof.{index}.name"] = await SafeStringAsync(() => ReadUnicodeAsync(hofs[index] + layout["HofName"], cancellationToken)).ConfigureAwait(false);
             output[$"hof.{index}.service_trip"] = await SafeStringAsync(() => ReadAnsiAsync(hofs[index] + layout["HofServiceTrip"], cancellationToken)).ConfigureAwait(false);
         }
+        ListPage.CompleteIndex(output, hofs.Length, Math.Min(start, hofs.Length), Math.Max(0, end - start));
         return output;
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ReadDriversAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ReadDriversAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var layout = Layout("Driver");
         var data = await memory.ReadPointer32Async(globals["Drivers"], cancellationToken).ConfigureAwait(false);
         var count = await ReadArrayLengthAsync(data, cancellationToken).ConfigureAwait(false);
         if (count > 4_096) throw new InvalidDataException("Invalid driver array length.");
-        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["count"] = count.ToString(System.Globalization.CultureInfo.InvariantCulture), ["selected_index"] = (await memory.ReadValueAsync<int>(globals["SelectedDriver"], cancellationToken).ConfigureAwait(false)).ToString(System.Globalization.CultureInfo.InvariantCulture) };
-        for (var index = 0; index < count; index++)
+        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["selected_index"] = (await memory.ReadValueAsync<int>(globals["SelectedDriver"], cancellationToken).ConfigureAwait(false)).ToString(System.Globalization.CultureInfo.InvariantCulture) };
+        var end = (int)Math.Min(count, (long)start + page.Take(128));
+        ListPage.CompleteIndex(output, count, Math.Min(start, count), Math.Max(0, end - start));
+        for (var index = start; index < end; index++)
         {
             var address = data + checked((uint)index * layout["Size"]); var prefix = $"driver.{index}.";
             output[prefix + "filename"] = await SafeStringAsync(() => ReadUnicodeAsync(address + layout["Filename"], cancellationToken)).ConfigureAwait(false);
@@ -416,8 +476,10 @@ public sealed class OmsiRuntimeReaders
         return output;
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ReadTicketPackAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ReadTicketPackAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var address = globals["TicketPack"]; var layout = Layout("TicketPack"); var ticket = Layout("Ticket");
         var output = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -429,8 +491,10 @@ public sealed class OmsiRuntimeReaders
             ["whinge_factor"] = await FloatAtAsync(address + layout["Whinge"], cancellationToken).ConfigureAwait(false)
         };
         var data = await memory.ReadPointer32Async(address + layout["Tickets"], cancellationToken).ConfigureAwait(false); var count = await ReadArrayLengthAsync(data, cancellationToken).ConfigureAwait(false);
-        if (count > 4_096) throw new InvalidDataException("Invalid ticket array length."); output["count"] = count.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        for (var index = 0; index < count; index++)
+        if (count > 4_096) throw new InvalidDataException("Invalid ticket array length.");
+        var end = (int)Math.Min(count, (long)start + page.Take(128));
+        ListPage.CompleteIndex(output, count, Math.Min(start, count), Math.Max(0, end - start));
+        for (var index = start; index < end; index++)
         {
             var item = data + checked((uint)index * layout["TicketSize"]); var prefix = $"ticket.{index}.";
             output[prefix + "name"] = await SafeStringAsync(() => ReadAnsiAsync(item + ticket["Name"], cancellationToken)).ConfigureAwait(false);
@@ -442,12 +506,16 @@ public sealed class OmsiRuntimeReaders
         return output;
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ReadTimeTableLogsAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ReadTimeTableLogsAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var layout = Layout("TimeTableLog"); var data = await memory.ReadPointer32Async(globals["TimeTableLogs"], cancellationToken).ConfigureAwait(false); var count = await ReadArrayLengthAsync(data, cancellationToken).ConfigureAwait(false);
         if (count > 16_384) throw new InvalidDataException("Invalid timetable log array length.");
-        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["count"] = count.ToString(System.Globalization.CultureInfo.InvariantCulture) };
-        for (var index = 0; index < count; index++)
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        var end = (int)Math.Min(count, (long)start + page.Take(256));
+        ListPage.CompleteIndex(output, count, Math.Min(start, count), Math.Max(0, end - start));
+        for (var index = start; index < end; index++)
         {
             var item = data + checked((uint)index * layout["Size"]); var prefix = $"log.{index}.";
             output[prefix + "bus_stop"] = await SafeStringAsync(() => ReadAnsiAsync(item + layout["BusStopName"], cancellationToken)).ConfigureAwait(false);
@@ -461,25 +529,20 @@ public sealed class OmsiRuntimeReaders
         return output;
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListRoadVehicleVariablesAsync(string handle, bool stringVariables, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListRoadVehicleVariablesAsync(string handle, bool stringVariables, ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var start = page.StartIndex();
         var address = await ResolveRoadVehicleHandleAsync(handle, cancellationToken).ConfigureAwait(false);
         var layout = Layout("ScriptVariables");
         var definition = await memory.ReadPointer32Async(address + layout["ComplMapObject"], cancellationToken).ConfigureAwait(false);
         if (definition == 0) throw new InvalidOperationException("OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE");
         var names = await memory.ReadStringArrayAsync(definition + layout[stringVariables ? "StringVariableNames" : "VariableNames"], OmsiStringEncoding.Ansi, maximumElements: checked((int)layout["MaximumVariables"]), cancellationToken: cancellationToken).ConfigureAwait(false);
-        // The session mailbox has a fixed payload cap. Return a stable prefix and report
-        // truncation rather than allowing a mod with a large script table to time out IPC.
-        const int responseLimit = 512;
-        var returnedCount = Math.Min(names.Length, responseLimit);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["handle"] = handle,
-            ["count"] = names.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["returned_count"] = returnedCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["truncated"] = (names.Length > responseLimit).ToString().ToLowerInvariant()
-        };
-        for (var index = 0; index < returnedCount; index++) if (!string.IsNullOrWhiteSpace(names[index])) output[$"name.{index}"] = names[index]!;
+        // The session mailbox has a fixed payload cap: at most 512 names per page.
+        var output = new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle };
+        var end = (int)Math.Min(names.Length, (long)start + page.Take(512));
+        for (var index = start; index < end; index++) if (!string.IsNullOrWhiteSpace(names[index])) output[$"name.{index}"] = names[index]!;
+        ListPage.CompleteIndex(output, names.Length, Math.Min(start, names.Length), Math.Max(0, end - start));
         return output;
     }
 
@@ -490,18 +553,19 @@ public sealed class OmsiRuntimeReaders
         return new Dictionary<string, string>(StringComparer.Ordinal) { ["count"] = (await ReadArrayLengthAsync(data, cancellationToken).ConfigureAwait(false)).ToString(System.Globalization.CultureInfo.InvariantCulture) };
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListHumansAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListHumansAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
+        page ??= ListPage.First;
+        var after = page.AfterHandle();
         var addresses = await HumanAddressesAsync(cancellationToken).ConfigureAwait(false);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["count"] = addresses.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
-        };
+        var entries = new List<(int Position, string Handle, long Number)>();
         for (var index = 0; index < addresses.Length; index++)
         {
-            if (addresses[index] != 0) output[$"human.{index}.handle"] = await GetHumanHandleAsync(addresses[index], cancellationToken).ConfigureAwait(false);
+            if (addresses[index] == 0) continue;
+            var handle = await GetHumanHandleAsync(addresses[index], cancellationToken).ConfigureAwait(false);
+            entries.Add((index, handle, ListPage.HandleNumber(handle)));
         }
-        return output;
+        return HandlePage("human", addresses.Length, entries, after, page.Take(HandlePageLimit));
     }
 
     public async ValueTask<IReadOnlyDictionary<string, string>> ReadHumanAsync(string handle, CancellationToken cancellationToken = default)
@@ -559,21 +623,48 @@ public sealed class OmsiRuntimeReaders
         return output;
     }
 
-    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTracksAsync(CancellationToken cancellationToken = default) =>
-        ListTimeTableRecordsAsync("Tracks", "TimeTableTrack", (output, index, address, layout, token) => AddTrackAsync(output, index, address, layout, token), cancellationToken);
-
-    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTripsAsync(CancellationToken cancellationToken = default) =>
-        ListTimeTableRecordsAsync("Trips", "TimeTableTrip", (output, index, address, layout, token) => AddTripAsync(output, index, address, layout, token), cancellationToken);
-
-    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableLinesAsync(CancellationToken cancellationToken = default) =>
-        ListTimeTableRecordsAsync("Lines", "TimeTableLine", (output, index, address, layout, token) => AddLineAsync(output, index, address, layout, token), cancellationToken);
-
-    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableRvFilesAsync(CancellationToken cancellationToken = default) =>
-        ListTimeTableRecordsAsync("RvFiles", "TimeTableRvFile", (output, index, address, layout, token) => AddRvFileAsync(output, index, address, layout, token), cancellationToken);
-
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTrackEntriesAsync(CancellationToken cancellationToken = default)
+    // Vehicle numbers OMSI keeps out of free AI use (reserved by timetable
+    // tours or fixed AI lists): "group" and "number" per entry.
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListNoRvNumbersAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
-        const int responseLimit = 512;
+        page ??= ListPage.First;
+        var start = page.StartIndex();
+        var manager = await ObjectAddressAsync("TimeTableManager", cancellationToken).ConfigureAwait(false);
+        var list = await memory.ReadPointer32Async(manager + Layout("TimeTableManager")["NoRvList"], cancellationToken).ConfigureAwait(false);
+        var layout = Layout("StringList");
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (list == 0 || await memory.ReadValueAsync<uint>(list, cancellationToken).ConfigureAwait(false) != layout["Vmt"]) throw new InvalidOperationException("OL_E_RUNTIME_VALUE_INVALID: the reserved-number list is not the expected string list");
+        var count = await memory.ReadValueAsync<int>(list + layout["Count"], cancellationToken).ConfigureAwait(false);
+        var items = await memory.ReadPointer32Async(list + layout["Items"], cancellationToken).ConfigureAwait(false);
+        if (count < 0 || count > 65536 || (count > 0 && items == 0)) throw new InvalidOperationException("OL_E_RUNTIME_VALUE_INVALID: the reserved-number list has an implausible size");
+        var end = (int)Math.Min(count, (long)start + page.Take(256));
+        ListPage.CompleteIndex(output, count, Math.Min(start, count), Math.Max(0, end - start));
+        for (var index = start; index < end; index++)
+        {
+            var text = await SafeStringAsync(async () => await ReadUnicodeAsync(await memory.ReadPointer32Async(items + (uint)index * layout["ItemStride"], cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false)).ConfigureAwait(false);
+            var tab = text.IndexOf('\t');
+            output[$"no_rv.{index}.group"] = tab < 0 ? text : text[..tab];
+            output[$"no_rv.{index}.number"] = tab < 0 ? "" : text[(tab + 1)..];
+        }
+        return output;
+    }
+
+    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTracksAsync(ListPage? page = null, CancellationToken cancellationToken = default) =>
+        ListTimeTableRecordsAsync("Tracks", "TimeTableTrack", (output, index, address, layout, token) => AddTrackAsync(output, index, address, layout, token), page ?? ListPage.First, cancellationToken);
+
+    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTripsAsync(ListPage? page = null, CancellationToken cancellationToken = default) =>
+        ListTimeTableRecordsAsync("Trips", "TimeTableTrip", (output, index, address, layout, token) => AddTripAsync(output, index, address, layout, token), page ?? ListPage.First, cancellationToken);
+
+    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableLinesAsync(ListPage? page = null, CancellationToken cancellationToken = default) =>
+        ListTimeTableRecordsAsync("Lines", "TimeTableLine", (output, index, address, layout, token) => AddLineAsync(output, index, address, layout, token), page ?? ListPage.First, cancellationToken);
+
+    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableRvFilesAsync(ListPage? page = null, CancellationToken cancellationToken = default) =>
+        ListTimeTableRecordsAsync("RvFiles", "TimeTableRvFile", (output, index, address, layout, token) => AddRvFileAsync(output, index, address, layout, token), page ?? ListPage.First, cancellationToken);
+
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTrackEntriesAsync(ListPage? page = null, CancellationToken cancellationToken = default)
+    {
+        page ??= ListPage.First;
+        var start = page.StartIndex(); var take = page.Take(512);
         var manager = await ObjectAddressAsync("TimeTableManager", cancellationToken).ConfigureAwait(false);
         var managerLayout = Layout("TimeTableManager"); var trackLayout = Layout("TimeTableTrack"); var entryLayout = Layout("TimeTableTrackEntry");
         var tracks = await memory.ReadPointer32Async(manager + managerLayout["Tracks"], cancellationToken).ConfigureAwait(false);
@@ -584,25 +675,23 @@ public sealed class OmsiRuntimeReaders
             var track = checked(tracks + (uint)trackIndex * trackLayout["Size"]);
             var entries = await memory.ReadPointer32Async(track + trackLayout["Entries"], cancellationToken).ConfigureAwait(false);
             var entryCount = await ReadArrayLengthAsync(entries, cancellationToken).ConfigureAwait(false);
-            allCount += entryCount;
-            for (var entryIndex = 0; entryIndex < entryCount && returned < responseLimit; entryIndex++, returned++)
-                await AddTrackEntryAsync(output, returned, trackIndex, checked(entries + (uint)entryIndex * entryLayout["Size"]), entryLayout, cancellationToken).ConfigureAwait(false);
+            for (var entryIndex = 0; entryIndex < entryCount; entryIndex++, allCount++)
+                if (allCount >= start && returned < take) { await AddTrackEntryAsync(output, allCount, trackIndex, checked(entries + (uint)entryIndex * entryLayout["Size"]), entryLayout, cancellationToken).ConfigureAwait(false); returned++; }
         }
-        output["count"] = allCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["returned_count"] = returned.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["truncated"] = (allCount > responseLimit).ToString().ToLowerInvariant();
+        ListPage.CompleteIndex(output, allCount, Math.Min(start, allCount), returned);
         return output;
     }
 
-    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableBusStopsAsync(CancellationToken cancellationToken = default) =>
-        ListTimeTableRecordsAsync("BusStops", "TimeTableBusStop", (output, index, address, layout, token) => AddBusStopAsync(output, index, address, layout, token), cancellationToken);
+    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableBusStopsAsync(ListPage? page = null, CancellationToken cancellationToken = default) =>
+        ListTimeTableRecordsAsync("BusStops", "TimeTableBusStop", (output, index, address, layout, token) => AddBusStopAsync(output, index, address, layout, token), page ?? ListPage.First, cancellationToken);
 
-    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableStationLinksAsync(CancellationToken cancellationToken = default) =>
-        ListTimeTableRecordsAsync("StationLinks", "TimeTableStationLink", (output, index, address, layout, token) => AddStationLinkAsync(output, index, address, layout, token), cancellationToken);
+    public ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableStationLinksAsync(ListPage? page = null, CancellationToken cancellationToken = default) =>
+        ListTimeTableRecordsAsync("StationLinks", "TimeTableStationLink", (output, index, address, layout, token) => AddStationLinkAsync(output, index, address, layout, token), page ?? ListPage.First, cancellationToken);
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableToursAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableToursAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
-        const int responseLimit = 128;
+        page ??= ListPage.First;
+        var start = page.StartIndex(); var take = page.Take(128);
         var manager = await ObjectAddressAsync("TimeTableManager", cancellationToken).ConfigureAwait(false);
         var managerLayout = Layout("TimeTableManager"); var lineLayout = Layout("TimeTableLine"); var tourLayout = Layout("TimeTableTour");
         var lineData = await memory.ReadPointer32Async(manager + managerLayout["Lines"], cancellationToken).ConfigureAwait(false);
@@ -614,19 +703,17 @@ public sealed class OmsiRuntimeReaders
             var line = checked(lineData + (uint)lineIndex * lineLayout["Size"]);
             var tours = await memory.ReadPointer32Async(line + lineLayout["Tours"], cancellationToken).ConfigureAwait(false);
             var tourCount = await ReadArrayLengthAsync(tours, cancellationToken).ConfigureAwait(false);
-            allCount += tourCount;
-            for (var tourIndex = 0; tourIndex < tourCount && returned < responseLimit; tourIndex++, returned++)
-                await AddTourAsync(output, returned, lineIndex, checked(tours + (uint)tourIndex * tourLayout["Size"]), tourLayout, cancellationToken).ConfigureAwait(false);
+            for (var tourIndex = 0; tourIndex < tourCount; tourIndex++, allCount++)
+                if (allCount >= start && returned < take) { await AddTourAsync(output, allCount, lineIndex, checked(tours + (uint)tourIndex * tourLayout["Size"]), tourLayout, cancellationToken).ConfigureAwait(false); returned++; }
         }
-        output["count"] = allCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["returned_count"] = returned.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["truncated"] = (allCount > responseLimit).ToString().ToLowerInvariant();
+        ListPage.CompleteIndex(output, allCount, Math.Min(start, allCount), returned);
         return output;
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableProfilesAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableProfilesAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
-        const int responseLimit = 128;
+        page ??= ListPage.First;
+        var start = page.StartIndex(); var take = page.Take(128);
         var manager = await ObjectAddressAsync("TimeTableManager", cancellationToken).ConfigureAwait(false);
         var managerLayout = Layout("TimeTableManager"); var tripLayout = Layout("TimeTableTrip"); var profileLayout = Layout("TimeTableProfile");
         var tripData = await memory.ReadPointer32Async(manager + managerLayout["Trips"], cancellationToken).ConfigureAwait(false);
@@ -638,19 +725,17 @@ public sealed class OmsiRuntimeReaders
             var trip = checked(tripData + (uint)tripIndex * tripLayout["Size"]);
             var profiles = await memory.ReadPointer32Async(trip + tripLayout["Profiles"], cancellationToken).ConfigureAwait(false);
             var profileCount = await ReadArrayLengthAsync(profiles, cancellationToken).ConfigureAwait(false);
-            allCount += profileCount;
-            for (var profileIndex = 0; profileIndex < profileCount && returned < responseLimit; profileIndex++, returned++)
-                await AddProfileAsync(output, returned, tripIndex, checked(profiles + (uint)profileIndex * profileLayout["Size"]), profileLayout, cancellationToken).ConfigureAwait(false);
+            for (var profileIndex = 0; profileIndex < profileCount; profileIndex++, allCount++)
+                if (allCount >= start && returned < take) { await AddProfileAsync(output, allCount, tripIndex, checked(profiles + (uint)profileIndex * profileLayout["Size"]), profileLayout, cancellationToken).ConfigureAwait(false); returned++; }
         }
-        output["count"] = allCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["returned_count"] = returned.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["truncated"] = (allCount > responseLimit).ToString().ToLowerInvariant();
+        ListPage.CompleteIndex(output, allCount, Math.Min(start, allCount), returned);
         return output;
     }
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTourEntriesAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableTourEntriesAsync(ListPage? page = null, CancellationToken cancellationToken = default)
     {
-        const int responseLimit = 256;
+        page ??= ListPage.First;
+        var start = page.StartIndex(); var take = page.Take(256);
         var manager = await ObjectAddressAsync("TimeTableManager", cancellationToken).ConfigureAwait(false);
         var managerLayout = Layout("TimeTableManager"); var lineLayout = Layout("TimeTableLine"); var tourLayout = Layout("TimeTableTour"); var entryLayout = Layout("TimeTableTourEntry");
         var lineData = await memory.ReadPointer32Async(manager + managerLayout["Lines"], cancellationToken).ConfigureAwait(false);
@@ -666,32 +751,25 @@ public sealed class OmsiRuntimeReaders
                 var tour = checked(tours + (uint)tourIndex * tourLayout["Size"]);
                 var entries = await memory.ReadPointer32Async(tour + tourLayout["Entries"], cancellationToken).ConfigureAwait(false);
                 var entryCount = await ReadArrayLengthAsync(entries, cancellationToken).ConfigureAwait(false);
-                allCount += entryCount;
-                for (var entryIndex = 0; entryIndex < entryCount && returned < responseLimit; entryIndex++, returned++)
-                    await AddTourEntryAsync(output, returned, lineIndex, tourIndex, checked(entries + (uint)entryIndex * entryLayout["Size"]), entryLayout, cancellationToken).ConfigureAwait(false);
+                for (var entryIndex = 0; entryIndex < entryCount; entryIndex++, allCount++)
+                    if (allCount >= start && returned < take) { await AddTourEntryAsync(output, allCount, lineIndex, tourIndex, checked(entries + (uint)entryIndex * entryLayout["Size"]), entryLayout, cancellationToken).ConfigureAwait(false); returned++; }
             }
         }
-        output["count"] = allCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["returned_count"] = returned.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        output["truncated"] = (allCount > responseLimit).ToString().ToLowerInvariant();
+        ListPage.CompleteIndex(output, allCount, Math.Min(start, allCount), returned);
         return output;
     }
 
-    private async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableRecordsAsync(string managerField, string recordLayoutName, Func<Dictionary<string, string>, int, uint, IReadOnlyDictionary<string, uint>, CancellationToken, ValueTask> append, CancellationToken cancellationToken)
+    private async ValueTask<IReadOnlyDictionary<string, string>> ListTimeTableRecordsAsync(string managerField, string recordLayoutName, Func<Dictionary<string, string>, int, uint, IReadOnlyDictionary<string, uint>, CancellationToken, ValueTask> append, ListPage page, CancellationToken cancellationToken)
     {
-        const int responseLimit = 128;
+        var start = page.StartIndex();
         var manager = await ObjectAddressAsync("TimeTableManager", cancellationToken).ConfigureAwait(false);
         var managerLayout = Layout("TimeTableManager"); var layout = Layout(recordLayoutName);
         var data = await memory.ReadPointer32Async(manager + managerLayout[managerField], cancellationToken).ConfigureAwait(false);
         var count = await ReadArrayLengthAsync(data, cancellationToken).ConfigureAwait(false);
-        var returned = Math.Min(count, responseLimit);
-        var output = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["count"] = count.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["returned_count"] = returned.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["truncated"] = (count > responseLimit).ToString().ToLowerInvariant()
-        };
-        for (var index = 0; index < returned; index++)
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        var end = (int)Math.Min(count, (long)start + page.Take(128));
+        ListPage.CompleteIndex(output, count, Math.Min(start, count), Math.Max(0, end - start));
+        for (var index = start; index < end; index++)
             await append(output, index, checked(data + (uint)index * layout["Size"]), layout, cancellationToken).ConfigureAwait(false);
         return output;
     }
@@ -916,11 +994,17 @@ public sealed class OmsiRuntimeReaders
     // same address to a different object: the Delphi VMT identifies the class
     // and the second word is a per-object type identity (vehicle definition
     // pointer, human model index). Two reads on resolve; no address escapes.
-    private readonly record struct ObjectFingerprint(uint Vmt, uint Identity);
+    // The third word is OMSI's IDCode: every map-object instance gets a new,
+    // never reused number at construction, so a freed and reallocated address
+    // is told apart exactly. For a human (a pooled slot that lives for the
+    // whole map session) the fourth word identifies the current spawn: its
+    // target station and departure change when the slot is spawned again.
+    private readonly record struct ObjectFingerprint(uint Vmt, uint Identity, uint IdCode = 0, ulong Spawn = 0);
 
     private async ValueTask<ObjectFingerprint> RoadVehicleFingerprintAsync(uint address, CancellationToken token) =>
         new(await memory.ReadPointer32Async(address, token).ConfigureAwait(false),
-            await memory.ReadPointer32Async(address + Layout("RoadVehicleDefinition")["Definition"], token).ConfigureAwait(false));
+            await memory.ReadPointer32Async(address + Layout("RoadVehicleDefinition")["Definition"], token).ConfigureAwait(false),
+            await memory.ReadValueAsync<uint>(address + Layout("RoadVehicle")["IdCode"], token).ConfigureAwait(false));
 
     private async ValueTask<uint> ResolveRoadVehicleHandleAsync(string handle, uint[] addresses, CancellationToken token)
     {
@@ -986,9 +1070,20 @@ public sealed class OmsiRuntimeReaders
         return result;
     }
 
-    private async ValueTask<ObjectFingerprint> HumanFingerprintAsync(uint address, CancellationToken token) =>
-        new(await memory.ReadPointer32Async(address, token).ConfigureAwait(false),
-            await memory.ReadValueAsync<uint>(address + Layout("Human")["HumanIndex"], token).ConfigureAwait(false));
+    private async ValueTask<ObjectFingerprint> HumanFingerprintAsync(uint address, CancellationToken token)
+    {
+        var layout = Layout("Human");
+        var station = await memory.ReadPointer32Async(address + layout["TargetStation"], token).ConfigureAwait(false);
+        var departure = await memory.ReadValueAsync<uint>(address + layout["Departure"], token).ConfigureAwait(false);
+        return new(await memory.ReadPointer32Async(address, token).ConfigureAwait(false),
+            await memory.ReadValueAsync<uint>(address + layout["HumanIndex"], token).ConfigureAwait(false),
+            await memory.ReadValueAsync<uint>(address + layout["IdCode"], token).ConfigureAwait(false),
+            ((ulong)station << 32) | departure);
+    }
+
+    // A despawned human (RenderMe 0) keeps its slot but is no longer in the world.
+    private async ValueTask<bool> HumanActiveAsync(uint address, CancellationToken token) =>
+        await memory.ReadValueAsync<byte>(address + Layout("Human")["RenderMe"], token).ConfigureAwait(false) != 0;
 
     private readonly record struct HumanHandleEntry(uint Address, string Token, ObjectFingerprint Fingerprint);
 
@@ -1023,7 +1118,7 @@ public sealed class OmsiRuntimeReaders
     {
         if (!humanHandlesByToken.TryGetValue(handle, out var entry) || Array.IndexOf(addresses, entry.Address) < 0)
             throw new InvalidOperationException("OL_E_RUNTIME_OBJECT_HANDLE_STALE");
-        if (await HumanFingerprintAsync(entry.Address, token).ConfigureAwait(false) != entry.Fingerprint)
+        if (!await HumanActiveAsync(entry.Address, token).ConfigureAwait(false) || await HumanFingerprintAsync(entry.Address, token).ConfigureAwait(false) != entry.Fingerprint)
         {
             DropHumanHandle(entry);
             throw new InvalidOperationException("OL_E_RUNTIME_OBJECT_HANDLE_STALE");

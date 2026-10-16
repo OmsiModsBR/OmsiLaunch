@@ -1,6 +1,6 @@
 # OmsiLaunchW.exe 参考
 
-<!-- l10n: source=reference/omsilaunchw.md -->
+<!-- l10n: source=reference/omsilaunchw.md source-sha256=1d15bd724a02153b5a30cc0d591754f94a1b1d66e7cba64b62501ac037b54622 -->
 > 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/omsilaunchw.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 `OmsiLaunchW.exe` 是 OmsiLaunch 控制器的 Windows 子系统（GUI）宿主。它接受与 `OmsiLaunch.exe` 相同的命令行，并运行相同的控制器代码（`OmsiLaunch.Controller.dll`）。唯一的区别在于报告方式：没有控制台窗口，失败以消息框形式显示，正在运行的会话只能通过其[托盘图标](windows-tray.md)看到。

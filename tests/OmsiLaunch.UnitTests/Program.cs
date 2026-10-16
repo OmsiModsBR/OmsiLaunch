@@ -31,18 +31,63 @@ if (Omsi23004.Profile.Globals["AiConfig"] != 0x0085912C ||
     throw new InvalidOperationException("Current native-only profile bindings were not catalogued.");
 
 if (Omsi23004.Profile.Globals["D3DDevice"] != 0x008627D0 || !Omsi23004.Profile.HasEvidence("D3DDevice") ||
-    OmsiRuntimeSurface.ForDomain(OmsiRuntimeDomain.D3D).Count != 5)
+    PublicCapabilityRegistry.Get("d3d.texture").EffectiveOperations.Count != 5)
     throw new InvalidOperationException("Wave D device binding or public operation catalog is incomplete.");
 
 if (Omsi23004.Profile.ObjectLayouts["Weather"]["ActiveWindSpeed"] != 0x18 ||
     Omsi23004.Profile.ObjectLayouts["Weather"]["ActiveWindDirection"] != 0x1C)
     throw new InvalidOperationException("Weather apply-lifecycle source candidates changed unexpectedly.");
 
+// /trace-plugin and /trace-native travel in the handoff flags byte.
+foreach (var (pluginTrace, nativeTrace) in new[] { (true, false), (false, true), (false, false) })
+{
+    var traced = new StartupHandoff(Guid.NewGuid(), "Omsi23004", WorldMode.NewMap, @"maps\Grundorf\global.cfg", 1, true, false, DateTimeMode.Unset, DateTimeMode.Unset, PluginTrace: pluginTrace, NativeTrace: nativeTrace);
+    if (!StartupHandoffWire.TryDeserialize(StartupHandoffWire.Serialize(traced), out var read) || read is null || read.PluginTrace != pluginTrace || read.NativeTrace != nativeTrace || !read.HeadlessStart || read.PlayerVehicleEnabled)
+        throw new InvalidOperationException("Handoff trace flags do not round-trip.");
+}
+
+// Start date/time travels resolved in handoff v7.
+{
+    var handoff = new StartupHandoff(Guid.NewGuid(), "Omsi23004", WorldMode.NewMap, @"maps\Grundorf\global.cfg", 0, true, false, DateTimeMode.Explicit, DateTimeMode.Explicit, Start: new StartDateTime(2024, 61, 8, null, 30));
+    if (!StartupHandoffWire.TryDeserialize(StartupHandoffWire.Serialize(handoff), out var roundTrip) || roundTrip?.Start != new StartDateTime(2024, 61, 8, null, 30))
+        throw new InvalidOperationException("Handoff v7 start date/time does not round-trip.");
+}
+
 var weatherWriteCapability = PublicCapabilityRegistry.All.Single(capability => capability.Id == "weather.set");
-if (weatherWriteCapability.Classification != PublicCapabilityClassification.Unsupported ||
-    weatherWriteCapability.RuntimeValidation != "RUNTIME_REJECTED" ||
-    !weatherWriteCapability.Description.Contains("rejected", StringComparison.OrdinalIgnoreCase))
-    throw new InvalidOperationException("Weather mutation must remain unavailable until its native apply lifecycle is reconciled.");
+// Beta 4: weather.set writes the source record and stays Experimental until
+// runtime validated; it never claims runtime evidence it does not have.
+if (weatherWriteCapability.Classification != PublicCapabilityClassification.PublicExperimental ||
+    weatherWriteCapability.RuntimeValidation != PublicEvidence.RuntimeValidationRequired ||
+    weatherWriteCapability.NativeCapability != "weather.set" ||
+    !weatherWriteCapability.Operations!.Any(operation => operation.Id == "weather.metar.set"))
+    throw new InvalidOperationException("Weather mutation must be the experimental source-record writer.");
+
+// R3: the canonical catalog is internally consistent and every native
+// capability it names exists in the native target catalog.
+{
+    var ids = PublicCapabilityRegistry.All.Select(x => x.Id).ToArray();
+    if (ids.Length != ids.Distinct(StringComparer.Ordinal).Count()) throw new InvalidOperationException("Capability ids are not unique.");
+    var operations = PublicCapabilityRegistry.All.SelectMany(x => x.EffectiveOperations).ToArray();
+    if (operations.Length != operations.Select(x => x.Id).Distinct(StringComparer.Ordinal).Count()) throw new InvalidOperationException("Runtime operation ids are not unique.");
+    var routes = operations.SelectMany(x => x.CliRoutes).ToArray();
+    if (routes.Length != routes.Distinct(StringComparer.Ordinal).Count() || PublicCapabilityRegistry.CliRoutes.Count != routes.Length) throw new InvalidOperationException("CLI routes are not unique.");
+    var native = NativeTargetCatalog.Capabilities.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+    foreach (var capability in PublicCapabilityRegistry.All)
+    {
+        if (!PublicEvidence.All.Contains(capability.RuntimeValidation)) throw new InvalidOperationException("Capability evidence outside the shared vocabulary: " + capability.Id + " " + capability.RuntimeValidation);
+        foreach (var name in capability.NativeCapabilities) if (!native.Contains(name)) throw new InvalidOperationException("Native capability not in NativeTargetCatalog: " + capability.Id + " -> " + name);
+        if (capability.EffectiveOperations.Count > 0 && capability.Classification is PublicCapabilityClassification.InternalOnly) throw new InvalidOperationException("Internal capability exposes public operations: " + capability.Id);
+        if (capability.Classification is PublicCapabilityClassification.Unsupported && capability.RuntimeValidation != PublicEvidence.Unavailable) throw new InvalidOperationException("Unsupported capability must carry UNAVAILABLE: " + capability.Id);
+    }
+    foreach (var operation in operations)
+    {
+        if (!PublicMutationPolicy.All.Contains(operation.MutationPolicy)) throw new InvalidOperationException("Unknown mutation policy: " + operation.Id);
+        var owner = PublicCapabilityRegistry.All.Single(x => x.EffectiveOperations.Contains(operation));
+        if (owner.Kind == PublicCapabilityKind.Read && operation.MutationPolicy != PublicMutationPolicy.None) throw new InvalidOperationException("A read capability declares a mutation: " + operation.Id);
+    }
+    if (operations.Length != 54 || PublicCapabilityRegistry.PublicRuntimeOperationIds.Contains("internal.road-vehicles.make-basic")) throw new InvalidOperationException("Public runtime operation set changed.");
+    Console.WriteLine("PASS capability-catalog.consistent");
+}
 
 
 var memory = new FakeMemory();
@@ -56,6 +101,7 @@ memory.WriteInt32(Omsi23004.Profile.Globals["PlayerVehicleIndex"], 0);
 const uint humanData = 0x7000, human = 0x8000;
 memory.WriteUInt32(Omsi23004.Profile.Globals["Humans"], humanData); memory.WriteInt32(humanData - 4, 1); memory.WriteUInt32(humanData, human);
 memory.WriteInt32(human + Omsi23004.Profile.ObjectLayouts["Human"]["HumanIndex"], 7);
+memory.WriteByte(human + Omsi23004.Profile.ObjectLayouts["Human"]["RenderMe"], 1); // in the world (a spawned slot)
 
 var readers = new OmsiRuntimeReaders(memory, Omsi23004.Profile.Globals, Omsi23004.Profile.ObjectLayouts);
 var missingHofHandle = PublicCapabilityRegistry.ValidateRuntimeArguments("vehicle.hofs.read", new Dictionary<string, string>());
@@ -168,8 +214,18 @@ reusedVehicles = await readers.ListRoadVehiclesAsync();
 if (reusedVehicles["vehicle.0.handle"] == currentVehicleHandle) throw new InvalidOperationException("Reused vehicle address (new definition) kept its stale handle on list.");
 try { await readers.ReadRoadVehicleAsync(currentVehicleHandle); throw new InvalidOperationException("Stale vehicle handle survived a definition change."); }
 catch (InvalidOperationException exception) when (exception.Message == "OL_E_RUNTIME_OBJECT_HANDLE_STALE") { }
+// Same class and model at the same address: only OMSI's never-reused IDCode tells the new instance apart.
+currentVehicleHandle = reusedVehicles["vehicle.0.handle"];
+memory.WriteUInt32(vehicle + Omsi23004.Profile.ObjectLayouts["RoadVehicle"]["IdCode"], 1234);
+try { await readers.ReadRoadVehicleAsync(currentVehicleHandle); throw new InvalidOperationException("Stale vehicle handle survived an IDCode change."); }
+catch (InvalidOperationException exception) when (exception.Message == "OL_E_RUNTIME_OBJECT_HANDLE_STALE") { }
 
 if ((await readers.ReadHumanAsync(humanHandle))["human_index"] != "7") throw new InvalidOperationException("Fresh human handle did not resolve.");
+// A despawned human (RenderMe 0) keeps its pooled slot: its handle must not resolve any more.
+memory.WriteByte(human + humanLayout["RenderMe"], 0);
+try { await readers.ReadHumanAsync(humanHandle); throw new InvalidOperationException("A despawned human resolved through its handle."); }
+catch (InvalidOperationException exception) when (exception.Message == "OL_E_RUNTIME_OBJECT_HANDLE_STALE") { }
+memory.WriteByte(human + humanLayout["RenderMe"], 1);
 memory.WriteUInt32(human, 0x00710000); memory.WriteInt32(human + humanLayout["HumanIndex"], 9);
 try { await readers.ReadHumanAsync(humanHandle); throw new InvalidOperationException("Reused human address was resolved through a stale handle."); }
 catch (InvalidOperationException exception) when (exception.Message == "OL_E_RUNTIME_OBJECT_HANDLE_STALE") { }
@@ -194,6 +250,7 @@ reusedHumans = await readers.ListHumansAsync();
 if (reusedHumans["human.0.handle"] == previousHumanHandle) throw new InvalidOperationException("Reused native address revived a stale human handle.");
 
 Console.WriteLine("PASS interop.handle-reuse-rejected");
+NativeResolverTests.Run();
 
 sealed class FakeMemory : IOmsiMemory
 {

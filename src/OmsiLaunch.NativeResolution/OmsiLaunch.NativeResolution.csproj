@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build-independent native target resolution. Pure managed code over an
+       image snapshot, loadable by the x64 host, tools and the x86 plugin. -->
+  <PropertyGroup><TargetFramework>net6.0-windows</TargetFramework><Platforms>AnyCPU;x64</Platforms><PlatformTarget>AnyCPU</PlatformTarget><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+</Project>

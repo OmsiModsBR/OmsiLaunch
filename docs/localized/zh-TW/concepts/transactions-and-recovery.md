@@ -1,6 +1,6 @@
 # 交易與復原
 
-<!-- l10n: source=concepts/transactions-and-recovery.md -->
+<!-- l10n: source=concepts/transactions-and-recovery.md source-sha256=cc2e7f493ee6d112a3d5326be020b81beb67a1002aa25b6042e982b0b3d9bb9c -->
 > 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../concepts/transactions-and-recovery.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 每個會變更 OMSI 檔案的 OmsiLaunch 工作階段，都在一個持久、具日誌的交易中進行：原始位元組在被取代之前先行備份，日誌記錄工作階段進行到哪一步，而還原在寫回每份備份之前都會先驗證它。本頁說明這個交易的實作方式：由 `FileConfigurationTransaction`（`src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`）實作，由 `OmsiLaunchService.StartAsync`、`SuperviseAsync` 與 `RecoverPendingAsync`（`src/OmsiLaunch.Core/OmsiLaunchService.cs`）驅動，並搭配 `SessionVisualAssets`（`src/OmsiLaunch.Core/SessionVisualAssets.cs`）計算的檔案輸入。本頁寫給需要了解工作階段會變更什麼、復原會做什麼的使用者，以及需要確切保證的整合者。

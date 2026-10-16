@@ -1,6 +1,6 @@
 # Lokalna płaszczyzna sterowania
 
-<!-- l10n: source=reference/local-control.md -->
+<!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/local-control.md) dla OmsiLaunch 0.1.0-beta3. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 Lokalna płaszczyzna sterowania to punkt końcowy oparty na potoku nazwanym (named pipe), przez który działający właściciel OmsiLaunch (proces, który uruchomił sesję) przyjmuje semantyczne polecenia sesji od innych procesów na tym samym komputerze: stan, zdarzenia, zatrzymanie i publiczne operacje runtime. Ta strona specyfikuje punkt końcowy w postaci zaimplementowanej w `tools\OmsiLaunch.Cli\LocalControlPlane.cs` oraz procedurę obsługi żądań w `OwnerSession.RunAsync` (`tools\OmsiLaunch.Cli\Program.cs`): nazewnictwo potoku, ramkowanie, wersję protokołu, polecenia, powiązanie z sesją, kody błędów, model zaufania, okno dostępności oraz sposób komunikacji z nim z innych narzędzi. Polecenia klienta CLI (`session status`, `session stop`, `events read`, `events watch`, ścieżki poleceń takie jak `time get`) są cienkimi nakładkami na ten protokół; patrz [dokumentacja CLI](cli.md). Same operacje runtime są wyspecyfikowane w [sterowaniu runtime](runtime-control.md); alternatywą działającą w procesie integratora jest [publiczne API](public-api.md).

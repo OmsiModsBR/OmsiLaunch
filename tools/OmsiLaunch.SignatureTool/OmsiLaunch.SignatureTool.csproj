@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Maintainer tool: derives native target guards and signatures from the
+       reference executable. Never shipped. -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net6.0-windows</TargetFramework></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\OmsiLaunch.Builds.Omsi23004\OmsiLaunch.Builds.Omsi23004.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.NativeResolution\OmsiLaunch.NativeResolution.csproj" /></ItemGroup>
+</Project>

@@ -1,4 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net6.0-windows</TargetFramework><Platforms>x86</Platforms><PlatformTarget>x86</PlatformTarget><IsPackable>false</IsPackable></PropertyGroup>
-  <ItemGroup><ProjectReference Include="..\..\src\OmsiLaunch.Api\OmsiLaunch.Api.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Interop\OmsiLaunch.Interop.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Plugin\OmsiLaunch.Plugin.csproj" /></ItemGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net6.0-windows</TargetFramework><Platforms>x86</Platforms><PlatformTarget>x86</PlatformTarget><IsPackable>false</IsPackable><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\OmsiLaunch.Api\OmsiLaunch.Api.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Interop\OmsiLaunch.Interop.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Plugin\OmsiLaunch.Plugin.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Runtime.Modules\OmsiLaunch.Runtime.Modules.csproj" /><ProjectReference Include="..\OmsiLaunch.Module.NullTest\OmsiLaunch.Module.NullTest.csproj" /></ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 # Перечень публичного API
 
-<!-- l10n: source=reference/public-api-inventory.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/public-api-inventory.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+> Перевод [исходной страницы на английском языке](../../../reference/public-api-inventory.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Эта страница генерируется из скомпилированных сборок с помощью `tests/OmsiLaunch.DocumentationTests` (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); проверка документации завершается ошибкой, если страница перестаёт соответствовать коду. Здесь перечислены все экспортируемые типы `OmsiLaunch.Api`, `OmsiLaunch.Core` и `OmsiLaunch.Process` с уровнем стабильности и сигнатурой каждого публичного члена. Семантика, предусловия, ошибки и примеры описаны на странице, указанной в каждом заголовке (по умолчанию: [публичный API](public-api.md)). Уровни стабильности: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (публичный по техническим причинам, не является интерфейсом интеграции), `UNAVAILABLE` (см. [публичный API](public-api.md#stability-vocabulary)). Члены записей, сгенерированные компилятором (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`), не приводятся.
 
@@ -45,6 +45,8 @@
 | значение | `Registrations = 6` |
 | значение | `Addons = 7` |
 | значение | `Entrypoints = 8` |
+| значение | `SessionProfiles = 9` |
+| значение | `RuntimeModules = 10` |
 
 ### `D3DDeviceState`
 
@@ -231,6 +233,48 @@
 | свойство | `IReadOnlyDictionary<string, OptionalValue<string>> Keyboard { get; init; }` |
 | свойство | `IReadOnlyDictionary<string, OptionalValue<string>> Controllers { get; init; }` |
 
+### `HofApplyMode`
+
+Перечисление (`byte`) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| значение | `Add = 0` |
+| значение | `Mirror = 1` |
+
+### `HofManagementSpec`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `HofManagementSpec(IReadOnlyList<HofOperationSpec> Operations)` |
+| свойство | `IReadOnlyList<HofOperationSpec> Operations { get; init; }` |
+
+### `HofOperationSpec`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `HofOperationSpec(HofSourceKind SourceKind, string Source, IReadOnlyList<string> TargetVehicles, HofApplyMode Mode = Add, IReadOnlyList<string> Files = null)` |
+| свойство | `HofSourceKind SourceKind { get; init; }` |
+| свойство | `string Source { get; init; }` |
+| свойство | `IReadOnlyList<string> TargetVehicles { get; init; }` |
+| свойство | `HofApplyMode Mode { get; init; }` |
+| свойство | `IReadOnlyList<string> Files { get; init; }` |
+
+### `HofSourceKind`
+
+Перечисление (`byte`) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| значение | `Collection = 0` |
+| значение | `Directory = 1` |
+| значение | `Vehicle = 2` |
+| значение | `File = 3` |
+
 ### `IOmsiLaunch`
 
 Интерфейс в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
@@ -242,6 +286,8 @@
 | метод | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | метод | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | метод | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| метод | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| метод | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | метод | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | метод | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | метод | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -305,11 +351,12 @@
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30)` |
+| конструктор | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30, bool CooperativeShutdown = false)` |
 | свойство | `bool RestoreConfiguration { get; init; }` |
 | свойство | `bool SuppressStaleClosecheckWarning { get; init; }` |
 | свойство | `int StartupTimeoutSeconds { get; init; }` |
 | свойство | `int ShutdownTimeoutSeconds { get; init; }` |
+| свойство | `bool CooperativeShutdown { get; init; }` |
 
 ### `LaunchDiagnostic`
 
@@ -328,7 +375,7 @@
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null)` |
+| конструктор | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null, HofManagementSpec HofManagement = null, RuntimeModulesSpec Modules = null)` |
 | свойство | `InstallationSpec Installation { get; init; }` |
 | свойство | `WorldSpec World { get; init; }` |
 | свойство | `DateSpec Date { get; init; }` |
@@ -343,6 +390,10 @@
 | свойство | `SessionPresentationSpec Presentation { get; init; }` |
 | свойство | `InternetTexturesSpec InternetTextures { get; init; }` |
 | свойство | `SessionProfileMetadata SessionProfile { get; init; }` |
+| свойство | `HofManagementSpec HofManagement { get; init; }` |
+| свойство | `RuntimeModulesSpec Modules { get; init; }` |
+| свойство | `HofManagementSpec EffectiveHofManagement { get; }` |
+| свойство | `RuntimeModulesSpec EffectiveModules { get; }` |
 | свойство | `YearSpec EffectiveYear { get; }` |
 | свойство | `WeatherSpec EffectiveWeather { get; }` |
 | свойство | `InputSpec EffectiveInput { get; }` |
@@ -371,6 +422,44 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `bool IsSet { get; }` |
 | статическое свойство | `OptionalValue<T> Unset { get; }` |
 | статический метод | `OptionalValue<T> Set(T value)` |
+
+### `PlannedModule`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| константа | `string Eligible = "ELIGIBLE"` |
+| константа | `string Rejected = "REJECTED"` |
+| константа | `string ActivationRequested = "requested"` |
+| константа | `string ActivationSettingsFile = "settings-file"` |
+| константа | `string ActivationContent = "content"` |
+| константа | `string ActivationDefault = "default"` |
+| свойство | `string Id { get; init; }` |
+| свойство | `string Version { get; init; }` |
+| свойство | `string Status { get; init; }` |
+| свойство | `bool Requested { get; init; }` |
+| свойство | `string FailurePolicy { get; init; }` |
+| свойство | `IReadOnlyList<string> Operations { get; init; }` |
+| свойство | `string Code { get; init; }` |
+| свойство | `string Reason { get; init; }` |
+| свойство | `string ManifestSha256 { get; init; }` |
+| свойство | `string Activation { get; init; }` |
+| свойство | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| свойство | `bool IsEligible { get; }` |
+| свойство | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+
+### `PlannedModuleSetting`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `PlannedModuleSetting(string Key, string Value, string Source)` |
+| свойство | `string Key { get; init; }` |
+| свойство | `string Value { get; init; }` |
+| свойство | `string Source { get; init; }` |
 
 ### `PlannedMutation`
 
@@ -424,7 +513,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null)` |
+| конструктор | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null, IReadOnlyList<PublicRuntimeOperation> Operations = null, string NativeCapability = null, string EvidenceNote = null)` |
 | свойство | `string Id { get; init; }` |
 | свойство | `string Family { get; init; }` |
 | свойство | `PublicCapabilityClassification Classification { get; init; }` |
@@ -436,6 +525,11 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `string RuntimeValidation { get; init; }` |
 | свойство | `string Description { get; init; }` |
 | свойство | `IReadOnlyList<string> HandleTypes { get; init; }` |
+| свойство | `IReadOnlyList<PublicRuntimeOperation> Operations { get; init; }` |
+| свойство | `string NativeCapability { get; init; }` |
+| свойство | `string EvidenceNote { get; init; }` |
+| свойство | `IReadOnlyList<PublicRuntimeOperation> EffectiveOperations { get; }` |
+| свойство | `IReadOnlyList<string> NativeCapabilities { get; }` |
 
 ### `PublicCapabilityKind`
 
@@ -457,9 +551,16 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string ProtocolVersion = "0.1"` |
 | статическое поле | `IReadOnlyList<PublicCapabilityDescriptor> All` |
 | статическое свойство | `IReadOnlyCollection<string> PublicRuntimeOperationIds { get; }` |
+| статическое свойство | `IReadOnlyList<PublicRuntimeOperation> RuntimeOperations { get; }` |
+| статическое свойство | `IReadOnlyDictionary<string, string> CliRoutes { get; }` |
+| статический метод | `PublicCapabilityDescriptor Get(string id)` |
 | статический метод | `IReadOnlyList<PublicRuntimeArgumentDescriptor> GetRuntimeArguments(string operation)` |
 | статический метод | `bool IsInternalResultKey(string key)` |
+| статический метод | `bool IsModuleOperation(string operation)` |
 | статический метод | `bool IsPublicRuntimeOperation(string operation)` |
+| статический метод | `string NativeCapabilityOf(string operation)` |
+| статический метод | `bool TryGet(string id, out PublicCapabilityDescriptor descriptor)` |
+| статический метод | `bool TryGetOperation(string operation, out PublicCapabilityDescriptor capability, out PublicRuntimeOperation descriptor)` |
 | статический метод | `PublicRuntimeArgumentValidation ValidateRuntimeArguments(string operation, IReadOnlyDictionary<string, string> arguments)` |
 
 ### `PublicErrorCategory`
@@ -488,12 +589,19 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string WINDOWS_HOST_MISSING = "OL_E_WINDOWS_HOST_MISSING"` |
 | константа | `string WINDOWS_HOST_START_FAILED = "OL_E_WINDOWS_HOST_START_FAILED"` |
 | константа | `string BUILD_VALIDATION_FAILED = "OL_E_BUILD_VALIDATION_FAILED"` |
+| константа | `string CAPABILITY_UNRESOLVED = "OL_E_CAPABILITY_UNRESOLVED"` |
 | константа | `string UNSUPPORTED_BUILD = "OL_E_UNSUPPORTED_BUILD"` |
 | константа | `string UNSUPPORTED_OPERATING_SYSTEM = "OL_E_UNSUPPORTED_OPERATING_SYSTEM"` |
 | константа | `string UNSUPPORTED_OS_ARCHITECTURE = "OL_E_UNSUPPORTED_OS_ARCHITECTURE"` |
 | константа | `string ENTRYPOINT_NOT_FOUND = "OL_E_ENTRYPOINT_NOT_FOUND"` |
 | константа | `string ENTRYPOINT_REQUIRED = "OL_E_ENTRYPOINT_REQUIRED"` |
+| константа | `string ENTRYPOINT_NOT_PRESENTED = "OL_E_ENTRYPOINT_NOT_PRESENTED"` |
 | константа | `string HOF_NOT_FOUND = "OL_E_HOF_NOT_FOUND"` |
+| константа | `string HOF_CONFLICT = "OL_E_HOF_CONFLICT"` |
+| константа | `string HOF_INVALID = "OL_E_HOF_INVALID"` |
+| константа | `string HOF_PATH_ESCAPE = "OL_E_HOF_PATH_ESCAPE"` |
+| константа | `string HOF_SOURCE_NOT_FOUND = "OL_E_HOF_SOURCE_NOT_FOUND"` |
+| константа | `string HOF_TARGET_NOT_FOUND = "OL_E_HOF_TARGET_NOT_FOUND"` |
 | константа | `string MAP_NOT_FOUND = "OL_E_MAP_NOT_FOUND"` |
 | константа | `string NOT_FOUND = "OL_E_NOT_FOUND"` |
 | константа | `string REPAINT_NOT_FOUND = "OL_E_REPAINT_NOT_FOUND"` |
@@ -541,6 +649,8 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string PROCESS_WAIT_FAILED = "OL_E_PROCESS_WAIT_FAILED"` |
 | константа | `string CAMERA_PRESET_FAMILY_UNSUPPORTED = "OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED"` |
 | константа | `string DATE_TIME_APPLY_FAILED = "OL_E_DATE_TIME_APPLY_FAILED"` |
+| константа | `string WEATHER_INVALID = "OL_E_WEATHER_INVALID"` |
+| константа | `string WEATHER_APPLY_FAILED = "OL_E_WEATHER_APPLY_FAILED"` |
 | константа | `string MAKEVEHICLE_BUS_NOT_FOUND = "OL_E_MAKEVEHICLE_BUS_NOT_FOUND"` |
 | константа | `string MAKEVEHICLE_DELTA_MULTIPLE = "OL_E_MAKEVEHICLE_DELTA_MULTIPLE"` |
 | константа | `string MAKEVEHICLE_DELTA_ZERO = "OL_E_MAKEVEHICLE_DELTA_ZERO"` |
@@ -581,6 +691,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string RUNTIME_STRING_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND"` |
 | константа | `string RUNTIME_VALUE_INVALID = "OL_E_RUNTIME_VALUE_INVALID"` |
 | константа | `string RUNTIME_VALUE_OUT_OF_RANGE = "OL_E_RUNTIME_VALUE_OUT_OF_RANGE"` |
+| константа | `string RUNTIME_CURSOR_INVALID = "OL_E_RUNTIME_CURSOR_INVALID"` |
 | константа | `string RUNTIME_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_VARIABLE_NOT_FOUND"` |
 | константа | `string RUNTIME_VARIABLE_UNAVAILABLE = "OL_E_RUNTIME_VARIABLE_UNAVAILABLE"` |
 | константа | `string TIME_APPLY_FAILED = "OL_E_TIME_APPLY_FAILED"` |
@@ -606,6 +717,25 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string STARTUP_TIMEOUT = "OL_E_STARTUP_TIMEOUT"` |
 | константа | `string START_SESSION = "OL_E_START_SESSION"` |
 | константа | `string WORLD_START_FAILED = "OL_E_WORLD_START_FAILED"` |
+| константа | `string MODULE_MANIFEST_INVALID = "OL_E_MODULE_MANIFEST_INVALID"` |
+| константа | `string MODULE_NOT_FOUND = "OL_E_MODULE_NOT_FOUND"` |
+| константа | `string MODULE_INTEGRITY = "OL_E_MODULE_INTEGRITY"` |
+| константа | `string MODULE_PROTOCOL_UNSUPPORTED = "OL_E_MODULE_PROTOCOL_UNSUPPORTED"` |
+| константа | `string MODULE_CAPABILITY_UNRESOLVED = "OL_E_MODULE_CAPABILITY_UNRESOLVED"` |
+| константа | `string MODULE_CONTENT_BINDING = "OL_E_MODULE_CONTENT_BINDING"` |
+| константа | `string MODULE_COMPONENT_UNSUPPORTED = "OL_E_MODULE_COMPONENT_UNSUPPORTED"` |
+| константа | `string MODULE_LOAD_FAILED = "OL_E_MODULE_LOAD_FAILED"` |
+| константа | `string MODULE_PHASE_FAILED = "OL_E_MODULE_PHASE_FAILED"` |
+| константа | `string MODULE_PHASE_TIMEOUT = "OL_E_MODULE_PHASE_TIMEOUT"` |
+| константа | `string MODULE_DISABLED = "OL_E_MODULE_DISABLED"` |
+| константа | `string MODULE_NOT_LOADED = "OL_E_MODULE_NOT_LOADED"` |
+| константа | `string MODULE_OPERATION_UNKNOWN = "OL_E_MODULE_OPERATION_UNKNOWN"` |
+| константа | `string MODULE_OPERATION_FAILED = "OL_E_MODULE_OPERATION_FAILED"` |
+| константа | `string MODULE_CLEANUP_INCOMPLETE = "OL_E_MODULE_CLEANUP_INCOMPLETE"` |
+| константа | `string MODULE_SESSION_FAILED = "OL_E_MODULE_SESSION_FAILED"` |
+| константа | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
+| константа | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
+| константа | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
 | константа | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | константа | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | константа | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -625,7 +755,13 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string RESTORE_DEFERRED = "OL_E_RESTORE_DEFERRED"` |
 | константа | `string RESTORE_FAILED = "OL_E_RESTORE_FAILED"` |
 | константа | `string RESTORE_FOREIGN_FILE_RETAINED = "OL_W_RESTORE_FOREIGN_FILE_RETAINED"` |
+| константа | `string BUILD_UNRECOGNIZED = "OL_W_BUILD_UNRECOGNIZED"` |
+| константа | `string COOPERATIVE_SHUTDOWN_UNAVAILABLE = "OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE"` |
+| константа | `string CAPABILITY_PENDING = "OL_W_CAPABILITY_PENDING"` |
+| константа | `string MODULE_NOT_LOADED_WARNING = "OL_W_MODULE_NOT_LOADED"` |
+| константа | `string MODULE_SETTING_IGNORED = "OL_W_MODULE_SETTING_IGNORED"` |
 | статическое поле | `IReadOnlyList<PublicErrorDescriptor> All` |
+| статический метод | `string FromMessage(string message)` |
 
 ### `PublicErrorDescriptor`
 
@@ -636,6 +772,19 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | конструктор | `PublicErrorDescriptor(string Code, string Category)` |
 | свойство | `string Code { get; init; }` |
 | свойство | `string Category { get; init; }` |
+
+### `PublicEvidence`
+
+Статический класс в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| константа | `string RuntimeValidated = "RUNTIME_VALIDATED"` |
+| константа | `string StaticallyValidated = "STATICALLY_VALIDATED"` |
+| константа | `string Partial = "PARTIAL"` |
+| константа | `string RuntimeValidationRequired = "RUNTIME_VALIDATION_REQUIRED"` |
+| константа | `string Unavailable = "UNAVAILABLE"` |
+| статическое поле | `IReadOnlyList<string> All` |
 
 ### `PublicExitCode`
 
@@ -653,6 +802,18 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | значение | `OperationRejected = 7` |
 | значение | `TransactionRecoveryFailed = 8` |
 | значение | `InternalError = 10` |
+
+### `PublicMutationPolicy`
+
+Статический класс в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| константа | `string None = "none"` |
+| константа | `string OmsiState = "omsi-state"` |
+| константа | `string SessionResource = "session-resource"` |
+| константа | `string SessionPolicy = "session-policy"` |
+| статическое поле | `IReadOnlyList<string> All` |
 
 ### `PublicRuntimeArgumentDescriptor`
 
@@ -675,6 +836,20 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `bool Accepted { get; init; }` |
 | свойство | `string ErrorCode { get; init; }` |
 | свойство | `string Message { get; init; }` |
+
+### `PublicRuntimeOperation`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `PublicRuntimeOperation(string Id, string NativeCapability, IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments, IReadOnlyList<string> CliRoutes, bool Paged = false, string MutationPolicy = "none")` |
+| свойство | `string Id { get; init; }` |
+| свойство | `string NativeCapability { get; init; }` |
+| свойство | `IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments { get; init; }` |
+| свойство | `IReadOnlyList<string> CliRoutes { get; init; }` |
+| свойство | `bool Paged { get; init; }` |
+| свойство | `string MutationPolicy { get; init; }` |
 
 ### `RecoveryStatus`
 
@@ -733,11 +908,60 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data)` |
+| конструктор | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data, long? SessionTickMilliseconds = default)` |
 | свойство | `string Type { get; init; }` |
 | свойство | `DateTimeOffset TimestampUtc { get; init; }` |
 | свойство | `long Sequence { get; init; }` |
 | свойство | `IReadOnlyDictionary<string, string> Data { get; init; }` |
+| свойство | `long? SessionTickMilliseconds { get; init; }` |
+
+### `RuntimeModuleSettingSummary`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `RuntimeModuleSettingSummary(string Key, string Type, string Default, bool AllowsAuto = false, string Minimum = null, string Maximum = null, IReadOnlyList<string> Choices = null, string Flag = null, string Description = null)` |
+| свойство | `string Key { get; init; }` |
+| свойство | `string Type { get; init; }` |
+| свойство | `string Default { get; init; }` |
+| свойство | `bool AllowsAuto { get; init; }` |
+| свойство | `string Minimum { get; init; }` |
+| свойство | `string Maximum { get; init; }` |
+| свойство | `IReadOnlyList<string> Choices { get; init; }` |
+| свойство | `string Flag { get; init; }` |
+| свойство | `string Description { get; init; }` |
+
+### `RuntimeModuleSummary`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `RuntimeModuleSummary(string Id, string Version, string Name, string Activation, bool IsValid, IReadOnlyList<string> Operations, string ContentBindingMap = null, string ErrorCode = null, string ErrorMessage = null, IReadOnlyList<RuntimeModuleSettingSummary> Settings = null)` |
+| свойство | `string Id { get; init; }` |
+| свойство | `string Version { get; init; }` |
+| свойство | `string Name { get; init; }` |
+| свойство | `string Activation { get; init; }` |
+| свойство | `bool IsValid { get; init; }` |
+| свойство | `IReadOnlyList<string> Operations { get; init; }` |
+| свойство | `string ContentBindingMap { get; init; }` |
+| свойство | `string ErrorCode { get; init; }` |
+| свойство | `string ErrorMessage { get; init; }` |
+| свойство | `IReadOnlyList<RuntimeModuleSettingSummary> Settings { get; init; }` |
+
+### `RuntimeModulesSpec`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyList<string> Disable = null, IReadOnlyDictionary<string, string> Settings = null)` |
+| свойство | `IReadOnlyList<string> Enable { get; init; }` |
+| свойство | `IReadOnlyList<string> Disable { get; init; }` |
+| свойство | `IReadOnlyDictionary<string, string> Settings { get; init; }` |
+| свойство | `IReadOnlyList<string> EffectiveDisable { get; }` |
+| свойство | `IReadOnlyDictionary<string, string> EffectiveSettings { get; }` |
 
 ### `RuntimePlatformInfo`
 
@@ -799,7 +1023,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable)` |
+| конструктор | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable, IReadOnlyList<PlannedModule> PlannedModules = null)` |
 | свойство | `Guid SessionId { get; init; }` |
 | свойство | `string BuildProfileId { get; init; }` |
 | свойство | `LaunchSpec Spec { get; init; }` |
@@ -812,6 +1036,8 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `IReadOnlyList<PlannedMutation> PlannedMutations { get; init; }` |
 | свойство | `IReadOnlyList<LaunchDiagnostic> Diagnostics { get; init; }` |
 | свойство | `bool IsRunnable { get; init; }` |
+| свойство | `IReadOnlyList<PlannedModule> PlannedModules { get; init; }` |
+| свойство | `IReadOnlyList<PlannedModule> EffectivePlannedModules { get; }` |
 
 ### `SessionPresentationSpec`
 
@@ -840,6 +1066,35 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `int PresetIndex { get; init; }` |
 | свойство | `string PresetName { get; init; }` |
 | свойство | `string PackagePath { get; init; }` |
+
+### `SessionProfilePresetSummary`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `SessionProfilePresetSummary(int Index, string Id, string Name)` |
+| свойство | `int Index { get; init; }` |
+| свойство | `string Id { get; init; }` |
+| свойство | `string Name { get; init; }` |
+
+### `SessionProfileSummary`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `SessionProfileSummary(string Id, string Name, string Version, string Author, IReadOnlyList<string> CompatibleMaps, string MapIdentity, IReadOnlyList<SessionProfilePresetSummary> Presets, bool IsValid, string ErrorCode, string ErrorMessage)` |
+| свойство | `string Id { get; init; }` |
+| свойство | `string Name { get; init; }` |
+| свойство | `string Version { get; init; }` |
+| свойство | `string Author { get; init; }` |
+| свойство | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
+| свойство | `string MapIdentity { get; init; }` |
+| свойство | `IReadOnlyList<SessionProfilePresetSummary> Presets { get; init; }` |
+| свойство | `bool IsValid { get; init; }` |
+| свойство | `string ErrorCode { get; init; }` |
+| свойство | `string ErrorMessage { get; init; }` |
 
 ### `SessionState`
 
@@ -890,13 +1145,38 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | значение | `Native = 0` |
 | значение | `Managed = 1` |
 
+### `StartDateTime`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `StartDateTime(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)` |
+| свойство | `int? Year { get; init; }` |
+| свойство | `int? DayOfYear { get; init; }` |
+| свойство | `int? Hour { get; init; }` |
+| свойство | `int? Minute { get; init; }` |
+| свойство | `int? Second { get; init; }` |
+| свойство | `bool IsEmpty { get; }` |
+
+### `StartWeather`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `StartWeather(WeatherMode Mode, string Preset = "", string Icao = "")` |
+| свойство | `WeatherMode Mode { get; init; }` |
+| свойство | `string Preset { get; init; }` |
+| свойство | `string Icao { get; init; }` |
+
 ### `StartupHandoff`
 
 Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `INTERNAL`. Семантика: [public-api](public-api.md).
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "")` |
+| конструктор | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "", IReadOnlyList<StartupModule> Modules = null, bool PluginTrace = false, bool NativeTrace = false, StartDateTime Start = null, StartWeather Weather = null)` |
 | свойство | `Guid SessionId { get; init; }` |
 | свойство | `string BuildProfileId { get; init; }` |
 | свойство | `WorldMode WorldMode { get; init; }` |
@@ -908,6 +1188,11 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `DateTimeMode TimeMode { get; init; }` |
 | свойство | `string EntrypointIdentity { get; init; }` |
 | свойство | `string SituationIdentity { get; init; }` |
+| свойство | `IReadOnlyList<StartupModule> Modules { get; init; }` |
+| свойство | `bool PluginTrace { get; init; }` |
+| свойство | `bool NativeTrace { get; init; }` |
+| свойство | `StartDateTime Start { get; init; }` |
+| свойство | `StartWeather Weather { get; init; }` |
 
 ### `StartupHandoffWire`
 
@@ -916,9 +1201,39 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | Член | Сигнатура |
 | --- | --- |
 | константа | `uint Magic = 1330402120` |
-| константа | `ushort Version = 4` |
+| константа | `ushort Version = 7` |
+| константа | `int MaxModules = 64` |
 | статический метод | `byte[] Serialize(StartupHandoff value)` |
 | статический метод | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
+
+### `StartupModule`
+
+Запечатанная запись (sealed record) в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| свойство | `string RelativeDirectory { get; init; }` |
+| свойство | `string ManifestSha256 { get; init; }` |
+| свойство | `string Settings { get; init; }` |
+
+### `TelemetryRingWire`
+
+Статический класс в `OmsiLaunch.Api`. Стабильность: `INTERNAL`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| константа | `uint Magic = 1381256271` |
+| константа | `int Version = 1` |
+| константа | `int SlotCount = 64` |
+| константа | `int SlotSize = 2048` |
+| константа | `int HeaderSize = 64` |
+| константа | `int Capacity = 131136` |
+| константа | `int MaxPayload = 2036` |
+| статический метод | `void Initialize(MemoryMappedViewAccessor view)` |
+| статический метод | `bool IsRing(MemoryMappedViewAccessor view)` |
+| статический метод | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long, long> ReadSince(MemoryMappedViewAccessor view, long after)` |
+| статический метод | `bool Write(MemoryMappedViewAccessor view, byte[] payload)` |
 
 ### `TimeSpec`
 
@@ -989,6 +1304,15 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 ## `OmsiLaunch.Core`
 
+### `HofPlanningException`
+
+Запечатанный класс в `OmsiLaunch.Core`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| конструктор | `HofPlanningException(string code, string message)` |
+| свойство | `string Code { get; }` |
+
 ### `LaunchValidation`
 
 Статический класс в `OmsiLaunch.Core`. Стабильность: `INTERNAL`. Семантика: [public-api](public-api.md).
@@ -996,7 +1320,16 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | Член | Сигнатура |
 | --- | --- |
 | статический метод | `bool IsMapIdentity(string value)` |
+| статический метод | `bool IsSha256(string value)` |
 | статический метод | `IReadOnlyList<LaunchDiagnostic> Validate(LaunchSpec spec)` |
+
+### `ModuleDataStore`
+
+Статический класс в `OmsiLaunch.Core`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| статический метод | `bool Clear(string installationRoot, string moduleId)` |
 
 ### `OmsiLaunchRuntimePaths`
 
@@ -1021,6 +1354,8 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | метод | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | метод | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | метод | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| метод | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| метод | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | метод | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | метод | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | метод | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -1048,7 +1383,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior)` |
+| конструктор | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior, IReadOnlyList<HofOperationSpec> Hofs, RuntimeModulesSpec Modules = null)` |
 | свойство | `int Index { get; init; }` |
 | свойство | `string Id { get; init; }` |
 | свойство | `string Name { get; init; }` |
@@ -1056,6 +1391,8 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `SessionPresentationSpec Presentation { get; init; }` |
 | свойство | `InternetTexturesSpec InternetTextures { get; init; }` |
 | свойство | `LaunchBehaviorSpec Behavior { get; init; }` |
+| свойство | `IReadOnlyList<HofOperationSpec> Hofs { get; init; }` |
+| свойство | `RuntimeModulesSpec Modules { get; init; }` |
 
 ### `SessionPlanner`
 
@@ -1074,8 +1411,11 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | --- | --- |
 | константа | `string Schema = "omsilaunch.session-profile/v1"` |
 | константа | `long MaxBytes = 262144` |
+| константа | `int MinPresetIndex = 1` |
+| константа | `int MaxPresetIndex = 99` |
 | статическое поле | `IReadOnlyDictionary<string, IReadOnlyList<string>> SchemaKeys` |
 | статический метод | `LaunchSpec Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` |
+| статический метод | `IReadOnlyList<SessionProfileSummary> Discover(string installationRoot)` |
 | статический метод | `SessionProfilePackage Load(string installationRoot, string id, int presetIndex)` |
 | статический метод | `void ValidateCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode)` |
 
@@ -1100,6 +1440,24 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
 | свойство | `ProfileNew New { get; init; }` |
 | свойство | `ProfilePreset Preset { get; init; }` |
+
+### `StartDateTimeResolver`
+
+Статический класс в `OmsiLaunch.Core`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| константа | `int MinimumYear = 1900` |
+| константа | `int MaximumYear = 2200` |
+| статический метод | `StartDateTime Resolve(LaunchSpec spec, DateTime now, out string error)` |
+
+### `StartWeatherResolver`
+
+Статический класс в `OmsiLaunch.Core`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| статический метод | `StartWeather Resolve(LaunchSpec spec, out string error)` |
 
 ## `OmsiLaunch.Process`
 
@@ -1135,7 +1493,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `string Name { get; }` |
 | статический метод | `CurrentTelemetryStore Create(Guid sessionId)` |
 | метод | `void Dispose()` |
-| метод | `ValueTuple<int, string>? ReadLatest()` |
+| метод | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long> ReadNew()` |
 
 ### `CurrentWindowsX64Platform`
 
@@ -1196,6 +1554,22 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `int ThreadId { get; }` |
 | свойство | `ProcessIdentity Identity { get; }` |
 | метод | `void Dispose()` |
+
+### `ModuleSessionProcess`
+
+Запечатанный класс в `OmsiLaunch.Process`. Стабильность: `STABLE_BETA`. Семантика: [public-api](public-api.md).
+
+| Член | Сигнатура |
+| --- | --- |
+| константа | `int MaxLineBytes = 65536` |
+| свойство | `int ProcessId { get; }` |
+| свойство | `bool HasExited { get; }` |
+| свойство | `int? ExitCode { get; }` |
+| метод | `void Dispose()` |
+| метод | `void Kill()` |
+| статический метод | `ModuleSessionProcess Start(string executable, string workingDirectory, Guid sessionId, Action<string> onLine)` |
+| метод | `bool TryWriteLine(string line)` |
+| метод | `bool WaitForExit(TimeSpan timeout)` |
 
 ### `OmsiProcessState`
 

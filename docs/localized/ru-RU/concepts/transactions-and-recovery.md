@@ -1,6 +1,6 @@
 # Транзакции и восстановление после сбоя
 
-<!-- l10n: source=concepts/transactions-and-recovery.md -->
+<!-- l10n: source=concepts/transactions-and-recovery.md source-sha256=cc2e7f493ee6d112a3d5326be020b81beb67a1002aa25b6042e982b0b3d9bb9c -->
 > Перевод [исходной страницы на английском языке](../../../concepts/transactions-and-recovery.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Каждый сеанс OmsiLaunch, который затрагивает файл OMSI, делает это внутри надёжной транзакции с журналом: исходные байты сохраняются в резервную копию до замены, журнал фиксирует, как далеко продвинулся сеанс, а восстановление проверяет каждую резервную копию, прежде чем записать её обратно. На этой странице описана эта транзакция в том виде, как она реализована в `FileConfigurationTransaction` (`src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`) и управляется методами `OmsiLaunchService.StartAsync`, `SuperviseAsync` и `RecoverPendingAsync` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), вместе с входными файлами, которые вычисляет `SessionVisualAssets` (`src/OmsiLaunch.Core/SessionVisualAssets.cs`). Страница предназначена для пользователей, которым нужно знать, что меняет сеанс и что делает восстановление после сбоя, и для интеграторов, которым нужны точные гарантии.

@@ -1,6 +1,6 @@
 # Dokumentacja OmsiLaunchW.exe
 
-<!-- l10n: source=reference/omsilaunchw.md -->
+<!-- l10n: source=reference/omsilaunchw.md source-sha256=1d15bd724a02153b5a30cc0d591754f94a1b1d66e7cba64b62501ac037b54622 -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/omsilaunchw.md) dla OmsiLaunch 0.1.0-beta3. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 `OmsiLaunchW.exe` to host kontrolera OmsiLaunch działający w podsystemie Windows (GUI). Przyjmuje ten sam wiersz poleceń co `OmsiLaunch.exe` i wykonuje ten sam kod kontrolera (`OmsiLaunch.Controller.dll`). Jedyna różnica dotyczy sposobu raportowania: nie ma okna konsoli, błędy są pokazywane w oknach komunikatu, a działająca sesja jest widoczna wyłącznie dzięki swojej [ikonie w obszarze powiadomień](windows-tray.md).

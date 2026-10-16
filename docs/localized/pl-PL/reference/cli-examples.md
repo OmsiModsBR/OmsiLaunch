@@ -1,9 +1,9 @@
 # Przykłady CLI
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/cli-examples.md) dla OmsiLaunch 0.1.0-beta3. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/cli-examples.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
-Minimalne, poprawne wywołania `OmsiLaunch.exe` dla OmsiLaunch `0.1.0-beta3`, każde z oczekiwanym kodem wyjścia procesu oraz informacją o tym, co jest zmieniane i przywracane. Każdy przykład jest uruchamiany z katalogu głównego instalacji OMSI (`<OMSI_PATH>`), o ile nie zaznaczono inaczej; składnię zdefiniowano w [dokumentacji CLI](cli.md), a kody wyjścia w [kodach wyjścia](exit-codes.md). Do każdego polecenia można dodać `--json`, aby otrzymać strukturalną kopertę (envelope).
+Minimalne, poprawne wywołania `OmsiLaunch.exe` dla OmsiLaunch `0.1.0-beta4`, każde z oczekiwanym kodem wyjścia procesu oraz informacją o tym, co jest zmieniane i przywracane. Każdy przykład jest uruchamiany z katalogu głównego instalacji OMSI (`<OMSI_PATH>`), o ile nie zaznaczono inaczej; składnię zdefiniowano w [dokumentacji CLI](cli.md), a kody wyjścia w [kodach wyjścia](exit-codes.md). Do każdego polecenia można dodać `--json`, aby otrzymać strukturalną kopertę (envelope).
 
 <a id="conventions"></a>
 ## Konwencje
@@ -21,7 +21,7 @@ Minimalne, poprawne wywołania `OmsiLaunch.exe` dla OmsiLaunch `0.1.0-beta3`, ka
 ```text
 OmsiLaunch.exe /version
 ```
-Kod wyjścia `0`. Wypisuje `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family`. Niczego nie zmienia.
+Kod wyjścia `0`. Wypisuje `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family`. Niczego nie zmienia.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Kod wyjścia `0` (`2`, jeśli brakuje `handle`, `name` lub `value`). Zmienia jedną liczbową zmienną skryptu tego pojazdu. Nie jest cofane.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Kod wyjścia `7`. Zawsze odrzucane z `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; nic nie jest zmieniane.
+Kod wyjścia `0`. Zapisuje źródłowy rekord pogody OMSI i zatrzymuje bieżące aktualizacje METAR; OMSI wyprowadza z niego mgłę, światło, rzeczywisty wiatr i wilgotność przy następnym niewstrzymanym tyknięciu pogody. Każda wartość jest sprawdzana, zanim cokolwiek zostanie zapisane (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, kod wyjścia `7`). Klucz pochodny, taki jak `relative_humidity`, zwraca `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` i wskazuje klucz, który należy ustawić zamiast niego. Nie jest cofane. EXPERIMENTAL: weryfikacja w runtime w toku.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Kod wyjścia `0`. Przełącza na bieżącą pogodę METAR dla tej stacji; OMSI pobiera ją przy następnej aktualizacji pogody. EXPERIMENTAL: weryfikacja w runtime w toku.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Kod wyjścia `0`. `scripts string set` przechodzi przez własne `SetStringVariable` OMSI i zwraca odczytaną z powrotem wartość; nazwa, której skrypt pojazdu nie deklaruje, zwraca `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (kod wyjścia `7`). `scripts trigger` wywołuje wyzwalacz tak jak obsługa wejścia OMSI (`1` naciśnięcie, `0` zwolnienie); skrypt pojazdu wykonuje go od razu. Nazwy wyzwalaczy i zmiennych definiuje każdy model pojazdu; powyższe są przykładami. Nie jest cofane. EXPERIMENTAL: weryfikacja w runtime w toku.
 
 <a id="spawn"></a>
 ## Dodawanie pojazdów

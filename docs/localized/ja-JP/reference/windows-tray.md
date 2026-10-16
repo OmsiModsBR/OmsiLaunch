@@ -1,7 +1,7 @@
 # Windows トレイインジケーター
 
-<!-- l10n: source=reference/windows-tray.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/windows-tray.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/windows-tray.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 スタンドアロンのオーナーセッション（`OmsiLaunch.exe` または `OmsiLaunchW.exe` で開始されたもの）はすべて、セッションの状態を示し、利用者がセッションを終了できる通知領域アイコンを表示します。このページでは、`tools\OmsiLaunch.Cli\WindowsHost.cs` 内の `SessionTrayIndicator`、`StatusWindow`、`StopConfirmationWindow`、読み取り専用のプレゼンター `SessionStatusPresenter`（`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`）、文字列レジストリ `WindowsUiStrings`（`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`）、および `WindowsHost` の `OmsiLaunchW.exe` エラーダイアログによって実装されているインジケーターの仕様を示します。トレイは表示用のアダプターにすぎません。OMSI もリカバリも所有せず、その停止操作は `session stop` と同じオーナーの正規停止経路に通知します（[CLI リファレンス](cli.md)と[ローカル制御](local-control.md)を参照）。
 
@@ -60,7 +60,7 @@
 | `Presentation` | `Splash` | 常に表示 | `Managed` または `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | 常に表示 | `Original OMSI`（`Native`）、`Disabled`、`Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-`Environment` セクションと `Vehicle` セクションが、実行中の Beta 3 セッションに表示されることはありません。日付、時刻、年、天候、またはいずれかのプレイヤー車両フィールドを要求するとプランが実行不可になり、そのようなセッションは開始されないためです（[既知の制限事項](known-limitations.md)を参照）。これらは将来のビルドのために存在し、オフラインのプレゼンターテストでカバーされています。
+`Environment` セクションは、日付、時刻、年、または天候が要求された場合に、実行中の Beta 4 セッションに表示されます（それらの要求は試験的です。[既知の制限事項](known-limitations.md)を参照）。`Vehicle` セクションが実行中のセッションに表示されることはありません。いずれかのプレイヤー車両フィールドを要求するとプランが実行不可になり、そのようなセッションは開始されないためです。これは将来のビルドのために存在し、オフラインのプレゼンターテストでカバーされています。
 
 ランタイムエビデンス（pt-BR の UI、ランタイムクロージャ `T01`）: NEW_MAP の Grundorf セッションでは `Sessão em execução` が表示されました。`Sessão`: `Modo: Nova sessão`、`Mapa: Grundorf`、`Ponto de entrada: 1`。`Apresentação`: `Splash: Gerenciado`、`Texturas da internet: OMSI original`。
 

@@ -1,9 +1,9 @@
 # Profili di sessione
 
-<!-- l10n: source=reference/session-profiles.md -->
-> Traduzione della [pagina originale in inglese](../../../reference/session-profiles.md) di OmsiLaunch 0.1.0-beta3. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
+<!-- l10n: source=reference/session-profiles.md source-sha256=5bc9beef6e11a8c70d3ea3056678096ccc42321393f0d09fd40217e53c271e4e -->
+> Traduzione della [pagina originale in inglese](../../../reference/session-profiles.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
-Un profilo di sessione è un pacchetto YAML dichiarativo che un autore di contenuti distribuisce con una mappa o un add-on affinché gli utenti finali possano avviare una sessione OmsiLaunch riproducibile con un solo comando (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..5> /new`). Questa pagina è il riferimento normativo per il formato `omsilaunch.session-profile/v1` così come è implementato da `SessionProfileCompiler` in `src/OmsiLaunch.Core/SessionProfiles.cs`, per le regole di precedenza applicate dalla CLI (`CliInput.BuildSpecAsync` e `RejectProfileConflicts` in `tools/OmsiLaunch.Cli/Program.cs`) e per il catalogo delle impostazioni che un profilo può scrivere (`ConfigurationCatalog`). Tutto ciò che un profilo può fare è possibile anche con i flag della CLI e con [LaunchSpec](launchspec.md); un profilo si limita a impacchettare quelle scelte.
+Un profilo di sessione è un pacchetto YAML dichiarativo che un autore di contenuti distribuisce con una mappa o un add-on affinché gli utenti finali possano avviare una sessione OmsiLaunch riproducibile con un solo comando (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..99> /new`). Questa pagina è il riferimento normativo per il formato `omsilaunch.session-profile/v1` così come è implementato da `SessionProfileCompiler` in `src/OmsiLaunch.Core/SessionProfiles.cs`, per le regole di precedenza applicate dalla CLI (`CliInput.BuildSpecAsync` e `RejectProfileConflicts` in `tools/OmsiLaunch.Cli/Program.cs`) e per il catalogo delle impostazioni che un profilo può scrivere (`ConfigurationCatalog`). Tutto ciò che un profilo può fare è possibile anche con i flag della CLI e con [LaunchSpec](launchspec.md); un profilo si limita a impacchettare quelle scelte.
 
 Stabilità: `STABLE_BETA` per l'analisi, la validazione, il rilevamento dei conflitti e i blocchi `settings` / `presentation` / `internet-textures` / `behavior` (test offline `session-profiles.strict-compiler`; il percorso di overlay e ripristino è validato a runtime da RV-005 e RV-006, vedere [stato della validazione a runtime](../status/runtime-validation-status.md)). Le chiavi `new.date`, `new.time`, `new.year` e `new.weather` sono `UNAVAILABLE` in questo build (vedere [Il blocco `new`](#new)).
 
@@ -57,7 +57,7 @@ I contesti sono denominati esattamente come li denomina il compilatore. Ogni chi
 | `version` | stringa | sì | Stringa di versione del pacchetto (formato libero, racchiuderla tra virgolette: `"1.0"`); riportata in `SessionProfileMetadata.Version`. |
 | `compatibility` | mapping | no | Vedere `compatibility`. |
 | `new` | mapping | no | Valori predefiniti per NEW_MAP. Vedere `new`. |
-| `presets` | sequenza di mapping | sì | Da 1 a 5 voci di preset. Zero, più di cinque o un valore che non è una sequenza producono `OL_E_SESSION_PROFILE_INVALID`. |
+| `presets` | sequenza di mapping | sì | Da 1 a 99 voci di preset. Zero, più di 99 o un valore che non è una sequenza producono `OL_E_SESSION_PROFILE_INVALID`. |
 
 ### `compatibility`
 
@@ -73,13 +73,13 @@ Il blocco viene letto e validato ogni volta che è presente, ma viene applicato 
 | --- | --- | --- | --- | --- |
 | `map` | stringa | no | sì | Identità della mappa nella forma normalizzata `maps\<Map>\global.cfg` (la pianificazione richiede esattamente questa forma: inizia con `maps\`, termina con `\global.cfg`, nessun `..`). Imposta `WorldSpec.MapIdentity`. |
 | `entrypoint-index` | intero | no | sì | Indice del punto di ingresso presentato (posizione a base 0 nell'elenco dei punti di ingresso di OMSI). Imposta `PresentedEntrypointIndex` e azzera qualsiasi identità del punto di ingresso. |
-| `entrypoint` | stringa | no | sì | Identità grezza del punto di ingresso. Imposta `EntrypointIdentity` e azzera l'indice presentato. Se sono presenti sia `entrypoint-index` sia `entrypoint`, prevale `entrypoint` perché viene applicato per ultimo. La selezione tramite identità del punto di ingresso è `PARTIAL` (BI-001): la pianificazione segnala `world.entrypoint-identity` come `RUNTIME_PARTIAL` e il piano non è eseguibile. Preferire `entrypoint-index`. |
+| `entrypoint` | stringa | no | sì | Identità grezza del punto di ingresso. Imposta `EntrypointIdentity` e azzera l'indice presentato. Se sono presenti sia `entrypoint-index` sia `entrypoint`, prevale `entrypoint` perché viene applicato per ultimo. Il valore è un'etichetta esatta (con distinzione tra maiuscole e minuscole) o un'identità di discovery; OMSI presenta solo il primo record di ciascuna etichetta (`world.entrypoint-identity`, `EXPERIMENTAL`). |
 | `date` | mapping | no | no (`UNAVAILABLE`) | Vedere `new.date`. |
 | `time` | mapping | no | no (`UNAVAILABLE`) | Vedere `new.time`. |
 | `year` | intero | no | no (`UNAVAILABLE`) | Anno esplicito. |
 | `weather` | mapping | no | no (`UNAVAILABLE`) | Vedere `new.weather`. |
 
-`date`, `time`, `year` e `weather` vengono compilati in `DateSpec`, `TimeSpec`, `YearSpec` e `WeatherSpec` con `DateTimeMode.Explicit` / il `WeatherMode` selezionato. Il planner di sessione (`src/OmsiLaunch.Core/SessionPlanner.cs`) segnala quindi le capability `world.explicit-date`, `world.explicit-time`, `world.explicit-year` e `weather` come `STATICALLY_PARTIAL`, aggiunge `OL_E_CAPABILITY_UNAVAILABLE` alla diagnostica del piano e contrassegna il piano come **non eseguibile**. Il plugin rifiuta inoltre un handoff la cui modalità di data o di orario non sia `Unset` (`plugin.request.unsupported`). Conseguenza per questo build: un profilo che imposta una qualsiasi di queste quattro chiavi può essere validato con `/plan` ma non può avviare una sessione (codice di uscita 1, `OL_E_PLAN_NOT_RUNNABLE`). Ometterle nei profili destinati a essere eseguiti.
+`date`, `time`, `year` e `weather` vengono compilati in `DateSpec`, `TimeSpec`, `YearSpec` e `WeatherSpec` con `DateTimeMode.Explicit` / il `WeatherMode` selezionato. Il planner di sessione (`src/OmsiLaunch.Core/SessionPlanner.cs`) richiede `world.explicit-date`, `world.explicit-time`, `world.explicit-year` e `world.weather`; tutte e quattro sono `EXPERIMENTAL` (chiuse staticamente, validazione a runtime in sospeso). La data/ora di avvio si applica solo a NEW_MAP; il meteo si applica a ogni modalità di mondo.
 
 #### `new.date`
 
@@ -108,13 +108,15 @@ Il blocco viene letto e validato ogni volta che è presente, ma viene applicato 
 
 | Chiave | Tipo | Obbligatoria | Predefinito | Descrizione |
 | --- | --- | --- | --- | --- |
-| `index` | intero | sì | | Da 1 a 5, univoco all'interno del profilo. Selezionato con `/predefined-profile-index`. Duplicato o fuori intervallo: `OL_E_SESSION_PROFILE_INVALID`; un indice che non esiste in alcun punto del profilo: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
+| `index` | intero | sì | | Da 1 a 99, univoco all'interno del profilo; gli indici non devono essere contigui. Selezionato con `/predefined-profile-index`. Duplicato o fuori intervallo: `OL_E_SESSION_PROFILE_INVALID`; un indice che non esiste in alcun punto del profilo: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
 | `id` | stringa | sì | | Identificatore del preset; riportato come `SessionProfileMetadata.PresetId`. |
 | `name` | stringa | sì | | Nome visualizzato del preset; riportato come `SessionProfileMetadata.PresetName`. |
 | `settings` | mapping | no | nessuno | Impostazioni semantiche di `options.cfg`, vedere [Impostazioni](#settings). Le chiavi vengono confrontate con il catalogo senza distinzione tra maiuscole e minuscole. |
 | `presentation` | mapping | no | ereditato | Presentazione della splash screen, vedere `presentation`. Se assente, il preset eredita la base (valore di `/spec` o il valore predefinito della CLI, `Managed`). |
 | `internet-textures` | mapping | no | ereditato | Vedere `internet-textures`. |
 | `behavior` | mapping | no | ereditato | Timeout, vedere `behavior`. |
+| `hofs` | sequenza di mapping | no | ereditato | Operazioni HOF di sessione, vedere `hofs`. Quando presenti sostituiscono l'`HofManagement` di base. |
+| `modules` | mapping | no | ereditato | Moduli runtime, vedere `modules`. Uniti a ciò che richiede un file `/spec`. |
 
 Viene applicato solo il preset selezionato. Ogni preset viene comunque analizzato e validato, quindi un errore nel preset 3 fa fallire una richiesta per il preset 1.
 
@@ -149,6 +151,45 @@ Un profilo non può impostare `SessionPresentationSpec.SuppressTrayIcon`; resta 
 | `shutdown-timeout` | intero (secondi) | no | 30 | Corrisponde a `LaunchBehaviorSpec.ShutdownTimeoutSeconds`. ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT: il supervisore termina OMSI direttamente e non legge mai questo valore. |
 
 Quando il blocco `behavior` è presente, entrambi i timeout vengono impostati (valore indicato o predefinito) e sostituiscono interamente il `LaunchBehaviorSpec` di base, inclusi `RestoreConfiguration` e `SuppressStaleClosecheckWarning`, che tornano ai loro valori predefiniti (`true`, `true`).
+
+### `hofs`
+
+Ogni voce è un'operazione di [gestione HOF](hof-management.md) e indica esattamente una chiave di sorgente (`package`, `collection`, `directory`, `vehicle` o `file`); zero o più di una: `OL_E_SESSION_PROFILE_INVALID`. L'esistenza di sorgenti e destinazioni viene controllata quando la sessione viene pianificata (`OL_E_HOF_*`), tranne per `package`.
+
+| Chiave | Tipo | Obbligatoria | Predefinito | Descrizione |
+| --- | --- | --- | --- | --- |
+| `package` | stringa | una chiave di sorgente | | Directory **relativa al pacchetto** che contiene i file `.hof` distribuiti dal profilo. Deve esistere al caricamento del profilo (`OL_E_SESSION_PROFILE_ASSET_MISSING`); si applicano le regole di confinamento dei percorsi. Diventa una sorgente `Directory`. |
+| `collection` | stringa | una chiave di sorgente | | Nome di una collezione sotto `.omsilaunch\hof\`. |
+| `directory` | stringa | una chiave di sorgente | | Directory relativa all'installazione, per esempio accanto al contenuto di una mappa. |
+| `vehicle` | stringa | una chiave di sorgente | | Identità o cartella di veicolo di cui vengono copiati i file HOF. |
+| `file` | stringa | una chiave di sorgente | | File `.hof` relativo all'installazione. |
+| `targets` | sequenza di stringhe | sì | | Veicoli di destinazione (identità o cartelle sotto `Vehicles\`). Mancante o vuota: `OL_E_SESSION_PROFILE_INVALID`. |
+| `files` | sequenza di stringhe | no | tutti | Nomi di file da prelevare dalla sorgente. |
+| `mode` | stringa | no | `add` | `add` o `mirror` (senza distinzione tra maiuscole e minuscole); qualsiasi altro valore: `OL_E_SESSION_PROFILE_INVALID`. |
+
+Un preset con `hofs` combinato con un flag `/hof-source`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`.
+
+### `modules`
+
+Una voce per ogni id di [modulo runtime](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Ogni voce è un mapping con queste chiavi (contesto `module`):
+
+| Chiave | Tipo | Obbligatoria | Predefinito | Descrizione |
+| --- | --- | --- | --- | --- |
+| `enabled` | `true` o `false` | no | non impostato | `true` richiede il modulo (`LaunchSpec.Modules.Enable`); `false` lo tiene fuori dalla sessione, compreso un modulo caricato per impostazione predefinita, dalla sua mappa o dal file di impostazioni (`LaunchSpec.Modules.Disable`). |
+| `settings` | mapping | no | nessuna | Impostazioni del modulo per chiave (`LaunchSpec.Modules.Settings` come `<id>.<key>`). I valori vengono controllati rispetto alle impostazioni dichiarate dal modulo quando la sessione viene pianificata (`OL_E_MODULE_SETTING_INVALID`). |
+
+```yaml
+modules:
+  example-preload:
+    enabled: true
+    settings:
+      ram_budget_mb: 8192
+      monitor: false
+  example-hud:
+    enabled: false
+```
+
+Un id di modulo che non è `[a-z0-9][a-z0-9-]{1,47}`, un `enabled` diverso da `true` o `false`, oppure una chiave di impostazione che non è `[a-z][a-z0-9_]{0,31}`: `OL_E_SESSION_PROFILE_INVALID`. Un modulo non installato viene segnalato quando la sessione viene pianificata (`OL_E_MODULE_NOT_FOUND` per `enabled: true`, `OL_W_MODULE_SETTING_IGNORED` per le sole impostazioni).
 
 <a id="settings"></a>
 ## Impostazioni
@@ -252,6 +293,9 @@ Un argomento della CLI che punta a un campo di proprietà del profilo selezionat
 | `/splash`, `/splash-language`, `/splash-assets` | `presentation` (qualsiasi) | qualsiasi |
 | `/internet-textures`, `/internet-textures-profile` | `internet-textures` (qualsiasi) | qualsiasi |
 | `/startup-timeout`, `/shutdown-timeout` | `behavior` (qualsiasi) | qualsiasi |
+| `/module:<id>` | `modules.<id>.enabled: false` | qualsiasi |
+| `/no-module:<id>` | `modules.<id>.enabled: true` | qualsiasi |
+| `/module-setting:<id>.<key>=...` o un flag di modulo | `modules.<id>.settings.<key>` | qualsiasi |
 
 Non sono conflitti: le chiavi `/set` che il preset non definisce (vengono aggiunte), i flag del veicolo (`/vehicle`, `/repaint`, `/hof`, `/fleet`, `/registration`, `/no-vehicle`; un profilo non può definire un veicolo del giocatore) e qualsiasi argomento del mondo con `/saved` (lì il blocco `new` non viene applicato). `/map`, `/entrypoint` e `/entrypoint-index` non sono validi insieme a `/saved` indipendentemente dai profili (`OL_E_INVALID_ARGUMENT`).
 
@@ -264,7 +308,7 @@ Non sono conflitti: le chiavi `/set` che il preset non definisce (vengono aggiun
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | `id` non è un semplice nome di directory; `assets` / `profile` esce dal pacchetto o attraversa un reparse point | 2 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` non è `omsilaunch.session-profile/v1` | 2 |
 | `OL_E_SESSION_PROFILE_INVALID` | limite di dimensione, forma del documento, anchor, chiave sconosciuta, chiave obbligatoria mancante, valore non scalare, numero/data/orario non valido, `id` non corrispondente, regole su numero/indice dei preset, parole di modalità non supportate, timeout non positivo, `presentation` senza `splash`, `override` senza `profile` | 2 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` mancante, fuori da 1..5 o nessun preset con quell'`index` | 2 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` mancante, fuori da 1..99 o nessun preset con quell'`index` | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | una chiave di `settings` non è nel catalogo | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | una chiave di `settings` è nel catalogo ma è di sola lettura | 2 |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | la directory `assets` o il file `profile` non esiste all'interno del pacchetto | 2 |
@@ -272,6 +316,15 @@ Non sono conflitti: le chiavi `/set` che il preset non definisce (vengono aggiun
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | un argomento esplicito della CLI punta a un campo di proprietà del profilo | 2 |
 
 Tutti questi errori vengono generati durante la compilazione della riga di comando, prima della pianificazione. Sono `SessionProfileException` (o `ArgumentException` per il conflitto) e non avviano mai una sessione. Il catalogo completo si trova in [errori](errors.md); i codici di uscita in [codici di uscita](exit-codes.md).
+
+<a id="discovering-installed-profiles"></a>
+## Individuazione dei profili installati
+
+`OmsiLaunch.exe /list:SessionProfiles` (API `ListSessionProfilesAsync`) compila ogni pacchetto sotto `.omsilaunch\session-profiles\` e stampa una voce per pacchetto: `Id`, `Name`, `Version`, `Author`, `CompatibleMaps`, `MapIdentity` e i suoi `Presets` (`Index`, `Id`, `Name`) in ordine di indice. Un pacchetto che non compila viene comunque elencato, con `IsValid: false` e lo stesso codice `OL_E_SESSION_PROFILE_*` che segnalerebbe un avvio. Non viene scritto nulla.
+
+```text
+OmsiLaunch.exe /list:SessionProfiles --json
+```
 
 <a id="how-a-profile-appears-in-the-api"></a>
 ## Come appare un profilo nell'API

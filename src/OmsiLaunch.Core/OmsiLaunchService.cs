@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using OmsiLaunch.Api;
+using OmsiLaunch.Builds.Omsi23004;
 using OmsiLaunch.Configuration;
 using OmsiLaunch.Content;
 using OmsiLaunch.Process;
+using OmsiLaunch.Runtime.Modules;
 
 namespace OmsiLaunch.Core;
 
@@ -33,7 +35,7 @@ public sealed class OmsiLaunchService : IOmsiLaunch
             // re-plan in StartSessionAsync rejects before any session exists.
             artifacts.ValidateInstalled(spec.Installation.RootPath);
             var diagnostics = plan.Diagnostics.Append(new LaunchDiagnostic("plugin.integrity.reference", artifacts.IntegrityReference)).ToArray();
-            return plan with { RuntimeArtifacts = artifacts.Artifacts.Select(x => x.DestinationRelativePath).Append("OmsiLaunch startup handoff v4").ToArray(), Diagnostics = diagnostics };
+            return plan with { RuntimeArtifacts = artifacts.Artifacts.Select(x => x.DestinationRelativePath).Append("OmsiLaunch startup handoff v6").ToArray(), Diagnostics = diagnostics };
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or InvalidDataException)
         {
@@ -101,8 +103,20 @@ public sealed class OmsiLaunchService : IOmsiLaunch
         // This is the public boundary. Internal research primitives and unknown
         // operations are rejected here, before any frontend, session lookup or
         // the mailbox is involved.
-        var validation = PublicCapabilityRegistry.ValidateRuntimeArguments(command.Operation, command.Arguments);
-        if (!validation.Accepted) return new RuntimeCommandResult(session.SessionId, command.RequestId, false, validation.ErrorCode);
+        // A module operation (module.<id>.<operation>) is public only for a
+        // module the session loaded; the plugin checks its arguments.
+        if (RuntimeModuleProtocol.TrySplitOperation(command.Operation, out var moduleId, out _))
+        {
+            var moduleSession = Get(session);
+            var planned = moduleSession.PlannedModules.FirstOrDefault(x => x.Id == moduleId && x.IsEligible);
+            if (planned is null) return new RuntimeCommandResult(session.SessionId, command.RequestId, false, PublicErrorCodes.MODULE_NOT_LOADED);
+            if (!planned.Operations.Contains(command.Operation, StringComparer.Ordinal)) return new RuntimeCommandResult(session.SessionId, command.RequestId, false, PublicErrorCodes.MODULE_OPERATION_UNKNOWN);
+        }
+        else
+        {
+            var validation = PublicCapabilityRegistry.ValidateRuntimeArguments(command.Operation, command.Arguments);
+            if (!validation.Accepted) return new RuntimeCommandResult(session.SessionId, command.RequestId, false, validation.ErrorCode);
+        }
         var live = Get(session);
         if (command.SessionId != session.SessionId) throw new InvalidOperationException("OL_E_RUNTIME_SESSION_MISMATCH");
         if (live.State != SessionState.Running) throw new InvalidOperationException("OL_E_SESSION_NOT_RUNNING");
@@ -122,54 +136,60 @@ public sealed class OmsiLaunchService : IOmsiLaunch
         return RuntimeArtifactSet.Load(runtimePaths.PluginBuildDirectory, runtimePaths.NativeBridgePath, expected);
     }
     private static LaunchDiagnostic ToDiagnostic(RestoreNote note) => new(note.Code, note.RelativePath, note.Sha256 is null ? null : new Dictionary<string, string> { ["sha256"] = note.Sha256 });
+    // Derived from the canonical catalog (R3): one entry per public or
+    // unsupported capability, named by its catalog id, carrying its catalog
+    // evidence. Availability is evaluated for this installation: platform,
+    // OMSI 2, classification, and the native capabilities it depends on.
     public Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var platformInfo = platform.Detect(installation.RootPath);
-        IReadOnlyList<Capability> capabilities = new[]
-        {
-            new Capability("runtime.current-windows-x64", platformInfo.CurrentPlatformSupported, "STATICALLY_VALIDATED"),
-            new Capability("runtime.command-channel", true, "STATICALLY_VALIDATED"),
-            new Capability("runtime.time.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.map.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.weather.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.weather.actual.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.camera.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.camera.write", true, "RUNTIME_VALIDATED", "FOV read-back and restoration passed; family is constrained to 0..3."),
-            new Capability("runtime.d3d.status", true, "RUNTIME_VALIDATED", "Exact-build device QI, cooperative state, single owned reference and main/render-thread execution passed."),
-            new Capability("runtime.d3d.texture.create", true, "RUNTIME_VALIDATED", "Dynamic default-pool A8R8G8B8 and X8R8G8B8 resources passed."),
-            new Capability("runtime.d3d.texture.update", true, "RUNTIME_VALIDATED", "Full and bounded rectangular pitch-aware updates returned S_OK."),
-            new Capability("runtime.d3d.texture.describe", true, "RUNTIME_VALIDATED", "Level dimensions, format and level count passed."),
-            new Capability("runtime.d3d.texture.release", true, "RUNTIME_VALIDATED", "Explicit release and deterministic repeated-release rejection passed."),
-            new Capability("runtime.d3d.lifecycle.reset", true, "IMPLEMENTED_NOT_RUNTIME_VALIDATED", "IDirect3DDevice9::Reset is intercepted to invalidate default-pool resources before Reset; a safe real loss/reset transition has not yet been induced."),
-            new Capability("runtime.road-vehicles.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.road-vehicles.spawn", true, "RUNTIME_VALIDATED", "Public semantic projection of the proven MakeVehicle primitive: canonical model identity, exactly one collection-delta object, opaque handle, and no PlayerVehicle assignment."),
-            new Capability("runtime.road-vehicles.place-random", true, "RUNTIME_VALIDATED", "Profiled PlaceRandomBus call increased the road-vehicle collection from 2 to 4 and completed normal cleanup."),
-            new Capability("runtime.vehicle.variable.write", true, "RUNTIME_VALIDATED", "Profiled named public-variable write and immediate read-back passed with Refresh_Strings 0 -> 1 -> 0."),
-            new Capability("runtime.humans.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.timetable.read", true, "RUNTIME_VALIDATED"),
-            new Capability("runtime.timetable.track-entries.read", true, "RUNTIME_VALIDATED", "Bounded profile-scoped TrackEntry snapshots returned 91 records on the canonical Grundorf session."),
-            new Capability("runtime.time.write", true, "RUNTIME_VALIDATED", "Validated clock scalar write, profiled SetTime and read-back."),
-            new Capability("runtime.time.actual-date-time.write", false, "RELEASE_IF_CLOSED", "SetActualDateTime ABI and calendar semantics are not yet closed."),
-            new Capability("runtime.weather.write", false, "RUNTIME_PARTIAL", "Direct scalar writes are rejected: OMSI overwrites both profiled wind candidates on the next normal weather tick. A native apply lifecycle is required."),
-            new Capability("world.new-map", true, "RUNTIME_VALIDATED"),
-            new Capability("world.presented-entrypoint", true, "RUNTIME_VALIDATED"),
-            new Capability("world.entrypoint-identity", false, "RUNTIME_PARTIAL", "The native presented-list matcher works, but the raw map identity to presented-list correlation is not closed; raw labels can be duplicated."),
-            new Capability("world.saved-situation", true, "RUNTIME_VALIDATED", "Profiled Start-form selection and Button1Click sequence loaded Berlin-Spandau, reached gameplay and completed normal restore."),
-            new Capability("world.last-map-state", false, "UNSUPPORTED_FOR_CURRENT_PROFILE", "Exact OMSI native semantics are not closed."),
-            new Capability("world.date.explicit", false, "STATICALLY_PARTIAL"), new Capability("world.date.system", false, "STATICALLY_PARTIAL"),
-            new Capability("world.time.explicit", false, "STATICALLY_PARTIAL"), new Capability("world.time.system", false, "STATICALLY_PARTIAL"),
-            new Capability("weather.preset", false, "STATICALLY_PARTIAL"), new Capability("weather.icao", false, "STATICALLY_PARTIAL"), new Capability("weather.real-current", false, "STATICALLY_PARTIAL"),
-            new Capability("player-vehicle.model", false, "STATICALLY_PARTIAL"), new Capability("player-vehicle.repaint", false, "STATICALLY_PARTIAL"),
-            new Capability("player-vehicle.hof", false, "STATICALLY_PARTIAL"), new Capability("player-vehicle.fleet-number", false, "STATICALLY_PARTIAL"), new Capability("player-vehicle.registration", false, "STATICALLY_PARTIAL"),
-            new Capability("configuration.options.semantic", true, "STATICALLY_VALIDATED"), new Capability("input.keyboard.patch", true, "STATICALLY_VALIDATED"),
-            new Capability("input.controller.active-ffscale", true, "STATICALLY_VALIDATED"), new Capability("input.controller.axis-buttons", false, "STATICALLY_PARTIAL"),
-            new Capability("content.maps", true, "STATICALLY_VALIDATED"), new Capability("content.situations", true, "STATICALLY_VALIDATED"),
-            new Capability("content.vehicles", true, "STATICALLY_VALIDATED"), new Capability("content.repaints", true, "STATICALLY_VALIDATED"),
-            new Capability("content.hofs", true, "STATICALLY_VALIDATED"), new Capability("content.fleet-registration-sources", true, "STATICALLY_VALIDATED")
-        };
+        var build = OmsiBuildDetection.Detect(installation.RootPath);
+        IReadOnlyList<Capability> capabilities = PublicCapabilityRegistry.All
+            .Where(descriptor => descriptor.Classification != PublicCapabilityClassification.InternalOnly)
+            .Select(descriptor => Evaluate(descriptor, platformInfo, build))
+            .ToArray();
         return Task.FromResult(capabilities);
     }
+
+    private static Capability Evaluate(PublicCapabilityDescriptor descriptor, RuntimePlatformInfo platformInfo, OmsiBuildReport build)
+    {
+        if (descriptor.Classification == PublicCapabilityClassification.Unsupported) return new(descriptor.Id, false, descriptor.RuntimeValidation, descriptor.EvidenceNote ?? descriptor.Description);
+        if (!platformInfo.CurrentPlatformSupported) return new(descriptor.Id, false, descriptor.RuntimeValidation, "The current platform is not supported.");
+        if (descriptor.Id == "runtime.current-windows-x64") return new(descriptor.Id, true, descriptor.RuntimeValidation, descriptor.EvidenceNote);
+        if (!build.IsOmsi2) return new(descriptor.Id, false, descriptor.RuntimeValidation, build.Reason ?? "Not an OMSI 2 installation.");
+        var native = descriptor.NativeCapabilities;
+        if (native.Count == 0 || build.KnownIdentity) return new(descriptor.Id, true, descriptor.RuntimeValidation, Join(descriptor.EvidenceNote, native.Count == 0 ? null : "native: RESOLVED_KNOWN_LAYOUT"));
+        // Unknown build: the file image predicts; the in-process resolution decides.
+        var unresolved = native.Where(name => !build.StaticCapabilities.TryGetValue(name, out var available) || !available).ToArray();
+        return new(descriptor.Id, true, descriptor.RuntimeValidation, Join(descriptor.EvidenceNote, unresolved.Length == 0
+            ? "native: STATICALLY_RESOLVED"
+            : "native: PENDING_IN_PROCESS_RESOLUTION (" + string.Join(", ", unresolved) + " not resolved from the executable file; decided in process, OL_E_CAPABILITY_UNRESOLVED if unavailable)"));
+    }
+
+    private static string? Join(string? first, string? second) => first is null ? second : second is null ? first : first + " " + second;
+    public Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(SessionProfileCompiler.Discover(installation.RootPath));
+    }
+    public Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyList<RuntimeModuleSummary> modules = ModuleCatalog.Discover(installation.RootPath).Select(Summarize).ToArray();
+        return Task.FromResult(modules);
+    }
+    private static RuntimeModuleSummary Summarize(DiscoveredModule module) => new(
+        module.Manifest?.Id ?? module.DirectoryName, module.Manifest?.Version, module.Manifest?.Name,
+        module.Manifest is null ? null : ModuleEligibility.ActivationName(module.Manifest.Activation),
+        module.IsUsable, module.Manifest?.Operations.Select(x => module.Manifest.OperationName(x.Id)).ToArray() ?? Array.Empty<string>(),
+        module.Manifest?.ContentBinding?.Map, module.Code, module.Message,
+        module.Manifest?.EffectiveSettings.Select(Summarize).ToArray());
+    private static RuntimeModuleSettingSummary Summarize(ModuleSettingDescriptor setting) => new(
+        setting.Key, setting.Type.ToString().ToLowerInvariant(), setting.Default, setting.AllowsAuto,
+        setting.Type == ModuleSettingType.Integer && setting.Minimum != long.MinValue ? setting.Minimum.ToString(System.Globalization.CultureInfo.InvariantCulture) : null,
+        setting.Type == ModuleSettingType.Integer && setting.Maximum != long.MaxValue ? setting.Maximum.ToString(System.Globalization.CultureInfo.InvariantCulture) : null,
+        setting.Type == ModuleSettingType.Choice ? setting.Choices : null, setting.Flag, setting.Description);
     public Task<IReadOnlyList<ContentIdentity>> DiscoverAsync(InstallationSpec installation, ContentQueryKind query, OptionalValue<string> scope = default, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -187,6 +207,8 @@ public sealed class OmsiLaunchService : IOmsiLaunch
             ContentQueryKind.FleetNumbers when scope.IsSet => catalog.EnumerateFleetNumbers(scope.Value!).Select(x => new ContentIdentity(x.SourceIdentity, "fleet-number")),
             ContentQueryKind.Registrations when scope.IsSet => catalog.EnumerateRegistrations(scope.Value!).Select(x => new ContentIdentity(x.Mode, "registration", x.Value)),
             ContentQueryKind.Addons => catalog.EnumerateAddons().Select(x => new ContentIdentity(x.Identity, "addon", x.DiscoveryConfidence)),
+            ContentQueryKind.SessionProfiles => SessionProfileCompiler.Discover(installation.RootPath).Select(x => new ContentIdentity(x.Id, x.IsValid ? "session-profile" : "session-profile-invalid", x.Name ?? x.ErrorCode)),
+            ContentQueryKind.RuntimeModules => ListRuntimeModulesAsync(installation, cancellationToken).Result.Select(x => new ContentIdentity(x.Id, x.IsValid ? "runtime-module" : "runtime-module-invalid", x.Name ?? x.ErrorCode)),
             _ => Array.Empty<ContentIdentity>()
         };
         return Task.FromResult<IReadOnlyList<ContentIdentity>>(results.ToArray());
@@ -197,6 +219,7 @@ public sealed class OmsiLaunchService : IOmsiLaunch
         var trace = new HostTrace(plan.Spec.Installation.RootPath, plan.SessionId); trace.Write("STARTSESSION_ENTER");
         if (plan.Spec.Behavior.StartupTimeoutSeconds is < 1 or > 600) throw new ArgumentOutOfRangeException(nameof(plan), "Startup timeout must be between 1 and 600 seconds.");
         InstallationLease? lease = null; FileConfigurationTransaction? transaction = null; CurrentStartupHandoffStore? handoff = null; CurrentTelemetryStore? telemetry = null; CurrentRuntimeCommandStore? runtime = null; LaunchedProcess? process = null; var processExited = false;
+        var programs = ModuleSessionPrograms.None;
         try
         {
             var root = plan.Spec.Installation.RootPath;
@@ -220,30 +243,42 @@ public sealed class OmsiLaunchService : IOmsiLaunch
             var artifacts = LoadArtifacts();
             if (plan.Spec.EffectivePresentation.Splash == SplashMode.Managed) SessionVisualAssets.EnsureInstallationAssets(root);
             var visualPlan = SessionVisualAssets.Build(plan.Spec);
+            // HOF sources and targets are read after early recovery, so they
+            // derive from original files, never from a previous session's copies.
+            var hofPlan = HofPlanner.Build(plan.Spec);
             artifacts.ValidateInstalled(root); trace.Write("PERMANENT_PLUGIN_INSTALLATION_VALIDATED", artifacts.IntegrityReference);
             var executableSha256 = HashFile(Path.Combine(root, "Omsi.exe"));
             // closecheck is OMSI's own crash marker. A stale one is removed when
             // the spec asks for it (a documented permanent removal), and the
             // marker OMSI writes during this session is a session artifact that
             // the transaction restores to absence.
-            var deletions = visualPlan.Deletions.ToList();
+            var deletions = visualPlan.Deletions.Concat(hofPlan.Deletions).ToList();
             var closecheck = Path.Combine(root, "closecheck");
             if (File.Exists(closecheck) && plan.Spec.Behavior.SuppressStaleClosecheckWarning) RemoveStaleClosecheck(root, session);
             if (!File.Exists(closecheck)) deletions.Add("closecheck");
-            transaction = new FileConfigurationTransaction(root, BuildTransactionalOverlays(plan.Spec, visualPlan), deletions, plan.SessionId); trace.Write("TRANSACTION_STARTED");
+            transaction = new FileConfigurationTransaction(root, BuildTransactionalOverlays(plan.Spec, visualPlan, hofPlan), deletions, plan.SessionId); trace.Write("TRANSACTION_STARTED");
             if (deferredRecovery) { await transaction.RestorePendingAsync(cancellationToken).ConfigureAwait(false); AddRestoreNotes(session, transaction); trace.Write("PENDING_JOURNAL_RECOVERED"); }
             session.Move(SessionState.Snapshotting); session.Move(SessionState.ApplyingConfiguration); await transaction.ApplyAsync(cancellationToken).ConfigureAwait(false);
             session.Move(SessionState.DeployingRuntime); await transaction.MarkStateAsync(TransactionState.RuntimeDeployed, cancellationToken).ConfigureAwait(false); trace.Write("PERMANENT_RUNTIME_READY");
-            handoff = CurrentStartupHandoffStore.Create(new StartupHandoff(plan.SessionId, plan.BuildProfileId, plan.Spec.World.Mode, plan.Spec.World.MapIdentity.Value ?? string.Empty, plan.Spec.World.PresentedEntrypointIndex.IsSet ? plan.Spec.World.PresentedEntrypointIndex.Value : -1, true, plan.Spec.PlayerVehicle.IsSet, plan.Spec.Date.Mode, plan.Spec.Time.Mode, plan.Spec.World.EntrypointIdentity.IsSet ? plan.Spec.World.EntrypointIdentity.Value! : string.Empty, plan.Spec.World.SituationIdentity.IsSet ? plan.Spec.World.SituationIdentity.Value! : string.Empty));
+            // Module session programs run before OMSI exists, on the session's
+            // own files, and OMSI starts only once they are prepared.
+            programs = ModuleSessionPrograms.Start(plan, (name, data) => session.AddRuntimeEvent(name, data), diagnostic => session.AddDiagnostic(diagnostic), (step, detail) => trace.Write(step, detail), cancellationToken);
+            var excluded = programs.Excluded;
+            handoff = CurrentStartupHandoffStore.Create(new StartupHandoff(plan.SessionId, plan.BuildProfileId, plan.Spec.World.Mode, plan.Spec.World.MapIdentity.Value ?? string.Empty, plan.Spec.World.PresentedEntrypointIndex.IsSet ? plan.Spec.World.PresentedEntrypointIndex.Value : -1, true, plan.Spec.PlayerVehicle.IsSet, plan.Spec.Date.Mode, plan.Spec.Time.Mode, plan.Spec.World.EntrypointIdentity.IsSet ? EntrypointLabel(plan) : string.Empty, plan.Spec.World.SituationIdentity.IsSet ? plan.Spec.World.SituationIdentity.Value! : string.Empty,
+                plan.EffectivePlannedModules.Where(x => x.IsEligible && !excluded.Contains(x.Id)).Select(x => new StartupModule(RuntimeModuleProtocol.ModulesDirectory + "\\" + x.Id, x.ManifestSha256!, ModuleSettingsJson(x))).ToArray(),
+                plan.Spec.EffectiveDiagnostics.PluginTrace, plan.Spec.EffectiveDiagnostics.NativeTrace,
+                plan.Spec.World.Mode == WorldMode.NewMap ? StartDateTimeResolver.Resolve(plan.Spec, DateTime.Now, out _) : null,
+                StartWeatherResolver.Resolve(plan.Spec, out _)));
+            session.PlannedModules = plan.EffectivePlannedModules.Select(x => excluded.Contains(x.Id) ? x with { Status = PlannedModule.Rejected, Code = PublicErrorCodes.MODULE_LOAD_FAILED, Reason = "its session program failed", Operations = Array.Empty<string>() } : x).ToArray();
             telemetry = CurrentTelemetryStore.Create(plan.SessionId);
             runtime = CurrentRuntimeCommandStore.Create(plan.SessionId);
             session.Move(SessionState.CreatingStartupHandoff); await transaction.MarkStateAsync(TransactionState.HandoffCreated, cancellationToken).ConfigureAwait(false); trace.Write("HANDOFF_CREATED");
             var environment = new Dictionary<string, string> { ["OMSILAUNCH_SESSION_ID"] = plan.SessionId.ToString("D"), ["OMSILAUNCH_HANDOFF_NAME"] = handoff.Name, ["OMSILAUNCH_TELEMETRY_NAME"] = telemetry.Name, ["OMSILAUNCH_RUNTIME_CHANNEL"] = runtime.Name, ["OMSILAUNCH_INTERNET_TEXTURES_MODE"] = plan.Spec.EffectiveInternetTextures.Mode.ToString() };
             session.Move(SessionState.StartingProcess); trace.Write("PROCESS_CREATE_ENTER");
             process = await platform.StartAsync(new StartupProcessRequest(Path.Combine(root, "Omsi.exe"), root, environment), executableSha256, cancellationToken).ConfigureAwait(false);
-            trace.Write("PROCESS_CREATE_RETURN", process.ProcessId.ToString()); session.Attach(process); trace.Write("PROCESS_OWNERSHIP_REGISTERED"); await transaction.RecordProcessAsync(process.Identity.ProcessId, process.Identity.CreationTimeUtc, process.Identity.ExecutablePath, cancellationToken).ConfigureAwait(false); trace.Write("JOURNAL_PROCESS_STARTED"); session.Move(SessionState.WaitingForPlugin);
+            trace.Write("PROCESS_CREATE_RETURN", process.ProcessId.ToString()); programs.NotifyOmsiStarted(process.ProcessId); session.Attach(process); trace.Write("PROCESS_OWNERSHIP_REGISTERED"); await transaction.RecordProcessAsync(process.Identity.ProcessId, process.Identity.CreationTimeUtc, process.Identity.ExecutablePath, cancellationToken).ConfigureAwait(false); trace.Write("JOURNAL_PROCESS_STARTED"); session.Move(SessionState.WaitingForPlugin);
             session.AttachRuntime(runtime); runtime = null;
-            session.LifecycleTask = Task.Run(() => SuperviseAsync(session, plan, process, lease, transaction, handoff, telemetry, trace)); trace.Write("SUPERVISOR_RUN_TASK_STARTED");
+            session.LifecycleTask = Task.Run(() => SuperviseAsync(session, plan, process, lease, transaction, handoff, telemetry, trace, programs)); trace.Write("SUPERVISOR_RUN_TASK_STARTED");
         }
         catch (Exception exception)
         {
@@ -266,6 +301,9 @@ public sealed class OmsiLaunchService : IOmsiLaunch
                 finally { process.Dispose(); }
             }
             runtime?.Dispose(); telemetry?.Dispose(); handoff?.Dispose();
+            // Session programs end before any file is restored (they may hold
+            // mapped views of installation files).
+            StopPrograms(programs, session, trace);
             if (transaction is not null && await transaction.HasPendingRecoveryAsync(CancellationToken.None).ConfigureAwait(false))
             {
                 if (process is not null && !processExited)
@@ -295,22 +333,59 @@ public sealed class OmsiLaunchService : IOmsiLaunch
         }
     }
 
-    private async Task SuperviseAsync(LiveSession session, SessionPlan plan, LaunchedProcess process, InstallationLease lease, FileConfigurationTransaction transaction, CurrentStartupHandoffStore handoff, CurrentTelemetryStore telemetry, HostTrace trace)
+    // The exact label the planner resolved for the requested entrypoint.
+    private static string EntrypointLabel(SessionPlan plan) =>
+        plan.ResolvedContent.FirstOrDefault(content => content.Kind == "entrypoint")?.DisplayName ?? throw new InvalidOperationException(PublicErrorCodes.ENTRYPOINT_NOT_FOUND);
+
+    // OMSI quits through its own exit routine (it saves options.cfg and the
+    // map's laststn.osn first); after ShutdownTimeoutSeconds the caller
+    // terminates it. The restore runs after the exit either way.
+    private async Task CooperativeExitAsync(LiveSession session, SessionPlan plan, LaunchedProcess process, HostTrace trace)
+    {
+        try
+        {
+            var result = await session.RequestRuntimeAsync(new RuntimeCommand(session.Id, ulong.MaxValue - 1, "session.close"), TimeSpan.FromSeconds(5), CancellationToken.None).ConfigureAwait(false);
+            trace.Write("COOPERATIVE_EXIT_REQUESTED", result.Succeeded ? "scheduled" : result.ErrorCode);
+            if (!result.Succeeded) { session.AddDiagnostic("OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE", "OMSI was terminated: " + result.ErrorCode); return; }
+            var until = DateTimeOffset.UtcNow.AddSeconds(Math.Clamp(plan.Spec.Behavior.ShutdownTimeoutSeconds, 1, 600));
+            while (!platform.HasExited(process) && DateTimeOffset.UtcNow < until) await Task.Delay(100).ConfigureAwait(false);
+            trace.Write(platform.HasExited(process) ? "COOPERATIVE_EXIT_COMPLETED" : "COOPERATIVE_EXIT_TIMEOUT");
+            if (!platform.HasExited(process)) session.AddDiagnostic("OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE", "OMSI did not exit within ShutdownTimeoutSeconds and was terminated.");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or TimeoutException or IOException)
+        {
+            trace.Write("COOPERATIVE_EXIT_FAILED", exception.Message);
+            session.AddDiagnostic("OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE", "OMSI was terminated: " + exception.Message);
+        }
+    }
+
+    private static void StopPrograms(ModuleSessionPrograms programs, LiveSession session, HostTrace trace)
+    {
+        try { programs.Stop(); trace.Write("MODULE_SESSION_PROGRAMS_STOPPED"); }
+        catch (Exception exception) { trace.Write("MODULE_SESSION_PROGRAMS_STOP_FAILED", exception.ToString()); session.AddDiagnostic(PublicErrorCodes.MODULE_CLEANUP_INCOMPLETE, "Module session programs: " + exception.Message); }
+    }
+
+    private async Task SuperviseAsync(LiveSession session, SessionPlan plan, LaunchedProcess process, InstallationLease lease, FileConfigurationTransaction transaction, CurrentStartupHandoffStore handoff, CurrentTelemetryStore telemetry, HostTrace trace, ModuleSessionPrograms programs)
     {
         var processExited = false;
         try
         {
             trace.Write("SUPERVISOR_ENTER");
             var deadline = DateTimeOffset.UtcNow.AddSeconds(plan.Spec.Behavior.StartupTimeoutSeconds);
-            var lastSequence = 0;
             while (!platform.HasExited(process) && !session.StopRequested)
             {
-                var sample = telemetry.ReadLatest();
-                if (sample is { } value && value.Sequence != lastSequence && !string.IsNullOrWhiteSpace(value.Payload))
+                var (events, lost) = telemetry.ReadNew();
+                if (lost > 0)
                 {
-                    lastSequence = value.Sequence;
-                    trace.Write("TELEMETRY_RECEIVED", value.Payload);
-                    ApplyTelemetry(session, value.Payload);
+                    trace.Write("TELEMETRY_LOST", lost.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    session.AddRuntimeEvent("telemetry.lost", new Dictionary<string, string>(StringComparer.Ordinal) { ["count"] = lost.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+                }
+                foreach (var (_, payload) in events)
+                {
+                    if (string.IsNullOrWhiteSpace(payload)) continue;
+                    trace.Write("TELEMETRY_RECEIVED", payload);
+                    ApplyTelemetry(session, payload);
+                    if (session.State == SessionState.Failed) break;
                 }
                 if (session.State == SessionState.Failed) break;
                 if (session.State != SessionState.Running && DateTimeOffset.UtcNow >= deadline)
@@ -321,6 +396,8 @@ public sealed class OmsiLaunchService : IOmsiLaunch
                 await Task.Delay(100).ConfigureAwait(false);
             }
             if (platform.HasExited(process) && session.State != SessionState.Running && session.State != SessionState.Failed) session.Fail("OL_E_PROCESS_EXITED_EARLY", "OMSI exited before gameplay was entered.");
+            if (!platform.HasExited(process) && session.StopRequested && session.State == SessionState.Running && plan.Spec.Behavior.CooperativeShutdown)
+                await CooperativeExitAsync(session, plan, process, trace).ConfigureAwait(false);
             if (!platform.HasExited(process)) platform.Terminate(process);
             await platform.WaitForExitAsync(process, CancellationToken.None).ConfigureAwait(false); processExited = true; await transaction.MarkStateAsync(TransactionState.ProcessExited).ConfigureAwait(false); session.Move(SessionState.ProcessExited);
         }
@@ -342,6 +419,8 @@ public sealed class OmsiLaunchService : IOmsiLaunch
         }
         finally
         {
+            // Session programs end after OMSI and before the restore.
+            StopPrograms(programs, session, trace);
             try
             {
                 if (!processExited)
@@ -368,7 +447,7 @@ public sealed class OmsiLaunchService : IOmsiLaunch
                 var data = root.TryGetProperty("data", out var rawData) && rawData.ValueKind == JsonValueKind.Object
                     ? rawData.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.ToString(), StringComparer.Ordinal)
                     : new Dictionary<string, string>(StringComparer.Ordinal);
-                session.AddRuntimeEvent(name, data);
+                session.AddRuntimeEvent(name, data, root.TryGetProperty("tick", out var tick) && tick.ValueKind == JsonValueKind.Number && tick.TryGetInt64(out var ticks) ? ticks : null);
             }
             switch (name)
             {
@@ -377,18 +456,43 @@ public sealed class OmsiLaunchService : IOmsiLaunch
                 case "gameplay.entered": session.Move(SessionState.Running); break;
                 case "plugin.handoff.invalid": session.Fail("OL_E_PLUGIN_PROTOCOL_MISMATCH", json); break;
                 case "plugin.build.invalid": session.Fail("OL_E_BUILD_VALIDATION_FAILED", json); break;
+                // Beta 4: the requested world mode needs a native capability
+                // whose targets did not resolve and verify on this OMSI build.
+                case "plugin.capability.unresolved": session.Fail("OL_E_CAPABILITY_UNRESOLVED", json); break;
                 case "headless.arm.failed": session.Fail("OL_E_HEADLESS_ARM_FAILED", json); break;
                 case "plugin.request.unsupported": session.Fail("OL_E_CAPABILITY_UNAVAILABLE", json); break;
-                case "world.failed": session.Fail("OL_E_WORLD_START_FAILED", json); break;
+                // A typed code from the plugin (for example OL_E_DATE_TIME_APPLY_FAILED) is kept.
+                case "world.failed": session.Fail(root.TryGetProperty("data", out var failure) && failure.TryGetProperty("code", out var failureCode) && failureCode.GetString() is { } typed && PublicErrorCodes.FromMessage(typed) == typed ? typed : "OL_E_WORLD_START_FAILED", json); break;
                 case "world.situation.failed": session.Fail("OL_E_SITUATION_LOAD_FAILED", json); break;
+                // Runtime modules: a failure is a status diagnostic; a module
+                // whose failure_policy is fail-session fails the session.
+                case "module.failed" or "module.load.failed": session.AddDiagnostic(ModuleDiagnostic(root, PublicErrorCodes.MODULE_PHASE_FAILED)); break;
+                case "module.cleanup" when root.TryGetProperty("data", out var cleanup) && cleanup.TryGetProperty("result", out var result) && result.GetString() == "incomplete": session.AddDiagnostic(ModuleDiagnostic(root, PublicErrorCodes.MODULE_CLEANUP_INCOMPLETE)); break;
+                case "module.session-failure": session.Fail(PublicErrorCodes.MODULE_SESSION_FAILED, json); break;
             }
         }
         catch (JsonException) { session.Fail("OL_E_PLUGIN_PROTOCOL_MISMATCH", "Invalid plugin telemetry."); }
     }
-    private static IReadOnlyDictionary<string, byte[]> BuildTransactionalOverlays(LaunchSpec spec, SessionVisualAssets.Plan? visualPlan = null)
+    // A planned module's effective settings for the handoff: a JSON object of
+    // strings, empty when the module declares none.
+    private static string ModuleSettingsJson(PlannedModule module) =>
+        module.EffectiveSettings.Count == 0 ? string.Empty : JsonSerializer.Serialize(module.EffectiveSettings.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal));
+    private static LaunchDiagnostic ModuleDiagnostic(JsonElement root, string fallbackCode)
+    {
+        var data = root.TryGetProperty("data", out var raw) && raw.ValueKind == JsonValueKind.Object
+            ? raw.EnumerateObject().ToDictionary(x => x.Name, x => x.Value.ToString(), StringComparer.Ordinal)
+            : new Dictionary<string, string>(StringComparer.Ordinal);
+        var code = data.TryGetValue("code", out var value) && PublicErrorCodes.FromMessage(value) == value ? value : fallbackCode;
+        return new(code, (data.TryGetValue("module", out var module) ? module + ": " : "") + (data.TryGetValue("detail", out var detail) ? detail : ""), data);
+    }
+    private static IReadOnlyDictionary<string, byte[]> BuildTransactionalOverlays(LaunchSpec spec, SessionVisualAssets.Plan? visualPlan = null, HofPlanner.Plan? hofPlan = null)
     {
         var overlays = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         foreach (var visual in (visualPlan ?? SessionVisualAssets.Build(spec)).Overlays) overlays.Add(visual.Key, visual.Value);
+        foreach (var hof in (hofPlan ?? HofPlanner.Build(spec)).Overlays)
+            if (!overlays.TryAdd(hof.Key, hof.Value)) throw new InvalidOperationException("OL_E_HOF_CONFLICT: " + hof.Key + " is also written by the session presentation.");
+        foreach (var document in InputDocuments.Load(spec, out var inputError))
+            if (!overlays.TryAdd(document.Target, document.Bytes)) throw new InvalidOperationException("OL_E_INVALID_ARGUMENT: " + document.Target + " is also written by another part of the session.");
         var settings = spec.Environment.General.Concat(spec.Environment.Advanced).Concat(spec.Environment.Graphics)
             .Concat(spec.Environment.AdvancedGraphics).Concat(spec.Environment.Sound).Concat(spec.Environment.AiPassengers)
             .Concat(spec.Environment.Keyboard).Concat(spec.Environment.Controllers).Where(x => x.Value.IsSet).ToArray();
@@ -424,10 +528,11 @@ public sealed class OmsiLaunchService : IOmsiLaunch
         private readonly object gate = new(); private readonly List<LaunchDiagnostic> diagnostics = new(); private readonly List<RuntimeEvent> runtimeEvents = new(); private long eventSequence; private CurrentRuntimeCommandStore? runtime; public Guid Id { get; } public SessionState State { get; private set; } = SessionState.Created; public bool StopRequested { get; private set; } public bool PluginStarted { get; private set; }
         public bool IsTerminal { get { lock (gate) return State is SessionState.Completed or SessionState.Failed; } } public Task? LifecycleTask { get; set; }
         public LiveSession(Guid id) => Id = id;
+        public IReadOnlyList<PlannedModule> PlannedModules { get; set; } = Array.Empty<PlannedModule>();
         public void Attach(LaunchedProcess process) { lock (gate) diagnostics.Add(new("process.started", process.ProcessId.ToString(), new Dictionary<string, string> { ["thread_id"] = process.ThreadId.ToString(), ["creation_utc"] = process.Identity.CreationTimeUtc.ToString("O") })); }
         public void AddDiagnostic(string code, string message) { lock (gate) diagnostics.Add(new(code, message)); }
         public void AddDiagnostic(LaunchDiagnostic diagnostic) { lock (gate) diagnostics.Add(diagnostic); }
-        public void AddRuntimeEvent(string type, IReadOnlyDictionary<string, string> data) { lock (gate) { runtimeEvents.Add(new(type, DateTimeOffset.UtcNow, ++eventSequence, data)); if (runtimeEvents.Count > 256) runtimeEvents.RemoveAt(0); } }
+        public void AddRuntimeEvent(string type, IReadOnlyDictionary<string, string> data, long? tick = null) { lock (gate) { runtimeEvents.Add(new(type, DateTimeOffset.UtcNow, ++eventSequence, data, tick)); if (runtimeEvents.Count > 256) runtimeEvents.RemoveAt(0); } }
         public void Move(SessionState state) { lock (gate) { if (State != SessionState.Failed && State != SessionState.Completed) { State = state; if (state == SessionState.PluginBootstrap) PluginStarted = true; } } }
         public void Fail(string code, string message) { lock (gate) { diagnostics.Add(new(code, message)); State = SessionState.Failed; } }
         public void RequestStop() { lock (gate) StopRequested = true; }

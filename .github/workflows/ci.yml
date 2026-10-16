@@ -1,0 +1,85 @@
+name: CI
+
+# Offline validation of every pull request and of main. It never starts OMSI
+# and never needs an OMSI installation: the suites run against fixtures.
+# Triggers are pull_request (not pull_request_target) so a pull request from a
+# fork runs without secrets and with a read-only token.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Required status check "validate": managed build and tests, native x86/x64
+  # build, the documentation gates (including the localization parity check)
+  # and the packaging regression (a candidate package under artifacts\candidate;
+  # nothing is published or deployed).
+  validate:
+    name: validate
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: |
+            8.0.x
+            6.0.x
+      # The plugin and its integration tests are x86 (OMSI is a 32-bit process).
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 6.0.x
+          architecture: x86
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      # setup-dotnet points DOTNET_ROOT at the x86 runtime it installed last, which
+      # breaks every x64 .NET process. Give each bitness its own root.
+      - name: Separate x64 and x86 .NET roots
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value 'DOTNET_ROOT=C:\Program Files\dotnet'
+          Add-Content -Path $env:GITHUB_ENV -Value 'DOTNET_ROOT(x86)=C:\Program Files\dotnet\x86'
+      # The native projects name platform toolset v145, which the hosted image's
+      # Visual Studio provides. Only an older image needs an override: set the
+      # repository variable PLATFORM_TOOLSET (for example v143).
+      - name: Offline validation
+        shell: pwsh
+        env:
+          PLATFORM_TOOLSET: ${{ vars.PLATFORM_TOOLSET }}
+        run: ./tools/Invoke-OfflineValidation.ps1 -SkipUi -PlatformToolset "$env:PLATFORM_TOOLSET"
+
+  # Required status check "commit-policy": no commit of a pull request may name
+  # Claude (or an Anthropic address) as an author or co-author.
+  commit-policy:
+    name: commit-policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Reject Claude attribution in commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          bad=0
+          for commit in $(git rev-list "$BASE_SHA..$HEAD_SHA"); do
+            if git show -s --format='%an <%ae>%n%cn <%ce>%n%B' "$commit" | grep -Eiq 'co-authored-by:.*(claude|anthropic)|noreply@anthropic\.com|generated with .*claude'; then
+              echo "::error::Commit $commit names Claude/Anthropic as author, co-author or generator."
+              bad=1
+            fi
+          done
+          exit $bad

@@ -1,6 +1,6 @@
 # Exitcodes
 
-<!-- l10n: source=reference/exit-codes.md -->
+<!-- l10n: source=reference/exit-codes.md source-sha256=e4c8d0f699c39379c1bb3c3194c29b92bf3ca4b830a086b6b3c2a104b8422cfa -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/exit-codes.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina vermeldt elke procesexitcode die `OmsiLaunch.exe` en `OmsiLaunchW.exe` kunnen retourneren: het openbare beheerde contract `PublicExitCode` (`src\OmsiLaunch.Api\PublicControlContract.cs`), de codes `100`..`106` van de native shim (`tools\OmsiLaunch.Bootstrapper\OmsiLaunch.Bootstrapper.cpp` en `OmsiLaunch.WindowsHost.cpp`) en de classificatieregels die `CliProgram.Classify` toepast op elke ontsnapte exception (`tools\OmsiLaunch.Cli\Program.cs`). Aanroepers moeten de betekenis afleiden uit de code en uit de gestructureerde fout-envelope, nooit uit de berichttekst. Foutcodes staan in de catalogus [fouten](errors.md); de opdrachten die elke code opleveren staan in de [CLI-referentie](cli.md).

@@ -1,6 +1,6 @@
 # 終了コード
 
-<!-- l10n: source=reference/exit-codes.md -->
+<!-- l10n: source=reference/exit-codes.md source-sha256=e4c8d0f699c39379c1bb3c3194c29b92bf3ca4b830a086b6b3c2a104b8422cfa -->
 > このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/exit-codes.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページでは、`OmsiLaunch.exe` と `OmsiLaunchW.exe` が返しうるすべてのプロセス終了コードを一覧します。対象は、公開マネージド契約 `PublicExitCode`（`src\OmsiLaunch.Api\PublicControlContract.cs`）、ネイティブシムのコード `100`..`106`（`tools\OmsiLaunch.Bootstrapper\OmsiLaunch.Bootstrapper.cpp` と `OmsiLaunch.WindowsHost.cpp`）、および捕捉されずに伝播した例外に `CliProgram.Classify` が適用する分類規則（`tools\OmsiLaunch.Cli\Program.cs`）です。呼び出し元は、意味をコードと構造化されたエラーエンベロープから判断しなければならず、メッセージテキストから判断してはいけません。エラーコードは[エラー](errors.md)に一覧があり、各コードを生成するコマンドは [CLI リファレンス](cli.md)にあります。

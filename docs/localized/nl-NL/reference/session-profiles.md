@@ -1,9 +1,9 @@
 # Sessieprofielen
 
-<!-- l10n: source=reference/session-profiles.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/session-profiles.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=reference/session-profiles.md source-sha256=5bc9beef6e11a8c70d3ea3056678096ccc42321393f0d09fd40217e53c271e4e -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/session-profiles.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
-Een sessieprofiel is een declaratief YAML-pakket dat een contentauteur met een kaart of add-on meelevert, zodat eindgebruikers met één opdracht een reproduceerbare OmsiLaunch-sessie kunnen starten (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..5> /new`). Deze pagina is de normatieve referentie voor het formaat `omsilaunch.session-profile/v1` zoals geïmplementeerd door `SessionProfileCompiler` in `src/OmsiLaunch.Core/SessionProfiles.cs`, voor de voorrangsregels die de CLI toepast (`CliInput.BuildSpecAsync` en `RejectProfileConflicts` in `tools/OmsiLaunch.Cli/Program.cs`) en voor de catalogus van instellingen die een profiel mag schrijven (`ConfigurationCatalog`). Alles wat een profiel kan, kunnen de CLI-vlaggen en de [LaunchSpec](launchspec.md) ook; een profiel verpakt alleen die keuzes.
+Een sessieprofiel is een declaratief YAML-pakket dat een contentauteur met een kaart of add-on meelevert, zodat eindgebruikers met één opdracht een reproduceerbare OmsiLaunch-sessie kunnen starten (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..99> /new`). Deze pagina is de normatieve referentie voor het formaat `omsilaunch.session-profile/v1` zoals geïmplementeerd door `SessionProfileCompiler` in `src/OmsiLaunch.Core/SessionProfiles.cs`, voor de voorrangsregels die de CLI toepast (`CliInput.BuildSpecAsync` en `RejectProfileConflicts` in `tools/OmsiLaunch.Cli/Program.cs`) en voor de catalogus van instellingen die een profiel mag schrijven (`ConfigurationCatalog`). Alles wat een profiel kan, kunnen de CLI-vlaggen en de [LaunchSpec](launchspec.md) ook; een profiel verpakt alleen die keuzes.
 
 Stabiliteit: `STABLE_BETA` voor parsing, validatie, conflictdetectie en de blokken `settings` / `presentation` / `internet-textures` / `behavior` (offline test `session-profiles.strict-compiler`; het overlay- en herstelpad is runtime-gevalideerd door RV-005 en RV-006, zie [status van de runtimevalidatie](../status/runtime-validation-status.md)). De sleutels `new.date`, `new.time`, `new.year` en `new.weather` zijn in deze build `UNAVAILABLE` (zie [Het `new`-blok](#new)).
 
@@ -57,7 +57,7 @@ Contexten worden precies zo genoemd als de compiler ze noemt. Elke hier vermelde
 | `version` | string | ja | Versiestring van het pakket (vrije vorm, zet deze tussen aanhalingstekens: `"1.0"`); gerapporteerd in `SessionProfileMetadata.Version`. |
 | `compatibility` | mapping | nee | Zie `compatibility`. |
 | `new` | mapping | nee | Standaardwaarden voor NEW_MAP. Zie `new`. |
-| `presets` | sequence van mappings | ja | 1 tot 5 presetvermeldingen. Nul, meer dan vijf of een waarde die geen sequence is, geeft `OL_E_SESSION_PROFILE_INVALID`. |
+| `presets` | sequence van mappings | ja | 1 tot 99 presetvermeldingen. Nul, meer dan 99 of een waarde die geen sequence is, geeft `OL_E_SESSION_PROFILE_INVALID`. |
 
 ### `compatibility`
 
@@ -73,13 +73,13 @@ Het blok wordt gelezen en gevalideerd zodra het aanwezig is, maar wordt alleen o
 | --- | --- | --- | --- | --- |
 | `map` | string | nee | ja | Kaartidentiteit in de genormaliseerde vorm `maps\<Map>\global.cfg` (het plannen vereist precies deze vorm: begint met `maps\`, eindigt op `\global.cfg`, geen `..`). Stelt `WorldSpec.MapIdentity` in. |
 | `entrypoint-index` | integer | nee | ja | Index van het getoonde instappunt (0-gebaseerde positie in de lijst met instappunten van OMSI). Stelt `PresentedEntrypointIndex` in en wist een eventuele instappuntidentiteit. |
-| `entrypoint` | string | nee | ja | Onbewerkte instappuntidentiteit. Stelt `EntrypointIdentity` in en wist de getoonde index. Als zowel `entrypoint-index` als `entrypoint` aanwezig zijn, wint `entrypoint` omdat die als laatste wordt toegepast. Selectie op instappuntidentiteit is `PARTIAL` (BI-001): het plannen rapporteert `world.entrypoint-identity` als `RUNTIME_PARTIAL` en het plan is niet uitvoerbaar. Gebruik bij voorkeur `entrypoint-index`. |
+| `entrypoint` | string | nee | ja | Onbewerkte instappuntidentiteit. Stelt `EntrypointIdentity` in en wist de getoonde index. Als zowel `entrypoint-index` als `entrypoint` aanwezig zijn, wint `entrypoint` omdat die als laatste wordt toegepast. De waarde is een exact (hoofdlettergevoelig) label of een detectie-identiteit; OMSI toont alleen het eerste record van elk label (`world.entrypoint-identity`, `EXPERIMENTAL`). |
 | `date` | mapping | nee | nee (`UNAVAILABLE`) | Zie `new.date`. |
 | `time` | mapping | nee | nee (`UNAVAILABLE`) | Zie `new.time`. |
 | `year` | integer | nee | nee (`UNAVAILABLE`) | Expliciet jaar. |
 | `weather` | mapping | nee | nee (`UNAVAILABLE`) | Zie `new.weather`. |
 
-`date`, `time`, `year` en `weather` worden gecompileerd naar `DateSpec`, `TimeSpec`, `YearSpec` en `WeatherSpec` met `DateTimeMode.Explicit` / de geselecteerde `WeatherMode`. De sessieplanner (`src/OmsiLaunch.Core/SessionPlanner.cs`) rapporteert vervolgens de capabilities `world.explicit-date`, `world.explicit-time`, `world.explicit-year` en `weather` als `STATICALLY_PARTIAL`, voegt `OL_E_CAPABILITY_UNAVAILABLE` toe aan de plandiagnoses en markeert het plan als **niet uitvoerbaar**. De plugin weigert bovendien een handoff waarvan de datum- of tijdmodus niet `Unset` is (`plugin.request.unsupported`). Gevolg voor deze build: een profiel dat een van deze vier sleutels instelt, kan met `/plan` worden gevalideerd maar kan geen sessie starten (exitcode 1, `OL_E_PLAN_NOT_RUNNABLE`). Laat ze weg uit profielen die bedoeld zijn om te starten.
+`date`, `time`, `year` en `weather` worden gecompileerd naar `DateSpec`, `TimeSpec`, `YearSpec` en `WeatherSpec` met `DateTimeMode.Explicit` / de geselecteerde `WeatherMode`. De sessieplanner (`src/OmsiLaunch.Core/SessionPlanner.cs`) vereist vervolgens `world.explicit-date`, `world.explicit-time`, `world.explicit-year` en `world.weather`; alle vier zijn `EXPERIMENTAL` (statisch afgesloten, runtimevalidatie in afwachting). De start-datum/-tijd geldt alleen voor NEW_MAP; het weer geldt voor elke wereldmodus.
 
 #### `new.date`
 
@@ -108,13 +108,15 @@ Het blok wordt gelezen en gevalideerd zodra het aanwezig is, maar wordt alleen o
 
 | Sleutel | Type | Verplicht | Standaard | Beschrijving |
 | --- | --- | --- | --- | --- |
-| `index` | integer | ja | | 1 tot 5, uniek binnen het profiel. Geselecteerd met `/predefined-profile-index`. Dubbel of buiten bereik: `OL_E_SESSION_PROFILE_INVALID`; een index die nergens in het profiel voorkomt: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
+| `index` | integer | ja | | 1 tot 99, uniek binnen het profiel; indexen hoeven niet aaneensluitend te zijn. Geselecteerd met `/predefined-profile-index`. Dubbel of buiten bereik: `OL_E_SESSION_PROFILE_INVALID`; een index die nergens in het profiel voorkomt: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
 | `id` | string | ja | | Preset-id; gerapporteerd als `SessionProfileMetadata.PresetId`. |
 | `name` | string | ja | | Weergavenaam van de preset; gerapporteerd als `SessionProfileMetadata.PresetName`. |
 | `settings` | mapping | nee | geen | Semantische instellingen van `options.cfg`, zie [Instellingen](#settings). Sleutels worden niet hoofdlettergevoelig vergeleken met de catalogus. |
 | `presentation` | mapping | nee | overerven | Presentatie van het opstartscherm, zie `presentation`. Wanneer afwezig, erft de preset de basislijn (waarde uit `/spec` of de standaard van de CLI, `Managed`). |
 | `internet-textures` | mapping | nee | overerven | Zie `internet-textures`. |
 | `behavior` | mapping | nee | overerven | Timeouts, zie `behavior`. |
+| `hofs` | sequence van mappings | nee | overerven | HOF-bewerkingen voor de sessie, zie `hofs`. Wanneer aanwezig vervangen ze de `HofManagement` van de basislijn. |
+| `modules` | mapping | nee | overerven | Runtimemodules, zie `modules`. Samengevoegd met wat een `/spec`-bestand aanvraagt. |
 
 Alleen de geselecteerde preset wordt toegepast. Elke preset wordt wel geparseerd en gevalideerd, dus een fout in preset 3 laat een aanvraag voor preset 1 mislukken.
 
@@ -149,6 +151,45 @@ Een profiel kan `SessionPresentationSpec.SuppressTrayIcon` niet instellen; de wa
 | `shutdown-timeout` | integer (seconden) | nee | 30 | Komt overeen met `LaunchBehaviorSpec.ShutdownTimeoutSeconds`. ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT: de supervisor beëindigt OMSI direct en leest deze waarde nooit. |
 
 Wanneer het `behavior`-blok aanwezig is, worden beide timeouts ingesteld (opgegeven waarde of standaard) en vervangen ze de `LaunchBehaviorSpec` van de basislijn volledig, inclusief `RestoreConfiguration` en `SuppressStaleClosecheckWarning`, die terugvallen op hun standaardwaarden (`true`, `true`).
+
+### `hofs`
+
+Elke vermelding is één bewerking voor [HOF-beheer](hof-management.md) en noemt precies één bronsleutel (`package`, `collection`, `directory`, `vehicle` of `file`); nul of meerdere: `OL_E_SESSION_PROFILE_INVALID`. Het bestaan van bronnen en doelen wordt gecontroleerd wanneer de sessie wordt gepland (`OL_E_HOF_*`), behalve voor `package`.
+
+| Sleutel | Type | Verplicht | Standaard | Beschrijving |
+| --- | --- | --- | --- | --- |
+| `package` | string | één bronsleutel | | Map **relatief aan het pakket** met de `.hof`-bestanden die het profiel meelevert. Moet bestaan bij het laden van het profiel (`OL_E_SESSION_PROFILE_ASSET_MISSING`); de regels voor padbeperking gelden. Wordt een bron `Directory`. |
+| `collection` | string | één bronsleutel | | Naam van een collectie onder `.omsilaunch\hof\`. |
+| `directory` | string | één bronsleutel | | Map relatief aan de installatie, bijvoorbeeld naast kaartcontent. |
+| `vehicle` | string | één bronsleutel | | Voertuigidentiteit of map waarvan de HOF's worden gekopieerd. |
+| `file` | string | één bronsleutel | | `.hof`-bestand relatief aan de installatie. |
+| `targets` | sequence van strings | ja | | Doelvoertuigen (identiteiten of mappen onder `Vehicles\`). Ontbrekend of leeg: `OL_E_SESSION_PROFILE_INVALID`. |
+| `files` | sequence van strings | nee | alle | Bestandsnamen die uit de bron worden genomen. |
+| `mode` | string | nee | `add` | `add` of `mirror` (niet hoofdlettergevoelig); anders: `OL_E_SESSION_PROFILE_INVALID`. |
+
+Een preset met `hofs` in combinatie met een vlag `/hof-source`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`.
+
+### `modules`
+
+Eén vermelding per [runtimemodule](../../../reference/runtime-modules.md)-id (`EXPERIMENTAL`). Elke vermelding is een mapping met deze sleutels (context `module`):
+
+| Sleutel | Type | Verplicht | Standaard | Beschrijving |
+| --- | --- | --- | --- | --- |
+| `enabled` | `true` of `false` | nee | niet ingesteld | `true` vraagt de module aan (`LaunchSpec.Modules.Enable`); `false` houdt haar buiten de sessie, ook een module die standaard, door zijn kaart of door het instellingenbestand wordt geladen (`LaunchSpec.Modules.Disable`). |
+| `settings` | mapping | nee | geen | Moduleinstellingen per sleutel (`LaunchSpec.Modules.Settings` als `<id>.<key>`). De waarden worden bij het plannen van de sessie gecontroleerd tegen de gedeclareerde instellingen van de module (`OL_E_MODULE_SETTING_INVALID`). |
+
+```yaml
+modules:
+  example-preload:
+    enabled: true
+    settings:
+      ram_budget_mb: 8192
+      monitor: false
+  example-hud:
+    enabled: false
+```
+
+Een module-id die niet `[a-z0-9][a-z0-9-]{1,47}` is, een `enabled` anders dan `true` of `false`, of een instellingssleutel die niet `[a-z][a-z0-9_]{0,31}` is: `OL_E_SESSION_PROFILE_INVALID`. Een module die niet is geïnstalleerd, wordt gemeld wanneer de sessie wordt gepland (`OL_E_MODULE_NOT_FOUND` voor `enabled: true`, `OL_W_MODULE_SETTING_IGNORED` voor alleen instellingen).
 
 <a id="settings"></a>
 ## Instellingen
@@ -252,6 +293,9 @@ Een CLI-argument dat een veld raakt dat het geselecteerde profiel beheert, is ee
 | `/splash`, `/splash-language`, `/splash-assets` | `presentation` (elke) | elke |
 | `/internet-textures`, `/internet-textures-profile` | `internet-textures` (elke) | elke |
 | `/startup-timeout`, `/shutdown-timeout` | `behavior` (elke) | elke |
+| `/module:<id>` | `modules.<id>.enabled: false` | elke |
+| `/no-module:<id>` | `modules.<id>.enabled: true` | elke |
+| `/module-setting:<id>.<key>=...` of een modulevlag | `modules.<id>.settings.<key>` | elke |
 
 Geen conflicten: `/set`-sleutels die de preset niet definieert (ze worden toegevoegd), voertuigvlaggen (`/vehicle`, `/repaint`, `/hof`, `/fleet`, `/registration`, `/no-vehicle`; een profiel kan geen spelersvoertuig definiëren) en elk wereldargument onder `/saved` (het `new`-blok wordt daar niet toegepast). `/map`, `/entrypoint` en `/entrypoint-index` zijn ongeldig in combinatie met `/saved`, ongeacht profielen (`OL_E_INVALID_ARGUMENT`).
 
@@ -264,7 +308,7 @@ Geen conflicten: `/set`-sleutels die de preset niet definieert (ze worden toegev
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | `id` is geen gewone mapnaam; `assets` / `profile` verlaat het pakket of doorloopt een reparsepunt | 2 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` is niet `omsilaunch.session-profile/v1` | 2 |
 | `OL_E_SESSION_PROFILE_INVALID` | groottelimiet, documentvorm, anchors, onbekende sleutel, ontbrekende verplichte sleutel, niet-scalaire waarde, ongeldig getal/datum/tijd, `id` komt niet overeen, regels voor aantal/index van presets, niet-ondersteunde moduswoorden, niet-positieve timeout, `presentation` zonder `splash`, `override` zonder `profile` | 2 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` ontbreekt, ligt buiten 1..5, of er is geen preset met die `index` | 2 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` ontbreekt, ligt buiten 1..99, of er is geen preset met die `index` | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | een sleutel in `settings` staat niet in de catalogus | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | een sleutel in `settings` staat in de catalogus maar is alleen-lezen | 2 |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | de map `assets` of het bestand `profile` bestaat niet binnen het pakket | 2 |
@@ -272,6 +316,15 @@ Geen conflicten: `/set`-sleutels die de preset niet definieert (ze worden toegev
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | een expliciet CLI-argument raakt een veld dat het profiel beheert | 2 |
 
 Al deze fouten worden gegenereerd terwijl de opdrachtregel wordt gecompileerd, vóór het plannen. Het zijn `SessionProfileException` (of `ArgumentException` voor het conflict) en ze starten nooit een sessie. De volledige catalogus staat in [foutcodes](errors.md); exitcodes in [exitcodes](exit-codes.md).
+
+<a id="discovering-installed-profiles"></a>
+## Geïnstalleerde profielen ontdekken
+
+`OmsiLaunch.exe /list:SessionProfiles` (API `ListSessionProfilesAsync`) compileert elk pakket onder `.omsilaunch\session-profiles\` en drukt één vermelding per pakket af: `Id`, `Name`, `Version`, `Author`, `CompatibleMaps`, `MapIdentity` en de `Presets` (`Index`, `Id`, `Name`) in volgorde van index. Een pakket dat niet compileert, wordt toch vermeld, met `IsValid: false` en dezelfde code `OL_E_SESSION_PROFILE_*` die een start zou melden. Er wordt niets geschreven.
+
+```text
+OmsiLaunch.exe /list:SessionProfiles --json
+```
 
 <a id="how-a-profile-appears-in-the-api"></a>
 ## Hoe een profiel in de API verschijnt

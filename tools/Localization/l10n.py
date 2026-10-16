@@ -6,9 +6,11 @@ docs/localized/<locale>/ with the same relative path.
 
 Commands (run from the repository root):
 
-  python tools/Localization/l10n.py finalize <locale> [page ...]
+  python tools/Localization/l10n.py finalize <locale> [page ...] [--source-current]
       Idempotent post-processing of translated pages: inserts the translation
-      banner, inserts an explicit <a id="english-slug"></a> anchor before every
+      banner (which records the SHA-256 of the English source the translation
+      follows; kept as is unless --source-current is given, which records the
+      current English page: use it only after the translation matches it), inserts an explicit <a id="english-slug"></a> anchor before every
       heading (so English anchors keep working after the heading text is
       translated) and rewrites relative links that leave the localized page set
       so they point to the English page.
@@ -17,7 +19,9 @@ Commands (run from the repository root):
       Structural parity with the English page: same heading levels, identical
       fenced code blocks, same table rows and cell counts, every inline code
       span of the English page present, the same link destinations, every
-      relative link resolving, banner present. Exit 1 on any problem.
+      relative link resolving, banner present, and the recorded English source
+      hash equal to the current English page (a stale translation fails even
+      when only prose changed). Exit 1 on any problem.
 
   python tools/Localization/l10n.py leak <locale|all>
       Heuristic report of untranslated English prose and of cross-locale
@@ -29,6 +33,7 @@ Commands (run from the repository root):
 
 Human prose is never compared textually.
 """
+import hashlib
 import io
 import json
 import os
@@ -43,6 +48,7 @@ PAGES = CONFIG["pages"]
 LOCALES = [l["id"] for l in CONFIG["locales"]]
 GENERATED = {"reference/public-api-inventory.md"}
 BANNER_MARK = "<!-- l10n:"
+SOURCE_SHA = re.compile(r"source-sha256=([0-9a-f]{64}|unknown)")
 ALLOW_PENDING = False
 
 FENCE = re.compile(r"^(\s*)(```+|~~~+)(.*)$")
@@ -193,13 +199,27 @@ def english_logical(page, target):
 
 
 # ---------------------------------------------------------------- finalize
-def banner(locale, page):
+def source_sha(page):
+    """SHA-256 of the English page as the documentation gate computes it."""
+    text = io.open(english_path(page), encoding="utf-8-sig").read().replace("\r\n", "\n")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def recorded_sha(text):
+    for line in text.split("\n"):
+        if line.startswith(BANNER_MARK):
+            m = SOURCE_SHA.search(line)
+            return m.group(1) if m else None
+    return None
+
+
+def banner(locale, page, sha):
     cfg = locale_config(locale)
     source = os.path.relpath(english_path(page), os.path.dirname(localized_path(locale, page))).replace(os.sep, "/")
-    return BANNER_MARK + " source=" + page + " -->\n> " + cfg["banner"].replace("{source}", source) + "\n"
+    return BANNER_MARK + " source=" + page + " source-sha256=" + sha + " -->\n> " + cfg["banner"].replace("{source}", source) + "\n"
 
 
-def finalize(locale, pages):
+def finalize(locale, pages, source_current=False):
     loc_file_set = {p for p in PAGES}
     for page in pages:
         path = localized_path(locale, page)
@@ -207,6 +227,7 @@ def finalize(locale, pages):
             print("MISSING", locale, page)
             continue
         text = read(path).replace("\r\n", "\n")
+        sha = source_sha(page) if source_current else (recorded_sha(text) or "unknown")
         # 1. remove previous banner and anchors (idempotence)
         lines = text.split("\n")
         while any(l.startswith(BANNER_MARK) for l in lines):
@@ -272,7 +293,7 @@ def finalize(locale, pages):
         # 4. banner after the H1 line
         lines = text.split("\n")
         idx = next((i for i, l in enumerate(lines) if HEADING.match(l)), 0)
-        lines[idx + 1:idx + 1] = ["", banner(locale, page).rstrip("\n")]
+        lines[idx + 1:idx + 1] = ["", banner(locale, page, sha).rstrip("\n")]
         text = "\n".join(lines).rstrip("\n") + "\n"
         text = re.sub(r"\n{3,}", "\n\n", text)
         write(path, text)
@@ -314,6 +335,8 @@ def check_page(locale, page):
     en = read(english_path(page)).replace("\r\n", "\n")
     if BANNER_MARK not in loc:
         problems.append("translation banner missing (run finalize)")
+    elif recorded_sha(loc) != source_sha(page):
+        problems.append("stale translation: the English page changed since it was translated (update it, then finalize with --source-current)")
     loc_body = strip_l10n(loc)
     eh, lh = headings(en), headings(loc_body)
     if [h[0] for h in eh] != [h[0] for h in lh]:
@@ -444,6 +467,8 @@ def inventory(locales):
         for k, v in ph["members"].items():
             text = text.replace("| " + k + " | `", "| " + v + " | `")
         write(localized_path(locale, "reference/public-api-inventory.md"), text)
+        # Generated from the current English inventory, so it is current by construction.
+        finalize(locale, ["reference/public-api-inventory.md"], source_current=True)
         print("inventory", locale)
 
 
@@ -457,13 +482,14 @@ def main(argv):
         return 2
     global ALLOW_PENDING
     ALLOW_PENDING = "--allow-pending" in argv
-    argv = [a for a in argv if a != "--allow-pending"]
+    source_current = "--source-current" in argv
+    argv = [a for a in argv if a not in ("--allow-pending", "--source-current")]
     cmd, target = argv[0], argv[1]
     locales = LOCALES if target == "all" else [target]
     pages = argv[2:] or PAGES
     if cmd == "finalize":
         for l in locales:
-            finalize(l, pages)
+            finalize(l, pages, source_current)
         return 0
     if cmd == "check":
         return 1 if check(locales, pages) else 0

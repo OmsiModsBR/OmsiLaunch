@@ -1,9 +1,9 @@
 # エラーコードと診断コード
 
-<!-- l10n: source=reference/errors.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/errors.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/errors.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-このページは `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）に含まれるすべてのコードの規範的なリファレンスです。対象はカタログのカテゴリ別に分類した 142 個の `OL_E_` エラーコードと 1 個の `OL_W_` 警告、およびエラーではない情報提供用の診断コードです。各コードについて、現在のコードのどこで発生するか、何を意味するか、どのような形で呼び出し元に届くか（スローされる例外、結果フィールド、診断、コントロールプレーンの応答、CLI エンベロープ）、そしてどう対処すべきかを示します。意味は発生箇所から導いています。コードが定義されているものの現在は発生経路がない場合は、その旨を記載しています。
+このページは `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）に含まれるすべてのコードの規範的なリファレンスです。対象はカタログのカテゴリ別に分類した 167 個の `OL_E_` エラーコードと 4 個の `OL_W_` 警告、およびエラーではない情報提供用の診断コードです。各コードについて、現在のコードのどこで発生するか、何を意味するか、どのような形で呼び出し元に届くか（スローされる例外、結果フィールド、診断、コントロールプレーンの応答、CLI エンベロープ）、そしてどう対処すべきかを示します。意味は発生箇所から導いています。コードが定義されているものの現在は発生経路がない場合は、その旨を記載しています。
 
 関連ページ: [公開 API](public-api.md)、[終了コード](exit-codes.md)、[LaunchSpec](launchspec.md)、[セッションのライフサイクル](../concepts/session-lifecycle.md)、[トランザクションとリカバリ](../concepts/transactions-and-recovery.md)、[ローカルコントロールプレーン](local-control.md)、[ランタイム制御](runtime-control.md)、[セッションプロファイル](session-profiles.md)、[常駐プラグイン](../concepts/permanent-plugin.md)。
 
@@ -16,7 +16,7 @@
 | プラン診断 | `SessionPlan.Diagnostics` 内の `LaunchDiagnostic` です。`OL_E_` コードが 1 つでもあると `IsRunnable` が false になります（CLI: プランは `NOT RUNNABLE`、終了コード 1）。 |
 | セッション診断 | `SessionStatus.Diagnostics` 内の `LaunchDiagnostic` です。セッション状態は `Failed` になります（CLI 終了コード 1）。`OL_E_START_SESSION`、`OL_E_PROCESS_SUPERVISION`、`OL_E_RESTORE_FAILED` はメッセージ内に内側のコードを包んでいます。 |
 | ランタイム結果 | `Succeeded = false` を伴う `RuntimeCommandResult.ErrorCode` です。 |
-| ランタイム詳細 | `RuntimeCommandResult.ErrorCode = OL_E_RUNTIME_OPERATION_FAILED` で、具体的なコードが `Values["detail"]` の先頭トークンとして入ります（`Values["exception"]` を伴います）。プラグイン側の `InvalidOperationException`/`ArgumentException` のコードはすべてこの形で表面化します。 |
+| ランタイム詳細 | `RuntimeCommandResult.ErrorCode` が具体的なコードで、`Values["detail"]` がメッセージです（`Values["exception"]` は .NET の型）。Beta 4: プラグイン側の型付きコードは API と CLI にそのまま届きます。カタログに載っているコードを持たない失敗のみが `OL_E_RUNTIME_OPERATION_FAILED` になります。 |
 | コントロール応答 | ローカルコントロールプレーンの応答（`LocalControlResponse`）の `ErrorCode` です。 |
 | CLI エンベロープ | `--json` エンベロープ内の `error.code`、またはコンソール上の `<code>: <message>` です。終了コードも示されます。 |
 | テレメトリ | ホストがセッション診断に対応付けるランタイムイベント名です。 |
@@ -35,8 +35,9 @@
 
 | コード | 発生元 | 意味 / 典型的な原因 | 経路 | 対処 |
 | --- | --- | --- | --- | --- |
-| `OL_E_BUILD_VALIDATION_FAILED` | `plugin.build.invalid` 受信時の `OmsiLaunchService.ApplyTelemetry` | ホストは実行ファイルを受け入れましたが、プラグインのプロセス内ビルドチェック（プロファイル `Omsi23004_692EBFBF` とネイティブ VMT プローブ）が失敗しました。たとえば、許可リストに含まれる Steam LAA ビルドでメモリ上のレイアウトが異なる場合や、パッチが適用された OMSI の場合です。 | セッション診断（`Failed`） | ランタイム検証済みのビルドを使用してください。[互換性](compatibility.md)を参照してください。 |
-| `OL_E_UNSUPPORTED_BUILD` | `SessionPlanner`（`omsi.profile.OMSI23004` が利用不可） | `Omsi.exe` が存在しないか、そのサイズ/SHA-256 がプロファイルのフィンガープリントにも許可リストにも一致しません。 | プラン診断 | サポートされている OMSI 2.3.004 ビルドをインストールしてください。 |
+| `OL_E_BUILD_VALIDATION_FAILED` | `plugin.build.invalid` 受信時の `OmsiLaunchService.ApplyTelemetry` | 開始ケイパビリティは解決されましたが、プラグインがヘッドレス開始を準備する時点で、実際の Start フォームまたはそのフックサイトの 1 つが期待された状態にありません（たとえば別のプラグインがすでにパッチを当てている場合）。 | セッション診断（`Failed`） | 競合するプラグインを取り除いてください。[互換性](compatibility.md)を参照してください。 |
+| `OL_E_CAPABILITY_UNRESOLVED` | プラグイン（開始時の `plugin.capability.unresolved`、ランタイム操作） | リクエストが必要とするネイティブケイパビリティを、この OMSI ビルドで解決して検証できなかったため、利用できません。開始時はフックの前にセッションが失敗し、ファイルは復元されます。ランタイム操作は OMSI のメモリに触れることなく拒否されます。`Data["capability"]`（ランタイム）またはテレメトリの `capabilities` 値がそれを示します。 | セッション診断（`Failed`）、ランタイム結果 | [互換性](compatibility.md)を参照してください。このビルドではそのケイパビリティは利用できません。 |
+| `OL_E_UNSUPPORTED_BUILD` | `SessionPlanner`（`omsi.omsi2` が利用不可） | インストール環境が OMSI 2 のものではありません。`Omsi.exe` が存在しない、32 ビット x86 の PE イメージではない、OMSI 2（2.x）のバージョンを持たない、またはルートに `maps\` か `Vehicles\` ディレクトリがありません。実行ファイルのハッシュは基準ではありません。 | プラン診断 | OmsiLaunch を OMSI 2 のインストールルートに向けてください。 |
 | `OL_E_UNSUPPORTED_OPERATING_SYSTEM` | `SessionPlanner`（`runtime.current-windows-x64` が利用不可）。`CurrentWindowsX64Platform.ValidateCurrent` からもスローされますが、サービスはこれを呼び出しません | Windows 10 以降ではないか、OS またはホストプロセスが x64 ではありません。 | プラン診断（スローされた場合は CLI 終了コード 3） | 64 ビット版 Windows 10 以降で実行してください。 |
 | `OL_E_UNSUPPORTED_OS_ARCHITECTURE` | `CurrentWindowsX64Platform.ValidateCurrent` のみ | OS またはホストのアーキテクチャが x64 ではありません。サービスは `ValidateCurrent` を呼び出さないため、現在の発生経路はありません。 | そのメソッドからのスロー（`PlatformNotSupportedException`）のみ | ソース `src/OmsiLaunch.Process/RuntimePlatform.cs` を参照してください。 |
 
@@ -44,9 +45,16 @@
 
 | コード | 発生元 | 意味 / 典型的な原因 | 経路 | 対処 |
 | --- | --- | --- | --- | --- |
-| `OL_E_ENTRYPOINT_NOT_FOUND` | `LaunchValidation` | NEW_MAP で `EntrypointIdentity` がなく、`PresentedEntrypointIndex` が未設定または負の値です。 | プラン診断 | `PresentedEntrypointIndex`（`/entrypoint-index:<n>`）を設定してください。エントリポイントは `/list:entrypoints /map:<id>` で確認できます。 |
+| `OL_E_ENTRYPOINT_NOT_FOUND` | `LaunchValidation`、`SessionPlanner` | 検証: NEW_MAP で `EntrypointIdentity` がなく、`PresentedEntrypointIndex` が未設定または負の値です。プランナー: 要求された識別子または正確な（大文字と小文字を区別する）ラベルを持つエントリポイントがマップにありません。 | プラン診断 | `PresentedEntrypointIndex`（`/entrypoint-index:<n>`）を設定するか、`/list:entrypoints /map:<id>` の識別子を使用してください。 |
+| `OL_E_WEATHER_INVALID` | `SessionPlanner`（`StartWeatherResolver`） | 開始時の天候を適用できません。インストール環境の `weather` フォルダーのファイルではないプリセット、または 4 文字の英字か数字ではない ICAO です。 | プラン診断 | インストール済みのプリセットか有効な観測所コードを使用してください。 |
+| `OL_E_ENTRYPOINT_NOT_PRESENTED` | `SessionPlanner` | 要求されたエントリポイントが、マップ内の先行するレコードとラベルを共有しています。OMSI は各ラベルの最初のレコードだけを提示するため、開始時に選択できません。 | プラン診断 | そのラベルの最初のレコード、または別のエントリポイントを選択してください。 |
 | `OL_E_ENTRYPOINT_REQUIRED` | `SessionPlanner`（`world.presented-entrypoint` が利用不可） | NEW_MAP のマップは解決されましたが、提示インデックスも識別子もありません。常に `OL_E_ENTRYPOINT_NOT_FOUND` と同時に発生します。 | プラン診断 | 同上。 |
 | `OL_E_HOF_NOT_FOUND` | `SessionPlanner` | `PlayerVehicle.Hof` がインストール済みの `Vehicles\...\*.hof` ではありません。 | プラン診断 | `/list:hofs` で得た識別子を使用してください。（いずれにせよ、このビルドではプレイヤー車両のフィールドは実行不可です。） |
+| `OL_E_HOF_SOURCE_NOT_FOUND` | `HofPlanner` | [HOF 管理](hof-management.md)のソース（コレクション、ディレクトリ、車両、またはファイル）が存在しない、`.hof` がない、または `Files` で指定されたファイルがありません。 | プラン診断、開始の失敗 | ソースまたはファイルリストを修正してください。 |
+| `OL_E_HOF_TARGET_NOT_FOUND` | `HofPlanner` | HOF のターゲットの車両ファイルまたはフォルダーがインストールされていません。 | プラン診断、開始の失敗 | `/list:vehicles` の車両 ID か、`Vehicles\` 配下の既存のフォルダーを使用してください。 |
+| `OL_E_HOF_PATH_ESCAPE` | `HofPlanner` | HOF のパスがインストール環境の外に出る、ターゲットが `Vehicles\` 配下にない、コレクション名が単純な名前ではない、またはジャンクション/シンボリックリンクをたどっています。 | プラン診断、開始の失敗 | `..` やリンクを含まない、インストール環境からの相対パスを使用してください。 |
+| `OL_E_HOF_CONFLICT` | `HofPlanner`、`OmsiLaunchService` | 2 つの HOF 操作が 1 つのファイルに異なるバイト列を書き込む、またはミラーが別の操作が書き込むファイルを削除します。 | プラン診断、開始の失敗 | 競合する操作の順序を変える、分割する、または削除してください。 |
+| `OL_E_HOF_INVALID` | `HofPlanner` | ターゲットまたはソースのない HOF 操作、`.hof` ではないファイルソース、`.bus`/`.ovh` ではないターゲットファイル、またはサイズ/件数の上限（1 ファイルあたり 8 MiB、1 操作あたり 256 ファイル、1 セッションあたり 256 MiB）の超過です。 | プラン診断、開始の失敗 | 操作を修正してください。 |
 | `OL_E_MAP_NOT_FOUND` | `LaunchValidation`、`SessionPlanner` | 検証: NEW_MAP で `MapIdentity` が未設定、または `maps\<dir>\global.cfg` の形式ではありません。プランナー: マップがインストールされていません。 | プラン診断 | `/list:maps` で得た識別子を使用してください。 |
 | `OL_E_NOT_FOUND` | `CliProgram.Classify` | コードを持たない `FileNotFoundException`/`DirectoryNotFoundException` が外部に漏れました。たとえば、未知の `/vehicle-scope` を指定した `/list:repaints` や、未知の `/map` を指定した `/list:entrypoints` です。 | CLI エンベロープ、終了コード 6 | 識別子を修正してください。 |
 | `OL_E_REPAINT_NOT_FOUND` | `SessionPlanner` | `PlayerVehicle.Repaint` がモデルの `.cti` 項目ではありません（`Model` が設定されている場合のみチェックされます）。 | プラン診断 | `/list:repaints /vehicle-scope:<bus>` で得た識別子を使用してください。 |
@@ -132,7 +140,7 @@
 
 ## Runtime
 
-「ランタイム詳細」とは、`ErrorCode = OL_E_RUNTIME_OPERATION_FAILED` で、コードが `Values["detail"]` の先頭にあることを意味します。
+「ランタイム詳細」とは、具体的なコードが `ErrorCode` に入り、メッセージが `Values["detail"]`、例外の型が `Values["exception"]` に入ることを意味します。
 
 | コード | 発生元 | 意味 / 典型的な原因 | 経路 | 対処 |
 | --- | --- | --- | --- | --- |
@@ -170,11 +178,13 @@
 | `OL_E_RUNTIME_REQUEST_ID_REUSED` | `CurrentRuntimeCommandStore.RequestAsync` | 新しいリクエストと同じリクエスト ID を持つ古い応答がスロットに残っています。エラーの発生前に古い応答はクリアされます。 | スロー（`InvalidOperationException`） | 厳密に増加するリクエスト ID を使用してください。 |
 | `OL_E_RUNTIME_REQUEST_TIMEOUT` | `CurrentRuntimeCommandStore.RequestAsync` | `timeout` 内に応答がありませんでした。スロットはリセットされ、遅れて届いた応答は破棄されます。 | スロー（`TimeoutException`）。CLI 終了コード 5 | より長いタイムアウトで再試行してください。OMSI がブロックされていないか（モーダルダイアログ、読み込み中）確認してください。 |
 | `OL_E_RUNTIME_RESPONSE_INVALID` | `CurrentRuntimeCommandStore` | 応答エンベロープが破損している、長さが不正（負、0、またはスロットより大きい）、別のセッション ID、または異なるリクエスト ID を持っています。エラーの発生前にスロットがリセットされるため、次のリクエストは正常に動作します。 | スロー（`InvalidDataException`） | 再試行してください。繰り返し発生する場合は報告してください。 |
-| `OL_E_RUNTIME_RESPONSE_TOO_LARGE` | `CurrentRuntimeCommandMailbox.TryDispatch` | シリアライズされた結果が 64 KiB のメールボックスを超えています。上限付きリストの結果（`returned_count` と `truncated` を持つもの）は、代わりに収まるよう短縮されます（ドキュメント監査 BUG-05）。実際には、上限付きではない `timetable.logs.read` でこのコードが発生し得ます。 | ランタイム結果 | より範囲の狭い操作を使用してください（たとえば、巨大なコレクションでは `road-vehicles.list` の代わりに `road-vehicles.read`）。 |
+| `OL_E_RUNTIME_CURSOR_INVALID` | `ListPage`（プラグイン） | リスト操作の `cursor` の形式が不正、または別の種類のリストのものです。 | ランタイム詳細 | 同じ操作の前のページの `next_cursor` を渡すか、省略してください。 |
+| `OL_E_RUNTIME_RESPONSE_TOO_LARGE` | `CurrentRuntimeCommandMailbox.TryDispatch` | シリアライズされた結果が 64 KiB のメールボックスを超えています。ページング対象のリスト結果は、代わりに収まるよう短縮され、`next_cursor` で続きを取得します。どのリスト結果もこのコードには到達しません。 | ランタイム結果 | より範囲の狭い操作か、より小さい `limit` を使用してください。 |
 | `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` | `OmsiRuntimeReaders` | 車両のスクリプト定義または状態へのポインターが null です。 | ランタイム詳細 | 車両にスクリプトオブジェクトがありません。 |
 | `OL_E_RUNTIME_SESSION_MISMATCH` | `OmsiLaunchService.ExecuteRuntimeAsync`、`CurrentRuntimeCommandStore`、プラグインのメールボックス | `RuntimeCommand.SessionId` がハンドルのセッション ID と異なる（ホストがスロー）か、別のセッションにバインドされたプラグインにリクエストが届きました（プラグインが型付きの結果として返します）。 | スロー（`InvalidOperationException`）/ ランタイム結果 | `session.SessionId` を使ってコマンドを構築してください。 |
-| `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` | `CurrentRuntimeControl.SetWeather` | `weather.set` は常に拒否されます。OMSI は次の天候ティックでプロファイル済みの天候フィールドを上書きするため、書き込みをセマンティックな変更として報告できません。 | ランタイム結果 | 対処はありません。`weather.set` は `UNAVAILABLE` です。 |
-| `OL_E_RUNTIME_SETTING_UNAVAILABLE` | `OmsiWeatherWriter` | 未知の天候フィールド名です。`weather.set` がそれより前に拒否されるため、現在は到達不能です。 | ランタイム詳細（定義のみ） | ソース `src/OmsiLaunch.Interop/OmsiWeatherWriter.cs` を参照してください。 |
+| `OL_E_WEATHER_APPLY_FAILED` | `PluginRuntime`（`world.failed` イベントの `code`） | ワールドの開始後に、開始時の天候を適用できませんでした。`/weather-real` に対して OMSI に ICAO 観測所が設定されていない、または天候オブジェクトが利用できません。セッションは失敗します。 | セッションの失敗 | OMSI に観測所を設定するか、`/weather-icao` を使用してください。 |
+| `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` | `OmsiWeatherWriter.Prepare` | `weather.set` のキーが、OMSI が天候ティックごとに導出する値（湿度、光の係数、雲の透過度、降水フラグ、濡れた地面）を指しています。何も書き込まれません。 | ランタイム結果 | `detail` に示されたソースのキーを設定してください（たとえば `relative_humidity` の代わりに `dew_point`）。 |
+| `OL_E_RUNTIME_SETTING_UNAVAILABLE` | `OmsiWeatherWriter.Prepare` | 未知の `weather.set` キーです。何も書き込まれません。 | ランタイム結果 | [ケイパビリティ](capabilities.md#weather)に一覧されたキーを使用してください。 |
 | `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` | `OmsiRuntimeReaders` | `name` が文字列変数テーブルにありません。 | ランタイム詳細 | 先に文字列変数を一覧表示してください。 |
 | `OL_E_RUNTIME_VALUE_INVALID` | `OmsiWeatherWriter.ParseBoolean` | 天候のブール値が `true`/`false`/`1`/`0` のいずれでもありません。現在は到達不能です（上記参照）。 | ランタイム詳細（定義のみ） | ソースを参照してください。 |
 | `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` | `CurrentRuntimeControl`、`OmsiCameraWriter`、`OmsiCameraLockWriter`、`OmsiRuntimeReaders`、`OmsiWeatherWriter` | `time.set`: `hour` 0..23、`minute` 0..59、`second` 0..59.999。`camera.set`: `family` 0..3、`field_of_view` 10..170。`camera.lock`: `preset` が整数ではない、`family` 0..3、`preset` 0..255。`road-vehicles.place-random`: `ai_type` 0..255、`group`/`type`/`tour`/`line` 0..65535（`type` は -1 も可）、`scheduled` 0..1。`vehicle.variable.set`: `value` が有限値ではない。`vehicle.curve.evaluate`: `x` が有限値ではない。 | ランタイム詳細 | 範囲内の値を使用してください。 |
@@ -206,7 +216,7 @@
 | `OL_E_HEADLESS_ARM_FAILED` | `headless.arm.failed` 受信時の `ApplyTelemetry` | プラグインが OMSI 内に 1 回限りのヘッドレス開始フックを設定できませんでした。 | セッション診断（`Failed`） | ビルドを確認し、報告してください。 |
 | `OL_E_NO_ACTIVE_SESSION` | CLI クライアント（`ReportForwarded`、`CliEventWatch`） | インストール環境のコントロールパイプで応答するオーナーがいません（セッションがない、またはオーナーがまだ起動中/検証中）。 | CLI エンベロープ、終了コード 4 | セッションを開始するか、`Running` になるまで待ってください。 |
 | `OL_E_PLUGIN_NOT_LOADED` | `SuperviseAsync` | `plugin.started` の前に `StartupTimeoutSeconds` が経過しました（OMSI が `plugins\OmsiLaunch.Plugin.opl` を読み込まなかったか、プラグイン初期化の前で停止しています）。 | セッション診断（`Failed`） | プラグインクロージャ、`plugins\OmsiLaunch.Plugin.opl`、OMSI の `logfile.txt` を確認してください。 |
-| `OL_E_PLUGIN_PROTOCOL_MISMATCH` | `plugin.handoff.invalid` 受信時、または解析できないテレメトリ JSON に対する `ApplyTelemetry` | プラグインが起動時のハンドオフ（バージョン 3/4、SHA-256）を読み取り/検証できなかったか、不正なテレメトリを送信しました。 | セッション診断（`Failed`） | ホストとプラグインのバージョンを一致させてください（パッケージを再インストール）。 |
+| `OL_E_PLUGIN_PROTOCOL_MISMATCH` | `plugin.handoff.invalid` 受信時、または解析できないテレメトリ JSON に対する `ApplyTelemetry` | プラグインが起動時のハンドオフ（バージョン 3 から 6、SHA-256）を読み取り/検証できなかったか、不正なテレメトリを送信しました。 | セッション診断（`Failed`） | ホストとプラグインのバージョンを一致させてください（パッケージを再インストール）。 |
 | `OL_E_SESSION_ALREADY_ACTIVE` | `CliProgram.RunAsync` | このインストール環境では、すでにオーナーが `session.status` に応答しています。 | CLI エンベロープ、終了コード 7 | クライアントコマンド（`session status`、`session stop`、ランタイムコマンド）を使用してください。 |
 | `OL_E_SESSION_NOT_RUNNING` | `OmsiLaunchService.ExecuteRuntimeAsync` | セッション状態が `Running` ではありません。 | スロー（`InvalidOperationException`） | 先に `WaitForAsync(session, SessionState.Running, ...)` を実行してください。 |
 | `OL_E_SESSION_PRESENTATION_INVALID` | `SessionPlanner` | スプラッシュ/ITX のプランを構築できませんでした。メッセージにプレゼンテーションのコードが含まれます。 | プラン診断 | [Presentation](#presentation) を参照してください。 |
@@ -223,12 +233,12 @@
 | コード | 意味 / 典型的な原因 | 対処 |
 | --- | --- | --- |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | プリセットのスプラッシュ用 `assets` ディレクトリ、または internet-textures の `profile` ファイルがパッケージ内に存在しません。 | アセットを追加してください。 |
-| `OL_E_SESSION_PROFILE_INVALID` | 構造または制限の違反です。256 KiB 超、ルートマッピングがちょうど 1 つではない、YAML アンカー、未知のキー、必須キーの欠落、スカラーが必要な箇所に非スカラー、`id` がディレクトリ名と異なる、プリセットが 1..5 ではないか `index` が重複、正でないタイムアウト、サポートされていない天候/スプラッシュ/internet-textures のモード、日付/時刻が `explicit` ではない、不正な YAML、数値/日付の解析エラー。 | メッセージに従って YAML を修正してください。 |
+| `OL_E_SESSION_PROFILE_INVALID` | 構造または制限の違反です。256 KiB 超、ルートマッピングがちょうど 1 つではない、YAML アンカー、未知のキー、必須キーの欠落、スカラーが必要な箇所に非スカラー、`id` がディレクトリ名と異なる、プリセットが 1..99 ではないか `index` が重複、正でないタイムアウト、サポートされていない天候/スプラッシュ/internet-textures のモード、日付/時刻が `explicit` ではない、不正な YAML、数値/日付の解析エラー。 | メッセージに従って YAML を修正してください。 |
 | `OL_E_SESSION_PROFILE_MAP_MISMATCH` | `compatibility.maps` が空ではなく、選択したマップ（NEW_MAP）または選択したシチュエーションのマップ（SAVED_SITUATION）を含んでいません。 | 互換性のあるワールドを選択してください。 |
 | `OL_E_SESSION_PROFILE_NOT_FOUND` | `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` が存在しません。 | id を確認してください。 |
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | 明示的な CLI 引数が、選択したプロファイル/プリセットの管理するフィールドを対象としています。 | フラグを外すか、別のプリセットを選択してください。 |
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | id に `\`、`/`、`:` または `..` が含まれています。または、アセットのパスがルート付きである、パッケージの外に出る、ジャンクション/シンボリックリンクを経由しています。 | パスをパッケージ内に収めてください。 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` がない、1..5 の範囲外、またはプロファイルで宣言されていません。 | 宣言されたプリセットのインデックスを使用してください。 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` がない、1..99 の範囲外、またはプロファイルで宣言されていません。 | 宣言されたプリセットのインデックスを使用してください。 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` が `omsilaunch.session-profile/v1` ではありません。 | サポートされているスキーマを使用してください。 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | プリセットの設定キーは既知ですが、書き込み不可です。 | キーを削除してください。 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | プリセットの設定キーがカタログにありません。 | カタログにあるキーを使用してください。 |
@@ -252,7 +262,38 @@
 
 | コード | 発生元 | 意味 | 経路 | 対処 |
 | --- | --- | --- | --- | --- |
+| `OL_W_BUILD_UNRECOGNIZED` | `SessionPlanner` | OMSI 2 の実行ファイルに既知のレイアウトがありません（そのコード ID がビルドカタログにありません）。プランは実行可能のままです。すべてのネイティブケイパビリティはプロセス内で解決され検証され、検証できないものは利用できません。 | プラン診断（実行可否には影響しません） | 対処は不要です。予測されるケイパビリティについては `/plan` と `profiles` を確認してください。 |
+| `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE` | `OmsiLaunchService`（スーパーバイザー） | `Behavior.CooperativeShutdown` が要求されましたが、OMSI に終了を依頼できなかった（このビルドでは終了ルーチンが未解決、または OMSI がすでに終了処理中）か、`ShutdownTimeoutSeconds` 以内に終了しなかったため、OMSI は強制終了されました。復元は通常どおり実行されます。 | セッション診断 | なし: セッションは強制終了の場合と同様に終了します。 |
+| `OL_W_CAPABILITY_PENDING` | `SessionPlanner` | 開始に必要なケイパビリティを実行ファイルから解決できませんでした（たとえば、読み込まれたイメージがファイルと異なる DRM 保護の実行ファイル）。開始時にプロセス内で解決されます。 | プラン診断（実行可否には影響しません） | 対処は不要です。プロセス内でも解決できない場合、開始は `OL_E_CAPABILITY_UNRESOLVED` で失敗します。 |
+| `OL_W_MODULE_NOT_LOADED` | `SessionPlanner` | 自らセッションに加わったモジュール（設定ファイル、コンテンツ、または既定のアクティベーション）を読み込めません（`Data["code"]` が理由を、`Data["activation"]` が加わった方法を示します）。 | プラン診断（実行可否には影響しません） | モジュールを修正、無効化、または削除してください。 |
+| `OL_W_MODULE_SETTING_IGNORED` | `SessionPlanner`、`ModuleSettingsFile`、`ModuleSettings` | `.omsilaunch\modules.ini` のエントリを使用できません（モジュールのセクションではない、セクションの外にある、未知のキー、無効な値。既定値が使用されます）。または、セッションが読み込まないモジュールの設定が要求されました。 | プラン診断（実行可否には影響しません） | エントリまたはリクエストを修正してください。 |
 | `OL_W_RESTORE_FOREIGN_FILE_RETAINED` | `FileConfigurationTransaction.RestoreAsync` | セッションによる削除対象のパス（ITX ターゲット、`Texture\standard.ipr`、`closecheck`）がセッション前には存在せず現在は存在しますが、このジャーナルの下で OMSI プロセスが一度も開始されていないため、そのファイルはセッションの副産物ではあり得ません。ファイルは保持されて報告され（メッセージ = 相対パス、`Data["sha256"]`）、トランザクションはそのまま完了します。 | セッション診断 / `RecoveryStatus.Diagnostics`（状態には影響しません） | ファイルを調べ、不要であれば自分で削除してください。 |
+
+## Module
+
+ランタイムモジュール（[ランタイムモジュール](../../../reference/runtime-modules.md)を参照）。プラン作成時、コードはプラン診断です。要求されたモジュールではプランが実行不可になり、自らセッションに加わったモジュール（設定ファイル、コンテンツ、既定）では代わりにプランが `OL_W_MODULE_NOT_LOADED` を報告します。セッション中、コードはセッション診断です（コードが `OL_E_MODULE_SESSION_FAILED` でない限りセッションは継続します）。モジュールの操作ではランタイム結果になります。
+
+| コード | 発生元 | 意味 | 経路 | 対処 |
+| --- | --- | --- | --- | --- |
+| `OL_E_MODULE_MANIFEST_INVALID` | `ModuleManifestParser`、`ModuleCatalog` | `module.json` がない、有効な `omsilaunch.runtime-module/v1` ではない、または `id` がディレクトリ名と異なります。メッセージがフィールドを示します。 | プラン診断、`ListRuntimeModulesAsync` | マニフェストを修正してください。 |
+| `OL_E_MODULE_NOT_FOUND` | `ModuleEligibility` | 要求されたモジュール ID が `plugins\OmsiLaunch.Modules` 配下にインストールされていません。 | プラン診断 | `/list:RuntimeModules` を確認してください。 |
+| `OL_E_MODULE_INTEGRITY` | `ModuleCatalog`、`ModuleHost` | 固定されたファイルがない、固定された SHA-256 と異なる、またはリパースポイント経由で到達しています。あるいはプロセス内で、プラン作成後に `module.json` が変更されました。 | プラン診断、セッション診断 | モジュールを再インストールしてください。 |
+| `OL_E_MODULE_PROTOCOL_UNSUPPORTED` | `ModuleEligibility` | モジュールの `bridge_protocol` の範囲に、このビルドが提供するプロトコル（1 と 2）が 1 つも含まれていません。 | プラン診断 | この OmsiLaunch 向けに作られたバージョンのモジュールを使用してください。 |
+| `OL_E_MODULE_CAPABILITY_UNRESOLVED` | `ModuleEligibility`、`ModuleHost` | 必要なケイパビリティが、このビルドに未知、このインストール環境で利用不可、またはプロセス内で未解決です。 | プラン診断、セッション診断 | [ケイパビリティ](capabilities.md)と `profiles` を参照してください。 |
+| `OL_E_MODULE_CONTENT_BINDING` | `ModuleEligibility`、`ModuleHost` | セッションがモジュールのバインド先のマップを実行していない、またはバインドされたファイルが固定された SHA-256 と異なります。 | プラン診断、セッション診断 | バインド先のコンテンツでバインド先のマップを開始してください。 |
+| `OL_E_MODULE_COMPONENT_UNSUPPORTED` | `ModuleHost` | モジュールが、自身の補助コンポーネントではないファイルの起動を要求しました。 | モジュール内のランタイム結果 | モジュールの不具合です。 |
+| `OL_E_MODULE_LOAD_FAILED` | `ModuleHost`、`ModuleSessionPrograms` | マネージドコンポーネントを読み込めない、またはそのエントリ型を作成できません。あるいはモジュールのセッションプログラムを開始できない、または準備完了前に終了しました。 | セッション診断 | モジュールのビルドを確認してください（x86 互換であること、エントリ型が `IRuntimeModule` を実装していること）。 |
+| `OL_E_MODULE_PHASE_FAILED` | `ModuleHost` | `Arm`、`GameplayReady` または `Stop` が例外をスローしました。 | セッション診断 | モジュールの不具合です。その `failure_policy` が適用されました。 |
+| `OL_E_MODULE_PHASE_TIMEOUT` | `ModuleHost`、`ModuleSessionPrograms` | フェーズまたは操作が予算（`timeouts`、`timeout_ms`）を超えて戻った、またはセッションプログラムが `prepare_ms` 以内に準備完了になりませんでした。 | セッション診断、ランタイム結果 | モジュールの不具合です。その `failure_policy` が適用されました。 |
+| `OL_E_MODULE_DISABLED` | `ModuleHost` | モジュールがセッションの前半で無効化された、または失敗しました。 | ランタイム結果 | 最初の失敗についてはセッション診断を参照してください。 |
+| `OL_E_MODULE_NOT_LOADED` | `OmsiLaunchService.ExecuteRuntimeAsync`、`ModuleHost` | セッションがこのモジュールを読み込んでいない、またはまだ準備ができていません（ゲームプレイの前）。 | ランタイム結果 | 開始時にモジュールを要求してください。`Running` を待ってください。 |
+| `OL_E_MODULE_OPERATION_UNKNOWN` | `OmsiLaunchService.ExecuteRuntimeAsync`、`ModuleHost` | モジュールにそのような操作は宣言されていません。 | ランタイム結果 | モジュールの `operations` を確認してください。 |
+| `OL_E_MODULE_OPERATION_FAILED` | `ModuleHost` | カタログに載っているコードなしで操作が失敗しました。モジュール独自のコードは `Values["module_code"]` にあります。 | ランタイム結果 | モジュール固有です。 |
+| `OL_E_MODULE_CLEANUP_INCOMPLETE` | `ModuleHost` | 停止または失敗の後も、追跡対象のリソースがまだ生きていた（終了しなかった補助プロセス、終了しなかったバックグラウンドスレッド）か、その解放が例外をスローしました。 | セッション診断 | モジュールを報告してください。プロセスはいずれにせよ OMSI とともに終了します。 |
+| `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` が `fail-session` のモジュールが失敗しました。セッションは停止され、復元されます。 | セッション診断（状態 `Failed`） | 直前のモジュールコードを参照してください。 |
+| `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 要求されたモジュール設定が無効、またはモジュールが宣言していません。あるいはモジュールが有効化と無効化の両方をされている、設定名が `<module-id>.<key>` ではない、または複数のモジュールが同じモジュールフラグを宣言しています。 | プラン診断（実行不可）、CLI エラー | リクエストを修正してください。`/list:RuntimeModules` が各モジュールの設定を示します。 |
+| `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | モジュールが `conflicts.plugins` に挙げている OMSI プラグインが有効（`plugins\*.opl`）、または OMSI に読み込まれています。理由に `.opl` が示されます。 | プラン診断、セッション診断 | そのプラグインを無効化または削除してください。OmsiLaunch がそれを変更することはありません。 |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | 予約済み | 予約済みです。ネイティブコンポーネントは代わりに、[ランタイムモジュール](../../../reference/runtime-modules.md#native-components-and-hooks)で説明されている数値のフック結果を受け取ります。 | なし | なし |
 
 <a id="non-error-diagnostic-codes"></a>
 ## エラーではない診断コード
@@ -263,6 +304,8 @@
 | `closecheck.stale-removed` | `OmsiLaunchService.RemoveStaleClosecheck` | メッセージ = 削除されたファイルの SHA-256 | セッション前から存在していた `closecheck` が完全に削除されました（`SuppressStaleClosecheckWarning = true`）。セッション診断です。 |
 | `restore.session-artifact-removed` | `FileConfigurationTransaction.RestoreAsync` | メッセージ = 相対パス。`Data["sha256"]` | プロセスが開始されたセッション中に、セッションによる削除対象のパスが OMSI によって再作成されました。元の「存在しない」状態を復元するために削除されました。セッション診断 / `RecoveryStatus.Diagnostics` です。 |
 | `plugin.integrity.reference` | `OmsiLaunchService.PlanSessionAsync` | メッセージ = `manifest` または `self` | 常駐プラグインの検証でどの参照を使用するかを示します。プラン診断です。 |
+| `module.planned` | `SessionPlanner` | メッセージ = モジュール ID、`Data["module"]`、`Data["status"]`、`Data["activation"]` | モジュールがプランに含まれています。プラン診断。 |
+| `module.disabled` | `SessionPlanner` | メッセージ = モジュール ID | コンテンツまたは既定のモジュールが、無効化（リクエストまたは設定ファイル）によって除外されました。プラン診断。 |
 | `session_profile.selected` | `SessionPlanner` | メッセージ = プロファイル id。`Data["session_profile.id|name|version|author|preset_id|preset_index|preset_name|path"]` | セッションプロファイルからコンパイルされたセッションの出自を示します。プラン診断です。 |
 
 ランタイムイベント名（`RuntimeEvent.Type`。診断ではありません）は[セッションのライフサイクル](../concepts/session-lifecycle.md#telemetry-events)に一覧があります。

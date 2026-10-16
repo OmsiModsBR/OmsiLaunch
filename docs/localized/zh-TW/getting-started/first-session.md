@@ -1,9 +1,9 @@
 # 第一個工作階段
 
-<!-- l10n: source=getting-started/first-session.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../getting-started/first-session.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=getting-started/first-session.md source-sha256=3985b8db122dfbbfeabd69692a21620d4e3d381f398197b61be2c500be1f3170 -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../getting-started/first-session.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-本頁逐步說明如何以 OmsiLaunch `0.1.0-beta3` 執行第一個受管理的 OMSI 工作階段：在不啟動 OMSI 的情況下規劃、以明確旗標啟動、以預先定義的工作階段設定檔啟動、控制與停止工作階段，以及事後查找診斷資訊。本頁假設套件已依[安裝](installation.md)的說明完成安裝。每個旗標的規範都在 [CLI 參考](../reference/cli.md)中；更多呼叫範例請參閱 [CLI 範例](../reference/cli-examples.md)。
+本頁逐步說明如何以 OmsiLaunch `0.1.0-beta4` 執行第一個受管理的 OMSI 工作階段：在不啟動 OMSI 的情況下規劃、以明確旗標啟動、以預先定義的工作階段設定檔啟動、控制與停止工作階段，以及事後查找診斷資訊。本頁假設套件已依[安裝](installation.md)的說明完成安裝。每個旗標的規範都在 [CLI 參考](../reference/cli.md)中；更多呼叫範例請參閱 [CLI 範例](../reference/cli-examples.md)。
 
 <a id="what-a-session-does"></a>
 ## 工作階段會做什麼
@@ -38,7 +38,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 
 依序會發生下列事情：
 
-1. 印出計畫（`Plan: READY profile=Omsi23004_692EBFBF`）。
+1. 印出計畫（在已知配置上為 `Plan: READY profile=Omsi23004`）。
 2. 復原任何較舊的待處理日誌、取得租用、建立快照、寫入日誌、套用 overlay、檢查外掛程式完整性、啟動 `Omsi.exe`。
 3. 出現系統匣圖示（`OmsiLaunch is running`）；請參閱 [Windows 系統匣](../reference/windows-tray.md)。
 4. 進入遊戲後，會以 JSON 印出 `Running` 狀態（`"State": 14`）。預設的啟動逾時為 180 s（可用 `/startup-timeout:<1..600>` 變更）。
@@ -56,7 +56,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 <a id="3-start-with-a-predefined-session-profile"></a>
 ## 3. 以預先定義的工作階段設定檔啟動
 
-工作階段設定檔是位於 `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` 的 YAML 檔，用來固定地圖、進入點，以及最多五組設定的預設組合（preset）（結構描述 `omsilaunch.session-profile/v1`；完整參考請見[工作階段設定檔](../reference/session-profiles.md)）。建立 `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`：
+工作階段設定檔是位於 `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` 的 YAML 檔，用來固定地圖、進入點，以及最多 99 組設定的預設組合（preset）（結構描述 `omsilaunch.session-profile/v1`；完整參考請見[工作階段設定檔](../reference/session-profiles.md)）。建立 `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml`：
 
 ```yaml
 schema: omsilaunch.session-profile/v1
@@ -92,7 +92,7 @@ OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /n
 OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /new
 ```
 
-需要記住的規則：`id` 必須與目錄名稱相同；索引為 `1..5`；會覆寫設定檔所擁有欄位的明確旗標（`/map`、`/entrypoint-index`、預設組合所擁有的 `/set` 索引鍵、預設組合含有 `presentation` 時的啟動畫面旗標）會以 `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` 拒絕（結束代碼 `2`）；`new:` 區塊只在使用 `/new` 時套用；使用 `/saved:<file.osn>` 時，情境的地圖必須列在 `compatibility.maps` 下。套件隨附的 `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` 示範了完整的結構描述，但其 `new:` 區塊設定了 `date`、`time` 與 `weather`，而此組建無法套用這些項目，因此請先移除這些索引鍵再複製使用。
+需要記住的規則：`id` 必須與目錄名稱相同；索引為 `1..99`；會覆寫設定檔所擁有欄位的明確旗標（`/map`、`/entrypoint-index`、預設組合所擁有的 `/set` 索引鍵、預設組合含有 `presentation` 時的啟動畫面旗標）會以 `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` 拒絕（結束代碼 `2`）；`new:` 區塊只在使用 `/new` 時套用；使用 `/saved:<file.osn>` 時，情境的地圖必須列在 `compatibility.maps` 下。套件隨附的 `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` 示範了完整的結構描述，但其 `new:` 區塊設定了 `date`、`time` 與 `weather`，而此組建無法套用這些項目，因此請先移除這些索引鍵再複製使用。
 
 <a id="4-control-the-running-session"></a>
 ## 4. 控制執行中的工作階段

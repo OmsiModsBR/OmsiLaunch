@@ -1,9 +1,9 @@
 # Eerste sessie
 
-<!-- l10n: source=getting-started/first-session.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../getting-started/first-session.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=getting-started/first-session.md source-sha256=3985b8db122dfbbfeabd69692a21620d4e3d381f398197b61be2c500be1f3170 -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../getting-started/first-session.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
-Deze pagina doorloopt de eerste beheerde OMSI-sessie met OmsiLaunch `0.1.0-beta3`: plannen zonder OMSI te starten, starten met expliciete vlaggen, starten met een vooraf gedefinieerd sessieprofiel, de sessie besturen en stoppen, en daarna de diagnosegegevens vinden. Er wordt van uitgegaan dat het pakket is geïnstalleerd zoals beschreven in [installatie](installation.md). Elke vlag is gespecificeerd in de [CLI-referentie](../reference/cli.md); meer aanroepen staan in [CLI-voorbeelden](../reference/cli-examples.md).
+Deze pagina doorloopt de eerste beheerde OMSI-sessie met OmsiLaunch `0.1.0-beta4`: plannen zonder OMSI te starten, starten met expliciete vlaggen, starten met een vooraf gedefinieerd sessieprofiel, de sessie besturen en stoppen, en daarna de diagnosegegevens vinden. Er wordt van uitgegaan dat het pakket is geïnstalleerd zoals beschreven in [installatie](installation.md). Elke vlag is gespecificeerd in de [CLI-referentie](../reference/cli.md); meer aanroepen staan in [CLI-voorbeelden](../reference/cli-examples.md).
 
 <a id="what-a-session-does"></a>
 ## Wat een sessie doet
@@ -38,7 +38,7 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1
 
 Wat er gebeurt, in volgorde:
 
-1. Het plan wordt afgedrukt (`Plan: READY profile=Omsi23004_692EBFBF`).
+1. Het plan wordt afgedrukt (`Plan: READY profile=Omsi23004` op de bekende indeling).
 2. Recovery van een eventueel ouder openstaand journal, verkrijgen van de lease, snapshot, journal, overlays, integriteitscontrole van de plugin, start van `Omsi.exe`.
 3. Het systeemvakpictogram verschijnt (`OmsiLaunch is running`); zie [Windows-systeemvak](../reference/windows-tray.md).
 4. Zodra de gameplay is bereikt, wordt de status `Running` als JSON afgedrukt (`"State": 14`). De standaard opstart-timeout is 180 s (wijzig deze met `/startup-timeout:<1..600>`).
@@ -56,7 +56,7 @@ Vlaggen die een datum, tijd, jaar, weer of spelersvoertuig vragen (`/date`, `/ti
 <a id="3-start-with-a-predefined-session-profile"></a>
 ## 3. Starten met een vooraf gedefinieerd sessieprofiel
 
-Een sessieprofiel is een YAML-bestand onder `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` dat de kaart, het instappunt en maximaal vijf presets met instellingen vastlegt (schema `omsilaunch.session-profile/v1`; volledige referentie in [sessieprofielen](../reference/session-profiles.md)). Maak `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml` aan:
+Een sessieprofiel is een YAML-bestand onder `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` dat de kaart, het instappunt en maximaal 99 presets met instellingen vastlegt (schema `omsilaunch.session-profile/v1`; volledige referentie in [sessieprofielen](../reference/session-profiles.md)). Maak `D:\OMSI 2\.omsilaunch\session-profiles\grundorf-quick\profile.yaml` aan:
 
 ```yaml
 schema: omsilaunch.session-profile/v1
@@ -92,7 +92,7 @@ OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /n
 OmsiLaunch.exe /predefined-profile:grundorf-quick /predefined-profile-index:2 /new
 ```
 
-Regels om te onthouden: de `id` moet gelijk zijn aan de mapnaam; de index is `1..5`; expliciete vlaggen die een veld zouden overschrijven dat het profiel beheert (`/map`, `/entrypoint-index`, een `/set`-sleutel die de preset beheert, vlaggen voor het opstartscherm als de preset `presentation` heeft) worden geweigerd met `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (exit `2`); het blok `new:` geldt alleen met `/new`; met `/saved:<file.osn>` moet de kaart van de situatie onder `compatibility.maps` staan. Het meegeleverde `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` illustreert het volledige schema, maar het blok `new:` daarin stelt `date`, `time` en `weather` in, die deze build niet kan toepassen; kopieer het dus pas nadat je die sleutels hebt verwijderd.
+Regels om te onthouden: de `id` moet gelijk zijn aan de mapnaam; de index is `1..99`; expliciete vlaggen die een veld zouden overschrijven dat het profiel beheert (`/map`, `/entrypoint-index`, een `/set`-sleutel die de preset beheert, vlaggen voor het opstartscherm als de preset `presentation` heeft) worden geweigerd met `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (exit `2`); het blok `new:` geldt alleen met `/new`; met `/saved:<file.osn>` moet de kaart van de situatie onder `compatibility.maps` staan. Het meegeleverde `.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml` illustreert het volledige schema, maar het blok `new:` daarin stelt `date`, `time` en `weather` in, die deze build niet kan toepassen; kopieer het dus pas nadat je die sleutels hebt verwijderd.
 
 <a id="4-control-the-running-session"></a>
 ## 4. De lopende sessie besturen

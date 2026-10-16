@@ -1,9 +1,9 @@
 # Exemplos da CLI
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Tradução da [página original em inglês](../../../reference/cli-examples.md) do OmsiLaunch 0.1.0-beta3. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Tradução da [página original em inglês](../../../reference/cli-examples.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
 
-Invocações mínimas e corretas de `OmsiLaunch.exe` para o OmsiLaunch `0.1.0-beta3`, cada uma com o código de saída esperado do processo e uma nota sobre o que é alterado e restaurado. Salvo indicação em contrário, todos os exemplos são executados a partir da raiz da instalação do OMSI (`<OMSI_PATH>`); a sintaxe está definida na [referência da CLI](cli.md) e os códigos de saída em [códigos de saída](exit-codes.md). É possível acrescentar `--json` a qualquer comando para obter o envelope estruturado.
+Invocações mínimas e corretas de `OmsiLaunch.exe` para o OmsiLaunch `0.1.0-beta4`, cada uma com o código de saída esperado do processo e uma nota sobre o que é alterado e restaurado. Salvo indicação em contrário, todos os exemplos são executados a partir da raiz da instalação do OMSI (`<OMSI_PATH>`); a sintaxe está definida na [referência da CLI](cli.md) e os códigos de saída em [códigos de saída](exit-codes.md). É possível acrescentar `--json` a qualquer comando para obter o envelope estruturado.
 
 <a id="conventions"></a>
 ## Convenções
@@ -21,7 +21,7 @@ Invocações mínimas e corretas de `OmsiLaunch.exe` para o OmsiLaunch `0.1.0-be
 ```text
 OmsiLaunch.exe /version
 ```
-Saída `0`. Imprime `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family`. Não altera nada.
+Saída `0`. Imprime `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family`. Não altera nada.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Saída `0` (`2` se faltar `handle`, `name` ou `value`). Altera uma variável de script numérica desse veículo. Não é revertido.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Saída `7`. Sempre rejeitado com `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; nada é alterado.
+Saída `0`. Escreve o registo de meteorologia de origem do OMSI e pára as atualizações METAR em direto; o OMSI deriva daí o nevoeiro, a luz, o vento atual e a humidade no seu próximo ciclo meteorológico sem pausa. Cada valor é verificado antes de se escrever o que quer que seja (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, saída `7`). Uma chave derivada, como `relative_humidity`, devolve `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` e indica a chave a definir em seu lugar. Não é revertido. EXPERIMENTAL: validação em runtime pendente.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Saída `0`. Passa para meteorologia METAR em direto para essa estação; o OMSI transfere-a na sua próxima atualização meteorológica. EXPERIMENTAL: validação em runtime pendente.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Saída `0`. `scripts string set` passa pelo próprio `SetStringVariable` do OMSI e devolve o valor lido de volta; um nome que o script do veículo não declare devolve `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (saída `7`). `scripts trigger` aciona um trigger como o fazem os tratadores de entrada do OMSI (`1` premir, `0` largar); o script do veículo executa-o de imediato. Os nomes de triggers e de variáveis são definidos por cada modelo de veículo; os acima são exemplos. Não é revertido. EXPERIMENTAL: validação em runtime pendente.
 
 ## Spawn
 
