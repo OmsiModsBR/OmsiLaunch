@@ -232,7 +232,7 @@ monitor=false
 | 1. 探索 | 控制器 | 讀取 `plugins\OmsiLaunch.Modules\*`：資訊清單與完整性（`ListRuntimeModulesAsync`、`/list:RuntimeModules`）。 |
 | 2. 資格 | 控制器，規劃時 | 評估[加入工作階段](#choosing-modules-for-a-session)的模組：可用性、橋接協定、功能、內容繫結、外掛程式衝突、設定。結果為 `SessionPlan.PlannedModules`。 |
 | 3. 準備 | 控制器，啟動時 | 啟動並等待模組的[工作階段程式](#session-programs)。接著符合資格的模組透過啟動交接（版本 6）傳送給外掛程式：其目錄、每個已評估 `module.json` 的 SHA-256，以及其有效設定。 |
-| 4. 就緒 | 外掛程式，世界啟動之前 | 每個模組都會重新驗證並載入（受管理元件位於其自己的載入內容中）。其原生元件（若有）會先載入並啟動，然後呼叫 `Arm(context)`。 |
+| 4. 裝配（Arm） | 外掛程式，世界啟動之前 | 每個模組都會重新驗證並載入（受管理元件位於其自己的載入內容中）。其原生元件（若有）會先載入並啟動，然後呼叫 `Arm(context)`。 |
 | 5. 遊戲就緒 | 外掛程式 | 在 `gameplay.entered` 之後，當已載入的模組宣告 `bridge.hooks.d3d9` 時，橋接層開始觀察 Direct3D 裝置（`d3d.ready`）；然後呼叫原生元件的 `gameplay_ready` 與 `GameplayReady()`。對於 NEW_MAP 工作階段，會再次檢查繫結的地圖與啟動所載入的地圖是否一致。 |
 | 6. 執行階段 | 外掛程式 | 操作 `module.<id>.<operation>` 抵達 `Execute`。 |
 | 7. 停止 | 外掛程式，然後是控制器 | 工作階段結束時（或模組失敗時），呼叫 `Stop()`。OMSI 結束之後，停止工作階段程式。 |
@@ -245,7 +245,7 @@ monitor=false
 
 失敗是指任何階段或操作中的例外或超時、在處理程序內未解析的功能、在處理程序內不成立的內容繫結、在 OMSI 中載入的衝突外掛程式，或未就緒的工作階段程式。模組的 `failure_policy` 決定後續處理。在每種情況下，模組的資源都會被釋放。
 
-| 原則 | 在準備、載入、就緒或遊戲就緒中失敗 | 在操作中失敗 | 在停止中失敗 |
+| 原則 | 在準備、載入、裝配或遊戲就緒中失敗 | 在操作中失敗 | 在停止中失敗 |
 | --- | --- | --- | --- |
 | `fail-session` | 模組被釋放；`module.session-failure`；工作階段以 `OL_E_MODULE_SESSION_FAILED` 失敗，OMSI 被停止且檔案被還原。世界啟動之前的失敗會阻止啟動。 | 相同。 | 已回報（`module.failed`）；工作階段繼續到其結束。 |
 | `disable-module` | 模組被釋放並停用；工作階段繼續。 | 相同。 | 已回報；模組被釋放。 |
@@ -267,7 +267,7 @@ monitor=false
 
 | 匯出 | 呼叫時機 |
 | --- | --- |
-| `int omsilaunch_module_native_v1_start(const omsilaunch_bridge_v1*)` | 在就緒時，早於受管理的 `Arm`。非零值使該階段失敗。 |
+| `int omsilaunch_module_native_v1_start(const omsilaunch_bridge_v1*)` | 在裝配時，早於受管理的 `Arm`。非零值使該階段失敗。 |
 | `int omsilaunch_module_native_v1_gameplay_ready(const omsilaunch_bridge_v1*)` | 選用；在進入遊戲之後。 |
 | `void omsilaunch_module_native_v1_stop(void)` | 在停止或失敗時，早於其 hook 被移除。之後橋接表拒絕每個呼叫，而 DLL 保持載入、處於惰性狀態，直到 OMSI 結束。 |
 
