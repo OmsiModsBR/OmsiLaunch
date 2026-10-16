@@ -1,6 +1,6 @@
 # Перечень публичного API
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
 > Перевод [исходной страницы на английском языке](../../../reference/public-api-inventory.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Эта страница генерируется из скомпилированных сборок с помощью `tests/OmsiLaunch.DocumentationTests` (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); проверка документации завершается ошибкой, если страница перестаёт соответствовать коду. Здесь перечислены все экспортируемые типы `OmsiLaunch.Api`, `OmsiLaunch.Core` и `OmsiLaunch.Process` с уровнем стабильности и сигнатурой каждого публичного члена. Семантика, предусловия, ошибки и примеры описаны на странице, указанной в каждом заголовке (по умолчанию: [публичный API](public-api.md)). Уровни стабильности: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (публичный по техническим причинам, не является интерфейсом интеграции), `UNAVAILABLE` (см. [публичный API](public-api.md#stability-vocabulary)). Члены записей, сгенерированные компилятором (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`), не приводятся.
@@ -1202,6 +1202,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | --- | --- |
 | константа | `uint Magic = 1330402120` |
 | константа | `ushort Version = 7` |
+| константа | `int MaxModules = 64` |
 | статический метод | `byte[] Serialize(StartupHandoff value)` |
 | статический метод | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
 

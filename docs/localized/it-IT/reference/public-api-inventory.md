@@ -1,6 +1,6 @@
 # Inventario dell’API pubblica
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
 > Traduzione della [pagina originale in inglese](../../../reference/public-api-inventory.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
 Questa pagina è generata dagli assembly compilati tramite `tests/OmsiLaunch.DocumentationTests` (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); il controllo della documentazione fallisce quando non corrisponde più al codice. Elenca ogni tipo esportato da `OmsiLaunch.Api`, `OmsiLaunch.Core` e `OmsiLaunch.Process`, con la sua stabilità e la firma di ogni membro pubblico. Semantica, precondizioni, errori ed esempi sono documentati nella pagina indicata in ciascun titolo (predefinita: [API pubblica](public-api.md)). Vocabolario di stabilità: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (pubblico per motivi tecnici, non è una superficie di integrazione), `UNAVAILABLE` (vedere [API pubblica](public-api.md#stability-vocabulary)). I membri dei record generati dal compilatore (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`) sono omessi.
@@ -1202,6 +1202,7 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `INTERNAL`. Semantica: [public-a
 | --- | --- |
 | costante | `uint Magic = 1330402120` |
 | costante | `ushort Version = 7` |
+| costante | `int MaxModules = 64` |
 | metodo statico | `byte[] Serialize(StartupHandoff value)` |
 | metodo statico | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
 

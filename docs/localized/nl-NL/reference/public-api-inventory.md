@@ -1,6 +1,6 @@
 # Inventaris van de publieke API
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/public-api-inventory.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina wordt door `tests/OmsiLaunch.DocumentationTests` gegenereerd uit de gecompileerde assemblies (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); de documentatiecontrole faalt zodra ze niet meer overeenkomt met de code. Ze vermeldt elk geëxporteerd type van `OmsiLaunch.Api`, `OmsiLaunch.Core` en `OmsiLaunch.Process` met de stabiliteit en de signatuur van elk publiek lid. Semantiek, voorwaarden, fouten en voorbeelden staan op de pagina die in elke kop wordt genoemd (standaard: [publieke API](public-api.md)). Stabiliteitsniveaus: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (om technische redenen publiek, geen integratie-oppervlak), `UNAVAILABLE` (zie [publieke API](public-api.md#stability-vocabulary)). Door de compiler gegenereerde recordleden (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`) zijn weggelaten.
@@ -1202,6 +1202,7 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `INTERNAL`. Semantiek: [publi
 | --- | --- |
 | constante | `uint Magic = 1330402120` |
 | constante | `ushort Version = 7` |
+| constante | `int MaxModules = 64` |
 | statische methode | `byte[] Serialize(StartupHandoff value)` |
 | statische methode | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
 

@@ -1,6 +1,6 @@
 # 公共 API 清单
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/public-api-inventory.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页由 `tests/OmsiLaunch.DocumentationTests` 根据编译后的程序集生成（`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`）；当本页与代码不再一致时，文档检查会失败。本页列出 `OmsiLaunch.Api`、`OmsiLaunch.Core` 和 `OmsiLaunch.Process` 导出的每个类型及其稳定性，以及每个公共成员的签名。语义、前置条件、错误和示例记录在各标题所指的页面中（默认：[公共 API](public-api.md)）。稳定性术语：`STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`（出于技术原因而公开，不属于集成接口）、`UNAVAILABLE`（参见[公共 API](public-api.md#stability-vocabulary)）。编译器生成的 record 成员（`Equals`、`GetHashCode`、`ToString`、`Deconstruct`、`<Clone>$`、`EqualityContract`）不予列出。
@@ -1202,6 +1202,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | --- | --- |
 | 常量 | `uint Magic = 1330402120` |
 | 常量 | `ushort Version = 7` |
+| 常量 | `int MaxModules = 64` |
 | 静态方法 | `byte[] Serialize(StartupHandoff value)` |
 | 静态方法 | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
 

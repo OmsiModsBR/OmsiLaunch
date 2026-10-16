@@ -1199,6 +1199,7 @@ Static class in `OmsiLaunch.Api`. Stability: `INTERNAL`. Semantics: [public-api]
 | --- | --- |
 | constant | `uint Magic = 1330402120` |
 | constant | `ushort Version = 7` |
+| constant | `int MaxModules = 64` |
 | static method | `byte[] Serialize(StartupHandoff value)` |
 | static method | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
 

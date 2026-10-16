@@ -1,6 +1,6 @@
 # 公開 API インベントリ
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/public-api-inventory.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、コンパイル済みアセンブリから `tests/OmsiLaunch.DocumentationTests` によって生成されます（`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`）。コードと一致しなくなると、ドキュメントのチェックが失敗します。`OmsiLaunch.Api`、`OmsiLaunch.Core`、`OmsiLaunch.Process` がエクスポートするすべての型について、その安定性とすべての public メンバーのシグネチャを記載しています。セマンティクス、前提条件、エラー、使用例は、各見出しに示したページに記載されています（既定: [公開 API](public-api.md)）。安定性の区分: `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`（技術的な理由で public になっているもので、統合用のインターフェイスではありません）、`UNAVAILABLE`（[公開 API](public-api.md#stability-vocabulary) を参照）。コンパイラが生成する record のメンバー（`Equals`、`GetHashCode`、`ToString`、`Deconstruct`、`<Clone>$`、`EqualityContract`）は省略しています。
@@ -1202,6 +1202,7 @@ static クラス（`OmsiLaunch.Api`）。安定性: `INTERNAL`。セマンティ
 | --- | --- |
 | 定数 | `uint Magic = 1330402120` |
 | 定数 | `ushort Version = 7` |
+| 定数 | `int MaxModules = 64` |
 | static メソッド | `byte[] Serialize(StartupHandoff value)` |
 | static メソッド | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
 
