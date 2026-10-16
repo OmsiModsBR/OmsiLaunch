@@ -36,7 +36,7 @@ runtime-gevalideerd genoemd tenzij de
 | [CLI-voorbeelden](reference/cli-examples.md) | Opdrachtregels om te kopiëren en te plakken voor veelvoorkomende taken. |
 | [LaunchSpec-referentie](reference/launchspec.md) | Elke `LaunchSpec`-eigenschap en elke enumwaarde, JSON-laadregels voor `/spec`. |
 | [HOF-beheer](reference/hof-management.md) | HOF-kopie en -mirror per sessie naar voertuigmappen: bronnen, doelen, conflicten, herstel. |
-| [Runtimemodules](../../reference/runtime-modules.md) | Modules die met een sessie in OMSI draaien: manifest, vertrouwen, levenscyclus, faalbeleid, operaties. |
+| [Runtimemodules](reference/runtime-modules.md) | Modules die met een sessie in OMSI draaien: manifest, vertrouwen, levenscyclus, faalbeleid, operaties. |
 | [Referentie sessieprofielen](reference/session-profiles.md) | `profile.yaml`-schema `omsilaunch.session-profile/v1`, sleutels, limieten, voorrang. |
 | [Referentie publieke API](reference/public-api.md) | `IOmsiLaunch`, publieke records en enums, stabiliteit per member. |
 | [Inventaris publieke API](reference/public-api-inventory.md) | Gegenereerde lijst van elk publiek type en elke member met signatuur en stabiliteit. |

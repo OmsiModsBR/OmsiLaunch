@@ -270,7 +270,7 @@ See [transactions and recovery](../concepts/transactions-and-recovery.md).
 
 ## Module
 
-Runtime modules (see [runtime modules](../../../reference/runtime-modules.md)). At planning a code is a plan diagnostic: for a requested module it makes the plan not runnable; for a module that joined by itself (settings file, content, default) the plan reports `OL_W_MODULE_NOT_LOADED` instead. In a session a code is a session diagnostic (the session continues unless the code is `OL_E_MODULE_SESSION_FAILED`), and for a module operation it is the runtime result.
+Runtime modules (see [runtime modules](runtime-modules.md)). At planning a code is a plan diagnostic: for a requested module it makes the plan not runnable; for a module that joined by itself (settings file, content, default) the plan reports `OL_W_MODULE_NOT_LOADED` instead. In a session a code is a session diagnostic (the session continues unless the code is `OL_E_MODULE_SESSION_FAILED`), and for a module operation it is the runtime result.
 
 | Code | Raised by | Meaning | Surface | What to do |
 | --- | --- | --- | --- | --- |
@@ -292,7 +292,7 @@ Runtime modules (see [runtime modules](../../../reference/runtime-modules.md)). 
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | A module whose `failure_policy` is `fail-session` failed; the session is stopped and restored. | Session diagnostic (state `Failed`) | See the preceding module code. |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`, `ModuleSettings`, CLI | A requested module setting is invalid or not declared by the module, a module is both enabled and disabled, a setting name is not `<module-id>.<key>`, or a module flag is declared by several modules. | Plan diagnostic (not runnable); CLI error | Correct the request; `/list:RuntimeModules` shows each module's settings. |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`, `ModuleHost` | An OMSI plugin the module lists under `conflicts.plugins` is switched on (`plugins\*.opl`), or loaded in OMSI. The reason names the `.opl`. | Plan diagnostic; session diagnostic | Switch off or remove that plugin. OmsiLaunch never changes it. |
-| `OL_E_MODULE_HOOK_UNAVAILABLE` | reserved | Reserved; a native component receives the numeric hook results described in [runtime modules](../../../reference/runtime-modules.md#native-components-and-hooks) instead. | none | none |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | reserved | Reserved; a native component receives the numeric hook results described in [runtime modules](runtime-modules.md#native-components-and-hooks) instead. | none | none |
 
 ## Non-error diagnostic codes
 

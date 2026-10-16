@@ -171,7 +171,7 @@ Een preset met `hofs` in combinatie met een vlag `/hof-source`: `OL_E_SESSION_PR
 
 ### `modules`
 
-Eén vermelding per [runtimemodule](../../../reference/runtime-modules.md)-id (`EXPERIMENTAL`). Elke vermelding is een mapping met deze sleutels (context `module`):
+Eén vermelding per [runtimemodule](runtime-modules.md)-id (`EXPERIMENTAL`). Elke vermelding is een mapping met deze sleutels (context `module`):
 
 | Sleutel | Type | Verplicht | Standaard | Beschrijving |
 | --- | --- | --- | --- | --- |

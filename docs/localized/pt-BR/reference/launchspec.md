@@ -117,7 +117,7 @@ A coluna "Consumido" indica o que o código atual faz com o valor. A estabilidad
 | `InternetTextures` | objeto `InternetTexturesSpec` ou null | não | `null` → `EffectiveInternetTextures` = `Native` | sim | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | objeto `SessionProfileMetadata` ou null | não | `null` | apenas procedência (diagnóstico de plano `session_profile.selected`) | `STABLE_BETA` |
 | `HofManagement` | objeto `HofManagementSpec` ou null | não | `null` → `EffectiveHofManagement` = nenhuma operação | sim (overlays de HOF da sessão, veja [gerenciamento de HOF](hof-management.md)) | `STABLE_BETA` |
-| `Modules` | objeto `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) ou null | não | `null` → `EffectiveModules` = nada solicitado, desativado ou definido | não (os módulos nunca tocam em arquivos da instalação por meio do OmsiLaunch; veja [módulos de runtime](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
+| `Modules` | objeto `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) ou null | não | `null` → `EffectiveModules` = nada solicitado, desativado ou definido | não (os módulos nunca tocam em arquivos da instalação por meio do OmsiLaunch; veja [módulos de runtime](runtime-modules.md)) | `EXPERIMENTAL` |
 
 Acessores somente leitura (presentes na saída JSON da CLI, ignorados no carregamento): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
@@ -270,7 +270,7 @@ Membros de `HofOperationSpec`: `SourceKind` (`HofSourceKind` int), `Source` (str
 
 | Propriedade | Tipo | Padrão | Valores válidos | Consumido | Estabilidade |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | array de ids de módulos | nenhum | Ids de módulos instalados em `plugins\OmsiLaunch.Modules`; veja [módulos de runtime](../../../reference/runtime-modules.md). Um módulo solicitado que não pode ser carregado é um diagnóstico de plano `OL_E_MODULE_*` (plano não apto para execução). | sim | `EXPERIMENTAL` |
+| `Enable` | array de ids de módulos | nenhum | Ids de módulos instalados em `plugins\OmsiLaunch.Modules`; veja [módulos de runtime](runtime-modules.md). Um módulo solicitado que não pode ser carregado é um diagnóstico de plano `OL_E_MODULE_*` (plano não apto para execução). | sim | `EXPERIMENTAL` |
 | `Disable` | array de ids de módulos ou null | nenhum | Mantém um módulo padrão, de conteúdo ou do arquivo de configurações fora da sessão (diagnóstico de plano `module.disabled`). Um módulo ao mesmo tempo ativado e desativado é `OL_E_MODULE_SETTING_INVALID`. Acessor somente leitura `EffectiveDisable`. | sim | `EXPERIMENTAL` |
 | `Settings` | objeto de strings ou null | nenhum | `"<module id>.<key>": "<value>"`. Prevalece sobre o arquivo de configurações `.omsilaunch\modules.ini` e o padrão do manifesto. Um valor inválido ou uma chave que o módulo não declara é `OL_E_MODULE_SETTING_INVALID` (plano não apto para execução); configurações de um módulo que a sessão não carrega são `OL_W_MODULE_SETTING_IGNORED`. Os valores efetivos estão em `PlannedModule.Settings`. Acessor somente leitura `EffectiveSettings`. | sim | `EXPERIMENTAL` |
 

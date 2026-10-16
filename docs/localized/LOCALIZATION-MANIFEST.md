@@ -57,6 +57,8 @@ reference/runtime-control.md
 status/runtime-validation-status.md
 reference/compatibility.md
 reference/known-limitations.md
+reference/hof-management.md
+reference/runtime-modules.md
 ```
 
 `reference/public-api-inventory.md` is generated from the generated English inventory by `python tools/Localization/l10n.py inventory <locale>`: only its fixed phrases are translated, every signature is copied.

@@ -171,7 +171,7 @@ Ustawienie wstępne z `hofs` połączone z flagą `/hof-source`: `OL_E_SESSION_P
 
 ### `modules`
 
-Jeden wpis na identyfikator [modułu runtime](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Każdy wpis to mapowanie z następującymi kluczami (kontekst `module`):
+Jeden wpis na identyfikator [modułu runtime](runtime-modules.md) (`EXPERIMENTAL`). Każdy wpis to mapowanie z następującymi kluczami (kontekst `module`):
 
 | Klucz | Typ | Wymagany | Wartość domyślna | Opis |
 | --- | --- | --- | --- | --- |

@@ -117,7 +117,7 @@ De kolom "Verwerkt" vermeldt wat de huidige code met de waarde doet. Stabiliteit
 | `InternetTextures` | object `InternetTexturesSpec` of null | nee | `null` → `EffectiveInternetTextures` = `Native` | ja | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | object `SessionProfileMetadata` of null | nee | `null` | alleen herkomst (plandiagnose `session_profile.selected`) | `STABLE_BETA` |
 | `HofManagement` | object `HofManagementSpec` of null | nee | `null` → `EffectiveHofManagement` = geen bewerkingen | ja (HOF-overlays van de sessie, zie [HOF-beheer](hof-management.md)) | `STABLE_BETA` |
-| `Modules` | object `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) of null | nee | `null` → `EffectiveModules` = niets aangevraagd, uitgeschakeld of ingesteld | nee (modules raken via OmsiLaunch nooit installatiebestanden aan; zie [runtimemodules](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
+| `Modules` | object `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) of null | nee | `null` → `EffectiveModules` = niets aangevraagd, uitgeschakeld of ingesteld | nee (modules raken via OmsiLaunch nooit installatiebestanden aan; zie [runtimemodules](runtime-modules.md)) | `EXPERIMENTAL` |
 
 Alleen-lezen accessors (aanwezig in JSON-uitvoer van de CLI, genegeerd bij het laden): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
@@ -270,7 +270,7 @@ Leden van `HofOperationSpec`: `SourceKind` (`HofSourceKind` int), `Source` (stri
 
 | Eigenschap | Type | Standaard | Geldige waarden | Verwerkt | Stabiliteit |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | array van module-id's | geen | Id's van modules die onder `plugins\OmsiLaunch.Modules` zijn geïnstalleerd; zie [runtimemodules](../../../reference/runtime-modules.md). Een aangevraagde module die niet kan worden geladen, is een plandiagnose `OL_E_MODULE_*` (plan niet uitvoerbaar). | ja | `EXPERIMENTAL` |
+| `Enable` | array van module-id's | geen | Id's van modules die onder `plugins\OmsiLaunch.Modules` zijn geïnstalleerd; zie [runtimemodules](runtime-modules.md). Een aangevraagde module die niet kan worden geladen, is een plandiagnose `OL_E_MODULE_*` (plan niet uitvoerbaar). | ja | `EXPERIMENTAL` |
 | `Disable` | array van module-id's of null | geen | Houdt een standaardmodule, contentmodule of module uit het instellingenbestand buiten de sessie (plandiagnose `module.disabled`). Een module die zowel is ingeschakeld als uitgeschakeld, is `OL_E_MODULE_SETTING_INVALID`. Alleen-lezen accessor `EffectiveDisable`. | ja | `EXPERIMENTAL` |
 | `Settings` | object van strings of null | geen | `"<module id>.<key>": "<value>"`. Heeft voorrang op het instellingenbestand `.omsilaunch\modules.ini` en op de standaardwaarde in het manifest. Een ongeldige waarde of een sleutel die de module niet declareert, is `OL_E_MODULE_SETTING_INVALID` (plan niet uitvoerbaar); instellingen voor een module die de sessie niet laadt, zijn `OL_W_MODULE_SETTING_IGNORED`. De effectieve waarden staan in `PlannedModule.Settings`. Alleen-lezen accessor `EffectiveSettings`. | ja | `EXPERIMENTAL` |
 

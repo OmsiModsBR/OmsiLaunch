@@ -117,7 +117,7 @@
 | `InternetTextures` | `InternetTexturesSpec` 物件或 null | 否 | `null` → `EffectiveInternetTextures` = `Native` | 是 | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | `SessionProfileMetadata` 物件或 null | 否 | `null` | 僅供來源追溯（`session_profile.selected` 計畫診斷訊息） | `STABLE_BETA` |
 | `HofManagement` | `HofManagementSpec` 物件或 null | 否 | `null` → `EffectiveHofManagement` = 沒有任何操作 | 是（工作階段 HOF overlay，請見 [HOF 管理](hof-management.md)） | `STABLE_BETA` |
-| `Modules` | `RuntimeModulesSpec` 物件（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）或 null | 否 | `null` → `EffectiveModules` = 沒有任何被要求、停用或設定的項目 | 否（模組絕不會透過 OmsiLaunch 觸及安裝檔案；請見[執行階段模組](../../../reference/runtime-modules.md)） | `EXPERIMENTAL` |
+| `Modules` | `RuntimeModulesSpec` 物件（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）或 null | 否 | `null` → `EffectiveModules` = 沒有任何被要求、停用或設定的項目 | 否（模組絕不會透過 OmsiLaunch 觸及安裝檔案；請見[執行階段模組](runtime-modules.md)） | `EXPERIMENTAL` |
 
 唯讀存取子（出現在 CLI JSON 輸出中，載入時忽略）：`EffectiveYear`、`EffectiveWeather`、`EffectiveInput`、`EffectiveDiagnostics`、`EffectivePresentation`、`EffectiveInternetTextures`、`EffectiveHofManagement`、`EffectiveModules`。
 
@@ -271,7 +271,7 @@ CLI 旗標 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 
 | 屬性 | 型別 | 預設值 | 有效值 | 使用情形 | 穩定性 |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | 模組 id 陣列 | 無 | 安裝在 `plugins\OmsiLaunch.Modules` 之下的模組 id；請見[執行階段模組](../../../reference/runtime-modules.md)。無法載入的被要求模組會是計畫診斷訊息 `OL_E_MODULE_*`（計畫不可執行）。 | 是 | `EXPERIMENTAL` |
+| `Enable` | 模組 id 陣列 | 無 | 安裝在 `plugins\OmsiLaunch.Modules` 之下的模組 id；請見[執行階段模組](runtime-modules.md)。無法載入的被要求模組會是計畫診斷訊息 `OL_E_MODULE_*`（計畫不可執行）。 | 是 | `EXPERIMENTAL` |
 | `Disable` | 模組 id 陣列或 null | 無 | 讓預設、內容或設定檔所載入的模組不加入工作階段（計畫診斷訊息 `module.disabled`）。同時啟用與停用的模組為 `OL_E_MODULE_SETTING_INVALID`。唯讀存取子 `EffectiveDisable`。 | 是 | `EXPERIMENTAL` |
 | `Settings` | 字串物件或 null | 無 | `"<module id>.<key>": "<value>"`。優先於設定檔 `.omsilaunch\modules.ini` 與資訊清單預設值。無效值，或模組未宣告的索引鍵，為 `OL_E_MODULE_SETTING_INVALID`（計畫不可執行）；針對工作階段未載入之模組的設定為 `OL_W_MODULE_SETTING_IGNORED`。有效值位於 `PlannedModule.Settings`。唯讀存取子 `EffectiveSettings`。 | 是 | `EXPERIMENTAL` |
 

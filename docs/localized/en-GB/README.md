@@ -31,7 +31,7 @@ runtime-validated unless the
 | [Installation](getting-started/installation.md) | Prerequisites, extracting the package into the OMSI root, verifying with `/version`, clean removal. |
 | [Public API Quick Start](getting-started/api-quick-start.md) | A complete .NET program that plans, starts, reads and stops one session. |
 | [HOF Management](reference/hof-management.md) | Session-scoped HOF copy and mirror into vehicle folders: sources, targets, conflicts, restore. |
-| [Runtime Modules](../../reference/runtime-modules.md) | Modules that run inside OMSI with a session: manifest, trust, lifecycle, failure policies, operations. |
+| [Runtime Modules](reference/runtime-modules.md) | Modules that run inside OMSI with a session: manifest, trust, lifecycle, failure policies, operations. |
 | [CLI Reference](reference/cli.md) | Every flag, command word and hierarchical route of `OmsiLaunch.exe` / `OmsiLaunchW.exe`. |
 | [CLI Examples](reference/cli-examples.md) | Copy-and-paste command lines for common tasks. |
 | [LaunchSpec Reference](reference/launchspec.md) | Every `LaunchSpec` property and enum value, JSON loading rules for `/spec`. |

@@ -171,7 +171,7 @@
 
 ### `modules`
 
-[ランタイムモジュール](../../../reference/runtime-modules.md) ID ごとに 1 エントリ（`EXPERIMENTAL`）。各エントリは次のキーを持つマッピングです（コンテキスト `module`）。
+[ランタイムモジュール](runtime-modules.md) ID ごとに 1 エントリ（`EXPERIMENTAL`）。各エントリは次のキーを持つマッピングです（コンテキスト `module`）。
 
 | キー | 型 | 必須 | 既定値 | 説明 |
 | --- | --- | --- | --- | --- |

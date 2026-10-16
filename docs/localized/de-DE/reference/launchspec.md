@@ -116,7 +116,7 @@ Die Spalte „Verwendet“ gibt an, was der aktuelle Code mit dem Wert tut. Die 
 | `InternetTextures` | `InternetTexturesSpec`-Objekt oder null | nein | `null` → `EffectiveInternetTextures` = `Native` | ja | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | `SessionProfileMetadata`-Objekt oder null | nein | `null` | nur Herkunftsnachweis (Plandiagnose `session_profile.selected`) | `STABLE_BETA` |
 | `HofManagement` | `HofManagementSpec`-Objekt oder null | nein | `null` → `EffectiveHofManagement` = keine Operationen | ja (HOF-Overlays der Sitzung, siehe [HOF-Verwaltung](hof-management.md)) | `STABLE_BETA` |
-| `Modules` | `RuntimeModulesSpec`-Objekt (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) oder null | nein | `null` → `EffectiveModules` = nichts angefordert, deaktiviert oder gesetzt | nein (Module berühren über OmsiLaunch nie Dateien der Installation; siehe [Runtime-Module](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
+| `Modules` | `RuntimeModulesSpec`-Objekt (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) oder null | nein | `null` → `EffectiveModules` = nichts angefordert, deaktiviert oder gesetzt | nein (Module berühren über OmsiLaunch nie Dateien der Installation; siehe [Runtime-Module](runtime-modules.md)) | `EXPERIMENTAL` |
 
 Schreibgeschützte Accessoren (in der JSON-Ausgabe der CLI vorhanden, beim Laden ignoriert): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
@@ -269,7 +269,7 @@ Mitglieder von `HofOperationSpec`: `SourceKind` (`HofSourceKind` int), `Source` 
 
 | Eigenschaft | Typ | Standard | Gültige Werte | Verwendet | Stabilität |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | Array von Modul-IDs | keine | IDs von Modulen, die unterhalb von `plugins\OmsiLaunch.Modules` installiert sind; siehe [Runtime-Module](../../../reference/runtime-modules.md). Ein angefordertes Modul, das nicht geladen werden kann, ist eine Plandiagnose `OL_E_MODULE_*` (Plan nicht ausführbar). | ja | `EXPERIMENTAL` |
+| `Enable` | Array von Modul-IDs | keine | IDs von Modulen, die unterhalb von `plugins\OmsiLaunch.Modules` installiert sind; siehe [Runtime-Module](runtime-modules.md). Ein angefordertes Modul, das nicht geladen werden kann, ist eine Plandiagnose `OL_E_MODULE_*` (Plan nicht ausführbar). | ja | `EXPERIMENTAL` |
 | `Disable` | Array von Modul-IDs oder null | keine | Hält ein standardmäßiges, durch Inhalte oder durch die Einstellungsdatei geladenes Modul aus der Sitzung heraus (Plandiagnose `module.disabled`). Ein Modul, das sowohl aktiviert als auch deaktiviert ist, ergibt `OL_E_MODULE_SETTING_INVALID`. Schreibgeschützter Accessor `EffectiveDisable`. | ja | `EXPERIMENTAL` |
 | `Settings` | Objekt aus Strings oder null | keine | `"<module id>.<key>": "<value>"`. Hat Vorrang vor der Einstellungsdatei `.omsilaunch\modules.ini` und dem Standardwert des Manifests. Ein ungültiger Wert oder ein Schlüssel, den das Modul nicht deklariert, ist `OL_E_MODULE_SETTING_INVALID` (Plan nicht ausführbar); Einstellungen für ein Modul, das die Sitzung nicht lädt, sind `OL_W_MODULE_SETTING_IGNORED`. Die wirksamen Werte stehen in `PlannedModule.Settings`. Schreibgeschützter Accessor `EffectiveSettings`. | ja | `EXPERIMENTAL` |
 

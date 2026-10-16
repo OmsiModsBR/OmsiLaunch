@@ -171,7 +171,7 @@
 
 ### `modules`
 
-每個[執行階段模組](../../../reference/runtime-modules.md) id 一個項目（`EXPERIMENTAL`）。每個項目是帶有下列鍵的對應（內容 `module`）：
+每個[執行階段模組](runtime-modules.md) id 一個項目（`EXPERIMENTAL`）。每個項目是帶有下列鍵的對應（內容 `module`）：
 
 | 鍵 | 型別 | 必要 | 預設值 | 說明 |
 | --- | --- | --- | --- | --- |

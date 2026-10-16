@@ -28,7 +28,7 @@
 | [CLI 範例](reference/cli-examples.md) | 常見工作可直接複製貼上的命令列。 |
 | [LaunchSpec 參考](reference/launchspec.md) | 所有 `LaunchSpec` 屬性與列舉值，以及 `/spec` 的 JSON 載入規則。 |
 | [HOF 管理](reference/hof-management.md) | 以工作階段為範圍，將 HOF 複製並鏡像到車輛資料夾：來源、目標、衝突與還原。 |
-| [執行階段模組](../../reference/runtime-modules.md) | 隨工作階段在 OMSI 內執行的模組：資訊清單、信任、生命週期、失敗原則與操作。 |
+| [執行階段模組](reference/runtime-modules.md) | 隨工作階段在 OMSI 內執行的模組：資訊清單、信任、生命週期、失敗原則與操作。 |
 | [工作階段設定檔參考](reference/session-profiles.md) | `profile.yaml` 結構描述 `omsilaunch.session-profile/v1`、索引鍵、限制與優先順序。 |
 | [公開 API 參考](reference/public-api.md) | `IOmsiLaunch`、公開 record 與列舉，以及每個成員的穩定性。 |
 | [公開 API 清單](reference/public-api-inventory.md) | 自動產生的清單，列出每個公開型別與成員及其簽章與穩定性。 |

@@ -31,7 +31,7 @@ Słownictwo stabilności używane w całej dokumentacji: `STABLE_BETA`, `EXPERIM
 | [Przykłady CLI](reference/cli-examples.md) | Wiersze poleceń do skopiowania dla typowych zadań. |
 | [Dokumentacja LaunchSpec](reference/launchspec.md) | Każda właściwość `LaunchSpec` i wartość wyliczenia, reguły wczytywania JSON dla `/spec`. |
 | [Zarządzanie HOF](reference/hof-management.md) | Kopiowanie HOF w zakresie sesji i jego powielanie do katalogów pojazdów: źródła, cele, konflikty, przywracanie. |
-| [Moduły runtime](../../reference/runtime-modules.md) | Moduły działające wewnątrz OMSI razem z sesją: manifest, zaufanie, cykl życia, polityki awarii, operacje. |
+| [Moduły runtime](reference/runtime-modules.md) | Moduły działające wewnątrz OMSI razem z sesją: manifest, zaufanie, cykl życia, polityki awarii, operacje. |
 | [Dokumentacja profili sesji](reference/session-profiles.md) | Schemat `profile.yaml` `omsilaunch.session-profile/v1`, klucze, limity, pierwszeństwo. |
 | [Dokumentacja publicznego API](reference/public-api.md) | `IOmsiLaunch`, publiczne rekordy i wyliczenia, stabilność każdej składowej. |
 | [Inwentarz publicznego API](reference/public-api-inventory.md) | Wygenerowana lista każdego publicznego typu i składowej wraz z sygnaturą i stabilnością. |

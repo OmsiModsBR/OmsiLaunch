@@ -20,6 +20,7 @@
     "concepts/session-lifecycle.md",
     "reference/session-profiles.md",
     "reference/hof-management.md",
+    "reference/runtime-modules.md",
     "concepts/transactions-and-recovery.md",
     "concepts/permanent-plugin.md",
     "reference/capabilities.md",

@@ -28,7 +28,7 @@
 | [CLI の使用例](reference/cli-examples.md) | よくある作業のための、コピー＆ペーストで使えるコマンドライン。 |
 | [LaunchSpec リファレンス](reference/launchspec.md) | `LaunchSpec` のすべてのプロパティと列挙値、`/spec` の JSON 読み込み規則。 |
 | [HOF 管理](reference/hof-management.md) | セッションスコープの HOF のコピーと車両フォルダーへのミラーリング: ソース、ターゲット、競合、復元。 |
-| [ランタイムモジュール](../../reference/runtime-modules.md) | セッションとともに OMSI 内で動作するモジュール: マニフェスト、信頼、ライフサイクル、失敗ポリシー、操作。 |
+| [ランタイムモジュール](reference/runtime-modules.md) | セッションとともに OMSI 内で動作するモジュール: マニフェスト、信頼、ライフサイクル、失敗ポリシー、操作。 |
 | [セッションプロファイルリファレンス](reference/session-profiles.md) | `profile.yaml` のスキーマ `omsilaunch.session-profile/v1`、キー、上限、優先順位。 |
 | [公開 API リファレンス](reference/public-api.md) | `IOmsiLaunch`、公開レコードと列挙型、メンバーごとの安定性。 |
 | [公開 API インベントリ](reference/public-api-inventory.md) | すべての公開型とメンバーをシグネチャと安定性付きで列挙した自動生成リスト。 |
