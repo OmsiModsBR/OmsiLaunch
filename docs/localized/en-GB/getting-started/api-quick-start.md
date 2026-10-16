@@ -1,7 +1,7 @@
 # Public API Quick Start
 
 <!-- l10n: source=getting-started/api-quick-start.md source-sha256=cd9b92efa4f35f7a4f8947145e72af4b066eb29e49c6f4435497e0001eadc69c -->
-> British English edition of the [canonical page](../../../getting-started/api-quick-start.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+> British English edition of the [canonical page](../../../getting-started/api-quick-start.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 This page starts, reads and ends one OmsiLaunch session from your own .NET program. It assumes the package is installed in the OMSI 2 directory (see [installation](installation.md)) and that `OmsiLaunch.exe /plan` works there (see [first session](first-session.md)). The full contract is in the [public API reference](../reference/public-api.md).
 

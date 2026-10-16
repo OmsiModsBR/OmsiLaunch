@@ -42,15 +42,19 @@ de la comunidad. No es un lanzador gráfico.
 
 > **Define la sesión, no los clics.**
 
-## Estado: 0.1.0-beta3
+## Estado: 0.1.0-beta4
 
-La beta pública actual es **`0.1.0-beta3`**. La Beta 3 es la base posterior al
-endurecimiento. La mayoría de sus funciones son `RUNTIME_VALIDATED`: se
-observaron en sesiones reales de OMSI, incluida la ronda de cierre de runtime
-del 2026-09-23. Algunas siguen siendo `STATICALLY_VALIDATED` (solo pruebas
-offline), `PARTIAL` o `UNAVAILABLE`. Quedan dos elementos de runtime abiertos
-porque no pueden producirse de forma segura: la fase de juego con Steam LAA y la
-eliminación natural de vehículos de carretera y humanos (RV-002). La página de
+La beta pública actual es **`0.1.0-beta4`**. La Beta 4 añade compatibilidad por
+capacidad, módulos de runtime, perfiles de sesión del 1 al 99 y un conjunto de
+funciones de inicio y de runtime. La compatibilidad, el catálogo de
+capacidades, la paginación, los errores tipados y el puente de módulos se
+observaron en sesiones reales de OMSI (rondas de validación A y B). Las
+funciones añadidas después de esas rondas son `EXPERIMENTAL`: cerradas mediante
+análisis estático y probadas solo offline, con la validación en runtime
+pendiente. Algunas siguen siendo `STATICALLY_VALIDATED`, `PARTIAL` o
+`UNAVAILABLE`. Quedan dos elementos de runtime abiertos porque no pueden
+producirse de forma segura: la fase de juego con Steam LAA y la eliminación
+natural de vehículos de carretera y humanos (RV-002). La página de
 [estado de la validación en runtime](../localized/es-ES/status/runtime-validation-status.md) es
 el registro de referencia de lo que se ejecutó con OMSI y de lo que se ejecutó solo offline.
 
@@ -60,14 +64,17 @@ y aún pueden cambiar antes de la 1.0.
 
 ## Alcance de OMSI admitido
 
-OmsiLaunch admite exactamente un build de OMSI 2 y se niega a iniciar cualquier
-cosa que no reconozca.
+OmsiLaunch requiere una instalación de OMSI 2. No depende de un archivo
+`Omsi.exe` concreto: cada capacidad nativa se resuelve y se verifica de forma
+individual dentro de OMSI antes de usarse, y una capacidad que no puede
+verificarse en un build no está disponible en ese build.
 
 | Elemento | Alcance |
 | --- | --- |
-| Build de OMSI | Perfil `Omsi23004_692EBFBF`: `Omsi.exe` con SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (OMSI 2.3.004). `STABLE_BETA`; todas las validaciones en runtime se ejecutaron con este archivo. |
-| Ejecutable Steam LAA | El SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` se acepta mediante lista de permitidos. Solo se validaron la huella y la planificación; la fase de juego **no** se validó en runtime. `PARTIAL`. |
-| Builds desconocidos | Se rechazan con `OL_E_UNSUPPORTED_BUILD`. El hash se vuelve a comprobar en cada planificación y en cada inicio. |
+| Requisito | OMSI 2 instalado: un `Omsi.exe` de 32 bits con una versión de OMSI 2 (2.x) y los directorios `maps\` y `Vehicles\`. Todo lo demás se rechaza con `OL_E_UNSUPPORTED_BUILD`. |
+| Disposición conocida | OMSI 2.3.004 (`Omsi23004`). Todas las capacidades se resuelven y todas las validaciones en runtime se ejecutaron con esta disposición. Los hashes la identifican como vía rápida; no son un requisito. |
+| Otros builds de OMSI 2 | Cada capacidad se resuelve mediante estrategias independientes del build (RTTI de Delphi, firmas de código únicas, slots de VMT) y se verifica. Las capacidades que leen disposiciones de objetos necesitan una disposición conocida. |
+| Ejecutable de Steam | Se resuelve en el proceso; una sesión auténtica de Steam **no** se ha validado en runtime. |
 | Sistema operativo | Windows 10 o posterior, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controlador) y .NET 6 Runtime **x86** (el plugin se ejecuta dentro del `Omsi.exe` de 32 bits). |
 
@@ -188,7 +195,7 @@ La documentación está traducida a 14 configuraciones regionales en
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). Las traducciones
 se elaboraron a partir de las páginas canónicas en inglés (EE. UU.) y se
 validaron mecánicamente con ellas. La revisión editorial por hablantes nativos
-no formó parte de la versión Beta 3 y puede realizarse después de la
+no formó parte de la versión Beta 4 y puede realizarse después de la
 publicación. Cuando una traducción y la página en inglés no coinciden, prevalece
 la página en inglés.
 
@@ -197,30 +204,35 @@ la página en inglés.
 Estas son las limitaciones más importantes. La lista completa está en
 [Limitaciones conocidas](../localized/es-ES/reference/known-limitations.md).
 
-- **Un único build de OMSI.** Steam LAA es `PARTIAL`: la fase de juego, las
-  lecturas, los comandos y la detención requieren una instalación auténtica de
-  Steam y no se validaron en runtime.
-- **No disponible en esta beta:** iniciar desde el último estado del mapa
-  (`/last`), fecha, hora, año o meteorología explícitos al iniciar y asignación
-  del vehículo del jugador al iniciar. Solicitar cualquiera de ellos hace que el
-  plan no sea ejecutable, en lugar de ignorarse en silencio.
-- **Las escrituras en runtime son limitadas.** `weather.set`, las escrituras del
-  calendario, las escrituras de variables de cadena y la reubicación de
-  vehículos no están disponibles. Los cambios en runtime no se registran en el
-  diario y no se restauran.
+- **Steam.** Steam LAA es `PARTIAL`: la fase de juego, las lecturas, los
+  comandos y la detención requieren una instalación auténtica de Steam y no se
+  validaron en runtime.
+- **Experimental en esta beta:** iniciar desde el último estado del mapa
+  (`/last`) y fecha, hora, año o meteorología explícitos al iniciar están
+  cerrados estáticamente y a la espera de validación en runtime. **No
+  disponible:** asignación del vehículo del jugador al iniciar; solicitarla hace
+  que el plan no sea ejecutable, en lugar de ignorarse en silencio.
+- **Las escrituras en runtime son limitadas.** `weather.set`,
+  `weather.metar.set`, las escrituras de variables de cadena y los disparadores
+  de script son experimentales hasta que se validen en runtime; las escrituras
+  del calendario y la reubicación de vehículos no están disponibles. Los cambios
+  en runtime no se registran en el diario y no se restauran.
 - **Vida útil de los handles.** La detección de handles obsoletos para vehículos
   de carretera y humanos que desaparecen de forma natural (RV-002) no tiene un
   productor seguro en runtime y solo está validada offline.
-- **Resultados acotados.** Las listas largas se truncan (`truncated=true`). No
-  hay paginación.
-- **La detención es forzada.** El cierre propio de OMSI no se ejecuta y el
-  estado de OMSI no guardado se pierde.
+- **Resultados paginados.** Las listas de runtime se paginan con `cursor` y
+  `limit` y continúan en `next_cursor`; una página que no cabe en el buzón de
+  64 KiB se acorta y se marca con `truncated=true`.
+- **La detención es forzada de forma predeterminada.** OMSI se termina, su
+  cierre propio no se ejecuta y el estado de OMSI no guardado se pierde. El
+  cierre cooperativo opcional (`/cooperative-shutdown`, experimental) ejecuta
+  antes la rutina de salida de OMSI.
 - **Modelo de confianza del mismo usuario.** Cualquier proceso del mismo usuario
   de Windows puede acceder al plano de control local.
 
 ## Descarga
 
-Descarga **`OmsiLaunch-0.1.0-beta3.zip`** y su archivo `.sha256` desde la
+Descarga **`OmsiLaunch-0.1.0-beta4.zip`** y su archivo `.sha256` desde la
 [página de versiones](https://github.com/lmonteirotech/OmsiLaunch/releases).
 Extráelo directamente en la raíz de OMSI admitida. El paquete contiene el
 controlador (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), sus dependencias, el conjunto

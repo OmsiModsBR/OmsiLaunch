@@ -1,7 +1,7 @@
 # Códigos de salida
 
 <!-- l10n: source=reference/exit-codes.md source-sha256=e4c8d0f699c39379c1bb3c3194c29b92bf3ca4b830a086b6b3c2a104b8422cfa -->
-> Traducción de la [página original en inglés](../../../reference/exit-codes.md) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
+> Traducción de la [página original en inglés](../../../reference/exit-codes.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
 
 Esta página enumera cada código de salida de proceso que pueden devolver `OmsiLaunch.exe` y `OmsiLaunchW.exe`: el contrato administrado público `PublicExitCode` (`src\OmsiLaunch.Api\PublicControlContract.cs`), los códigos del shim nativo `100`..`106` (`tools\OmsiLaunch.Bootstrapper\OmsiLaunch.Bootstrapper.cpp` y `OmsiLaunch.WindowsHost.cpp`) y las reglas de clasificación que `CliProgram.Classify` aplica a cualquier excepción que escape (`tools\OmsiLaunch.Cli\Program.cs`). Los llamadores deben inferir la semántica a partir del código y del envoltorio de error estructurado, nunca a partir del texto del mensaje. Los códigos de error se catalogan en [errores](errors.md); los comandos que producen cada código están en la [referencia de la CLI](cli.md).
 

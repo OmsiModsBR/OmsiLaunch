@@ -1,7 +1,7 @@
 # 事务与恢复
 
 <!-- l10n: source=concepts/transactions-and-recovery.md source-sha256=cc2e7f493ee6d112a3d5326be020b81beb67a1002aa25b6042e982b0b3d9bb9c -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../concepts/transactions-and-recovery.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../concepts/transactions-and-recovery.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 每个涉及 OMSI 文件的 OmsiLaunch 会话都在一个持久化、带事务日志（journal）的事务中进行：原始字节在被替换之前先行备份，事务日志记录会话进行到了哪一步，还原时会先校验每个备份再将其写回。本页说明该事务在 `FileConfigurationTransaction`（`src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`）中的实现方式，以及它如何由 `OmsiLaunchService.StartAsync`、`SuperviseAsync` 和 `RecoverPendingAsync`（`src/OmsiLaunch.Core/OmsiLaunchService.cs`）驱动，并结合由 `SessionVisualAssets`（`src/OmsiLaunch.Core/SessionVisualAssets.cs`）计算的文件输入。本页面向需要了解会话会更改哪些内容以及恢复会执行哪些操作的用户，也面向需要确切保证的集成方。
 

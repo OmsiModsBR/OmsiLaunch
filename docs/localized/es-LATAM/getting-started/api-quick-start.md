@@ -1,7 +1,7 @@
 # Inicio rápido de la API pública
 
 <!-- l10n: source=getting-started/api-quick-start.md source-sha256=cd9b92efa4f35f7a4f8947145e72af4b066eb29e49c6f4435497e0001eadc69c -->
-> Traducción de la [página original en inglés](../../../getting-started/api-quick-start.md) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
+> Traducción de la [página original en inglés](../../../getting-started/api-quick-start.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
 
 Esta página inicia, lee y finaliza una sesión de OmsiLaunch desde su propio programa .NET. Se supone que el paquete está instalado en el directorio de OMSI 2 (consulte [instalación](installation.md)) y que `OmsiLaunch.exe /plan` funciona allí (consulte [primera sesión](first-session.md)). El contrato completo está en la [referencia de la API pública](../reference/public-api.md).
 

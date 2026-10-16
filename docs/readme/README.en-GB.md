@@ -41,12 +41,15 @@ integrations. It is not a graphical launcher.
 
 > **Define the session, not the clicks.**
 
-## Status: 0.1.0-beta3
+## Status: 0.1.0-beta4
 
-The current public beta is **`0.1.0-beta3`**. Beta 3 is the post-hardening
-baseline. Most of its features are `RUNTIME_VALIDATED`: they were observed in
-live OMSI sessions, including the runtime closure round of 2026-09-23. Some
-remain `STATICALLY_VALIDATED` (offline tests only), `PARTIAL` or `UNAVAILABLE`.
+The current public beta is **`0.1.0-beta4`**. Beta 4 adds per-capability
+compatibility, Runtime Modules, session profiles 1..99 and a set of start and
+runtime features. Compatibility, the capability catalogue, pagination, typed
+errors and the modules bridge were observed in live OMSI sessions (validation
+rounds A and B). The features added after those rounds are `EXPERIMENTAL`:
+closed by static analysis and tested offline only, with runtime validation
+pending. Some remain `STATICALLY_VALIDATED`, `PARTIAL` or `UNAVAILABLE`.
 Two runtime items are still open because they cannot be produced safely: Steam
 LAA gameplay and the natural removal of road vehicles and humans (RV-002). The
 [runtime validation status](../localized/en-GB/status/runtime-validation-status.md) page is
@@ -58,14 +61,17 @@ change before 1.0.
 
 ## Supported OMSI scope
 
-OmsiLaunch supports exactly one OMSI 2 build and refuses to start anything it
-does not recognise.
+OmsiLaunch requires an installed OMSI 2. It does not depend on one particular
+`Omsi.exe` file: every native capability is resolved and verified individually
+inside OMSI before it is used, and a capability that cannot be verified on a
+build is unavailable on that build.
 
 | Item | Scope |
 | --- | --- |
-| OMSI build | Profile `Omsi23004_692EBFBF`: `Omsi.exe` with SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (OMSI 2.3.004). `STABLE_BETA`; every runtime validation ran on this file. |
-| Steam LAA executable | SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` is accepted by allow-list. Only the fingerprint and planning were validated; gameplay was **not** runtime validated. `PARTIAL`. |
-| Unknown builds | Rejected with `OL_E_UNSUPPORTED_BUILD`. The hash is re-checked at every plan and at every start. |
+| Requirement | OMSI 2 installed: a 32-bit `Omsi.exe` with an OMSI 2 (2.x) version and the `maps\` and `Vehicles\` directories. Anything else is refused with `OL_E_UNSUPPORTED_BUILD`. |
+| Known layout | OMSI 2.3.004 (`Omsi23004`). Every capability resolves, and every runtime validation ran on this layout. Hashes identify it as a fast path; they are not a requirement. |
+| Other OMSI 2 builds | Each capability is resolved by build-independent strategies (Delphi RTTI, unique code signatures, VMT slots) and verified. Capabilities that read object layouts need a known layout. |
+| Steam executable | Resolved in process; a genuine Steam session has **not** been runtime validated. |
 | Operating system | Windows 10 or later, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controller) and .NET 6 Runtime **x86** (the plugin runs inside the 32-bit `Omsi.exe`). |
 
@@ -178,7 +184,7 @@ The English (US) pages under `docs/` are canonical and normative.
 The documentation is translated into 14 locales under
 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md). The translations
 were produced from the canonical English (US) pages and validated mechanically
-against them. Native-speaker editorial review was not part of the Beta 3 release
+against them. Native-speaker editorial review was not part of the Beta 4 release
 and may follow after publication. When a translation and the English page
 disagree, the English page is authoritative.
 
@@ -187,28 +193,32 @@ disagree, the English page is authoritative.
 These are the most important limitations. The complete list is in
 [Known limitations](../localized/en-GB/reference/known-limitations.md).
 
-- **One OMSI build.** Steam LAA is `PARTIAL`: gameplay, reads, commands and stop
+- **Steam.** Steam LAA is `PARTIAL`: gameplay, reads, commands and stop
   need a genuine Steam installation and were not runtime validated.
-- **Not available in this beta:** starting from the last map state (`/last`),
-  explicit date, time, year or weather at start, and player-vehicle assignment
-  at start. Requesting any of these makes the plan not runnable instead of being
-  silently ignored.
-- **Runtime writes are limited.** `weather.set`, calendar writes, string-variable
-  writes and vehicle relocation are unavailable. Runtime changes are not
-  journalled and are not restored.
+- **Experimental in this beta:** starting from the last map state (`/last`)
+  and explicit date, time, year or weather at start are closed statically and
+  await runtime validation. **Not available:** player-vehicle assignment at
+  start; requesting it makes the plan not runnable instead of being silently
+  ignored.
+- **Runtime writes are limited.** `weather.set`, `weather.metar.set`,
+  string-variable writes and script triggers are experimental until runtime
+  validated; calendar writes and vehicle relocation are unavailable. Runtime
+  changes are not journalled and are not restored.
 - **Handle lifetime.** Stale detection for road vehicles and humans that
   disappear naturally (RV-002) has no safe runtime producer and is validated
   offline only.
-- **Bounded results.** Long lists are truncated (`truncated=true`). There is no
-  paging.
-- **Stop is forced.** OMSI's own shutdown does not run, and unsaved OMSI state is
-  lost.
+- **Paged results.** Runtime lists are paged with `cursor` and `limit` and
+  continue at `next_cursor`; a page that does not fit the 64 KiB mailbox is
+  shortened and flagged `truncated=true`.
+- **Stop is forced by default.** OMSI is terminated, its own shutdown does not
+  run, and unsaved OMSI state is lost. The opt-in cooperative shutdown
+  (`/cooperative-shutdown`, experimental) runs OMSI's exit routine first.
 - **Same-user trust model.** Any process of the same Windows user can reach the
   local control plane.
 
 ## Download
 
-Download **`OmsiLaunch-0.1.0-beta3.zip`** and its `.sha256` file from the
+Download **`OmsiLaunch-0.1.0-beta4.zip`** and its `.sha256` file from the
 [Releases page](https://github.com/lmonteirotech/OmsiLaunch/releases). Extract
 it directly into the supported OMSI root. The package contains the controller
 (`OmsiLaunch.exe`, `OmsiLaunchW.exe`), its dependencies, the permanent plugin

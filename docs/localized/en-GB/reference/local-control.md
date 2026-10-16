@@ -1,7 +1,7 @@
 # Local Control Plane
 
 <!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
-> British English edition of the [canonical page](../../../reference/local-control.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+> British English edition of the [canonical page](../../../reference/local-control.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 The local control plane is the named-pipe endpoint through which a running OmsiLaunch owner (the process that started a session) accepts semantic session commands from other processes on the same machine: status, events, stop, and public runtime operations. This page specifies the endpoint as implemented in `tools\OmsiLaunch.Cli\LocalControlPlane.cs` and the request handler in `OwnerSession.RunAsync` (`tools\OmsiLaunch.Cli\Program.cs`): pipe naming, framing, protocol version, commands, session binding, error codes, trust model, availability window and how to talk to it from other tooling. The CLI client commands (`session status`, `session stop`, `events read`, `events watch`, routes such as `time get`) are thin wrappers over this protocol; see the [CLI reference](cli.md). The runtime operations themselves are specified in [runtime control](runtime-control.md); the in-process alternative for integrators is the [public API](public-api.md).
 

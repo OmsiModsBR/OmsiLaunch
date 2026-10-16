@@ -1,7 +1,7 @@
 # OmsiLaunchW.exe リファレンス
 
 <!-- l10n: source=reference/omsilaunchw.md source-sha256=1d15bd724a02153b5a30cc0d591754f94a1b1d66e7cba64b62501ac037b54622 -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/omsilaunchw.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/omsilaunchw.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 `OmsiLaunchW.exe` は、OmsiLaunch コントローラーの Windows サブシステム（GUI）ホストです。`OmsiLaunch.exe` と同じコマンドラインを受け付け、同じコントローラーコード（`OmsiLaunch.Controller.dll`）を実行します。唯一の違いは報告の方法です。コンソールウィンドウはなく、失敗はメッセージボックスとして表示され、実行中のセッションはその[トレイアイコン](windows-tray.md)を通してのみ確認できます。
 

@@ -1,7 +1,7 @@
 # 本機控制平面
 
 <!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/local-control.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/local-control.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本機控制平面是一個具名管道（named pipe）端點，執行中的 OmsiLaunch 擁有者（啟動工作階段的處理程序）透過它接受同一部電腦上其他處理程序傳來的語意化工作階段命令：狀態、事件、停止，以及公開的執行階段操作。本頁依 `tools\OmsiLaunch.Cli\LocalControlPlane.cs` 中的實作以及 `OwnerSession.RunAsync`（`tools\OmsiLaunch.Cli\Program.cs`）中的要求處理常式，規範此端點：管道命名、訊框（frame）格式、協定版本、命令、工作階段繫結、錯誤碼、信任模型、可用時段，以及如何從其他工具與它溝通。CLI 用戶端命令（`session status`、`session stop`、`events read`、`events watch`，以及 `time get` 等路由）是此協定的薄包裝層；請參閱 [CLI 參考](cli.md)。執行階段操作本身規範於[執行階段控制](runtime-control.md)；供整合者使用的處理程序內替代方案是[公開 API](public-api.md)。
 

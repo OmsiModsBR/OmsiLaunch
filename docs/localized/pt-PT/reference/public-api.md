@@ -3,7 +3,7 @@
 <!-- l10n: source=reference/public-api.md source-sha256=84642bb43094a73ea13c435992e09e49f1a9328928880336e171182bb1ad6851 -->
 > Tradução da [página original em inglês](../../../reference/public-api.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
 
-Esta página é a referência normativa da API pública gerida do OmsiLaunch 0.1.0-beta3: o assembly `OmsiLaunch.Api` (contratos) e o ponto de entrada para integradores `OmsiLaunchService` em `OmsiLaunch.Core`. Documenta apenas o que o código atual faz. Tudo o que um integrador pode chamar, receber ou observar está aqui listado com o respetivo nível de estabilidade; o que não estiver listado não é uma superfície de integração.
+Esta página é a referência normativa da API pública gerida do OmsiLaunch 0.1.0-beta4: o assembly `OmsiLaunch.Api` (contratos) e o ponto de entrada para integradores `OmsiLaunchService` em `OmsiLaunch.Core`. Documenta apenas o que o código atual faz. Tudo o que um integrador pode chamar, receber ou observar está aqui listado com o respetivo nível de estabilidade; o que não estiver listado não é uma superfície de integração.
 
 O [inventário da API pública](public-api-inventory.md) gerado lista todos os tipos e membros públicos de `OmsiLaunch.Api`, `OmsiLaunch.Core` e `OmsiLaunch.Process` com a respetiva assinatura e estabilidade; um gate de documentação (verificação obrigatória) falha quando o inventário e os assemblies divergem. Esta página explica a semântica.
 

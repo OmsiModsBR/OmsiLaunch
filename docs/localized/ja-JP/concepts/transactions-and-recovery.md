@@ -1,7 +1,7 @@
 # トランザクションとリカバリ
 
 <!-- l10n: source=concepts/transactions-and-recovery.md source-sha256=cc2e7f493ee6d112a3d5326be020b81beb67a1002aa25b6042e982b0b3d9bb9c -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../concepts/transactions-and-recovery.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../concepts/transactions-and-recovery.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 OMSI のファイルに手を加える OmsiLaunch のセッションは、すべて永続的でジャーナル化されたトランザクションの内部でその変更を行います。元のバイト列は置き換えられる前にバックアップされ、ジャーナルはセッションがどこまで進んだかを記録し、復元時には各バックアップを検証してから書き戻します。このページでは、`FileConfigurationTransaction`（`src/OmsiLaunch.Configuration/ConfigurationTransaction.cs`）として実装され、`OmsiLaunchService.StartAsync`、`SuperviseAsync`、`RecoverPendingAsync`（`src/OmsiLaunch.Core/OmsiLaunchService.cs`）によって駆動されるトランザクションを、`SessionVisualAssets`（`src/OmsiLaunch.Core/SessionVisualAssets.cs`）が算出するファイル入力とあわせて説明します。セッションが何を変更し、リカバリが何を行うかを知る必要があるユーザーと、正確な保証内容を知る必要があるインテグレーターを対象としています。
 

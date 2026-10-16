@@ -35,21 +35,22 @@
 
 > **定義工作階段，而非點擊步驟。**
 
-## 狀態：0.1.0-beta3
+## 狀態：0.1.0-beta4
 
-目前的公開 Beta 版為 **`0.1.0-beta3`**。Beta 3 是強化後的基準版本。其大部分功能為 `RUNTIME_VALIDATED`：這些功能已在實際的 OMSI 工作階段中觀察到，包括 2026-09-23 的執行階段收尾回合。部分功能仍為 `STATICALLY_VALIDATED`（僅離線測試）、`PARTIAL` 或 `UNAVAILABLE`。有兩個執行階段項目仍未結案，因為無法安全地產生其情境：Steam LAA 的遊戲過程，以及道路車輛與人物的自然移除（RV-002）。[執行階段驗證狀態](../localized/zh-TW/status/runtime-validation-status.md)頁面是權威紀錄，說明哪些項目曾在 OMSI 下執行、哪些僅以離線方式執行。
+目前的公開 Beta 版為 **`0.1.0-beta4`**。Beta 4 新增了逐項功能相容性、Runtime Modules、工作階段設定檔 1..99，以及一組啟動與執行階段功能。相容性、功能目錄、分頁、具型別的錯誤與模組橋接層已在實際的 OMSI 工作階段中觀察到（驗證回合 A 與 B）。這些回合之後新增的功能為 `EXPERIMENTAL`：已透過靜態分析結案並僅以離線方式測試，執行階段驗證尚待進行。部分功能仍為 `STATICALLY_VALIDATED`、`PARTIAL` 或 `UNAVAILABLE`。有兩個執行階段項目仍未結案，因為無法安全地產生其情境：Steam LAA 的遊戲過程，以及道路車輛與人物的自然移除（RV-002）。[執行階段驗證狀態](../localized/zh-TW/status/runtime-validation-status.md)頁面是權威紀錄，說明哪些項目曾在 OMSI 下執行、哪些僅以離線方式執行。
 
 本版本為 Beta：公開 API、CLI 與檔案格式依成員分別標示為 `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL` 或 `UNAVAILABLE`，且在 1.0 之前仍可能變更。
 
 ## 支援的 OMSI 範圍
 
-OmsiLaunch 只支援唯一一個 OMSI 2 組建，並拒絕啟動任何無法辨識的項目。
+OmsiLaunch 需要已安裝的 OMSI 2。它不依賴某一個特定的 `Omsi.exe` 檔案：每一項原生功能在使用之前，都會在 OMSI 內個別解析並驗證；在某個組建上無法驗證的功能，在該組建上即無法使用。
 
 | 項目 | 範圍 |
 | --- | --- |
-| OMSI 組建 | 設定檔 `Omsi23004_692EBFBF`：SHA-256 為 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` 的 `Omsi.exe`（OMSI 2.3.004）。`STABLE_BETA`；所有執行階段驗證都在此檔案上執行。 |
-| Steam LAA 執行檔 | SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` 透過允許清單接受。僅驗證了指紋與規劃；遊戲過程**未**經執行階段驗證。`PARTIAL`。 |
-| 未知組建 | 以 `OL_E_UNSUPPORTED_BUILD` 拒絕。每次規劃與每次啟動時都會重新檢查雜湊。 |
+| 需求 | 已安裝 OMSI 2：32 位元的 `Omsi.exe`，其版本為 OMSI 2（2.x），並具有 `maps\` 與 `Vehicles\` 目錄。其他任何情況都會以 `OL_E_UNSUPPORTED_BUILD` 拒絕。 |
+| 已知配置 | OMSI 2.3.004（`Omsi23004`）。每一項功能都能解析，且所有執行階段驗證都在此配置上執行。雜湊僅作為辨識它的快速路徑，並非必要條件。 |
+| 其他 OMSI 2 組建 | 每一項功能都透過與組建無關的策略（Delphi RTTI、唯一的程式碼簽章、VMT 槽位）解析並驗證。讀取物件配置的功能需要已知配置。 |
+| Steam 執行檔 | 在處理程序內解析；正版 Steam 工作階段**未**經執行階段驗證。 |
 | 作業系統 | Windows 10 或更新版本，x64。 |
 | Runtime | .NET 6 Desktop Runtime **x64**（控制器）與 .NET 6 Runtime **x86**（外掛程式在 32 位元的 `Omsi.exe` 內執行）。 |
 
@@ -120,23 +121,23 @@ OmsiLaunch.exe session stop
 
 ### 其他語言的文件
 
-文件已翻譯為 14 種地區語言，位於 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md) 下。這些翻譯以規範性的英文（美國）頁面為來源產生，並已依據英文頁面進行機械式驗證。母語人士的編輯審閱不屬於 Beta 3 發行的一部分，可能於發佈後進行。當翻譯與英文頁面不一致時，以英文頁面為準。
+文件已翻譯為 14 種地區語言，位於 [`docs/localized/`](../localized/LOCALIZATION-MANIFEST.md) 下。這些翻譯以規範性的英文（美國）頁面為來源產生，並已依據英文頁面進行機械式驗證。母語人士的編輯審閱不屬於 Beta 4 發行的一部分，可能於發佈後進行。當翻譯與英文頁面不一致時，以英文頁面為準。
 
 ## 限制與未結項目
 
 以下是最重要的限制。完整清單請參閱[已知限制](../localized/zh-TW/reference/known-limitations.md)。
 
-- **僅支援一個 OMSI 組建。** Steam LAA 為 `PARTIAL`：遊戲過程、讀取、命令與停止都需要正版 Steam 安裝，且未經執行階段驗證。
-- **本 Beta 版無法使用：** 從上次的地圖狀態啟動（`/last`）、啟動時明確指定日期、時間、年份或天氣，以及啟動時指派玩家車輛。要求其中任何一項都會使計畫不可執行，而不是被默默忽略。
-- **執行階段寫入受到限制。** `weather.set`、行事曆寫入、字串變數寫入與車輛重新定位皆無法使用。執行階段變更不會記入日誌，也不會還原。
+- **Steam。** Steam LAA 為 `PARTIAL`：遊戲過程、讀取、命令與停止都需要正版 Steam 安裝，且未經執行階段驗證。
+- **本 Beta 版中屬實驗性：** 從上次的地圖狀態啟動（`/last`），以及啟動時明確指定日期、時間、年份或天氣，已透過靜態分析結案，尚待執行階段驗證。**無法使用：** 啟動時指派玩家車輛；要求此項會使計畫不可執行，而不是被默默忽略。
+- **執行階段寫入受到限制。** `weather.set`、`weather.metar.set`、字串變數寫入與指令碼觸發在經過執行階段驗證之前皆為實驗性；行事曆寫入與車輛重新定位則無法使用。執行階段變更不會記入日誌，也不會還原。
 - **Handle 生命週期。** 對於自然消失的道路車輛與人物，失效偵測（RV-002）沒有安全的執行階段產生方式，僅以離線方式驗證。
-- **有界結果。** 過長的清單會被截斷（`truncated=true`）。不支援分頁。
-- **停止為強制執行。** OMSI 本身的關閉程序不會執行，未儲存的 OMSI 狀態將會遺失。
+- **分頁結果。** 執行階段清單以 `cursor` 與 `limit` 分頁，並從 `next_cursor` 繼續；放不進 64 KiB 信箱（mailbox）的頁面會被縮短，並標示為 `truncated=true`。
+- **預設為強制停止。** OMSI 會被終止，其本身的關閉程序不會執行，未儲存的 OMSI 狀態將會遺失。需主動選用的協作式關閉（`/cooperative-shutdown`，實驗性）會先執行 OMSI 的結束常式。
 - **同一使用者信任模型。** 同一 Windows 使用者的任何處理程序都能存取本機控制平面。
 
 ## 下載
 
-請從 [Releases 頁面](https://github.com/lmonteirotech/OmsiLaunch/releases)下載 **`OmsiLaunch-0.1.0-beta3.zip`** 及其 `.sha256` 檔案，並直接解壓縮到支援的 OMSI 根目錄。套件包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其相依元件、附有 `release-manifest.json` 的永久外掛程式檔案集合、啟動畫面資源、一個工作階段範例，以及位於 `.omsilaunch\docs\` 下的離線文件。套件配置與完整移除：[封裝](../localized/zh-TW/reference/packaging.md)。
+請從 [Releases 頁面](https://github.com/lmonteirotech/OmsiLaunch/releases)下載 **`OmsiLaunch-0.1.0-beta4.zip`** 及其 `.sha256` 檔案，並直接解壓縮到支援的 OMSI 根目錄。套件包含控制器（`OmsiLaunch.exe`、`OmsiLaunchW.exe`）、其相依元件、附有 `release-manifest.json` 的永久外掛程式檔案集合、啟動畫面資源、一個工作階段範例，以及位於 `.omsilaunch\docs\` 下的離線文件。套件配置與完整移除：[封裝](../localized/zh-TW/reference/packaging.md)。
 
 ## 從原始碼建置
 
