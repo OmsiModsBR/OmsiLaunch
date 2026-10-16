@@ -18,7 +18,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $failures = New-Object System.Collections.Generic.List[string]
-$toolset = if ($PlatformToolset) { @("-p:PlatformToolset=$PlatformToolset") } else { @() }
+$toolset = @()
+if ($PlatformToolset) { $toolset = @("-p:PlatformToolset=$PlatformToolset") }
 
 function Invoke-Step([string] $Name, [scriptblock] $Action) {
     Write-Host "== $Name"

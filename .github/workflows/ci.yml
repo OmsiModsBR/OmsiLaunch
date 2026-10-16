@@ -42,14 +42,21 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      # The native projects name platform toolset v145; the hosted image carries
-      # the toolset of its Visual Studio. -PlatformToolset is only needed for an
-      # older image: set it as a repository variable (vars.PLATFORM_TOOLSET).
+      # setup-dotnet points DOTNET_ROOT at the x86 runtime it installed last, which
+      # breaks every x64 .NET process. Give each bitness its own root.
+      - name: Separate x64 and x86 .NET roots
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value 'DOTNET_ROOT=C:\Program Files\dotnet'
+          Add-Content -Path $env:GITHUB_ENV -Value 'DOTNET_ROOT(x86)=C:\Program Files\dotnet\x86'
+      # The native projects name platform toolset v145, which the hosted image's
+      # Visual Studio provides. Only an older image needs an override: set the
+      # repository variable PLATFORM_TOOLSET (for example v143).
       - name: Offline validation
         shell: pwsh
         env:
-          PLATFORM_TOOLSET: ${{ vars.PLATFORM_TOOLSET || 'v143' }}
-        run: ./tools/Invoke-OfflineValidation.ps1 -SkipUi -PlatformToolset $env:PLATFORM_TOOLSET
+          PLATFORM_TOOLSET: ${{ vars.PLATFORM_TOOLSET }}
+        run: ./tools/Invoke-OfflineValidation.ps1 -SkipUi -PlatformToolset "$env:PLATFORM_TOOLSET"
 
   # Required status check "commit-policy": no commit of a pull request may name
   # Claude (or an Anthropic address) as an author or co-author.
