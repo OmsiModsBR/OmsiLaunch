@@ -1,9 +1,9 @@
 # 錯誤碼與診斷碼
 
-<!-- l10n: source=reference/errors.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/errors.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/errors.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-本頁是 `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）中每個代碼的規範性參考：共 142 個 `OL_E_` 錯誤碼與一個 `OL_W_` 警告，依目錄類別分組，另外列出不屬於錯誤的資訊性診斷碼。對每個代碼，本頁說明目前程式碼在何處引發它、其意義、它以何種方式傳達給您（擲回的例外、結果欄位、診斷訊息、控制平面回覆或 CLI 封套），以及應採取的處置。各項意義取自實際引發位置；若某代碼已定義但目前沒有任何引發路徑，本頁會明確註明。
+本頁是 `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）中每個代碼的規範性參考：共 167 個 `OL_E_` 錯誤碼與 4 個 `OL_W_` 警告，依目錄類別分組，另外列出不屬於錯誤的資訊性診斷碼。對每個代碼，本頁說明目前程式碼在何處引發它、其意義、它以何種方式傳達給您（擲回的例外、結果欄位、診斷訊息、控制平面回覆或 CLI 封套），以及應採取的處置。各項意義取自實際引發位置；若某代碼已定義但目前沒有任何引發路徑，本頁會明確註明。
 
 相關頁面：[公開 API](public-api.md)、[結束代碼](exit-codes.md)、[LaunchSpec](launchspec.md)、[工作階段生命週期](../concepts/session-lifecycle.md)、[交易與復原](../concepts/transactions-and-recovery.md)、[本機控制平面](local-control.md)、[執行階段控制](runtime-control.md)、[工作階段設定檔](session-profiles.md)、[永久外掛程式](../concepts/permanent-plugin.md)。
 
@@ -16,7 +16,7 @@
 | 計畫診斷訊息 | `SessionPlan.Diagnostics` 中的一個 `LaunchDiagnostic`；任何 `OL_E_` 代碼都會使 `IsRunnable` 為 false（CLI：計畫顯示 `NOT RUNNABLE`，結束代碼 1）。 |
 | 工作階段診斷訊息 | `SessionStatus.Diagnostics` 中的一個 `LaunchDiagnostic`；工作階段狀態為 `Failed`（CLI 結束代碼 1）。`OL_E_START_SESSION`、`OL_E_PROCESS_SUPERVISION` 與 `OL_E_RESTORE_FAILED` 會在其訊息中包裝一個內部代碼。 |
 | 執行階段結果 | `RuntimeCommandResult.ErrorCode`，且 `Succeeded = false`。 |
-| 執行階段細節 | `RuntimeCommandResult.ErrorCode = OL_E_RUNTIME_OPERATION_FAILED`，具體代碼則為 `Values["detail"]` 的第一個語彙單元（並附 `Values["exception"]`）。每個外掛程式端 `InvalidOperationException`／`ArgumentException` 代碼都是以這種方式呈現。 |
+| 執行階段細節 | `RuntimeCommandResult.ErrorCode` 為具體代碼，`Values["detail"]` 為訊息（並附 `Values["exception"]`，即 .NET 型別）。Beta 4：外掛程式端具型別的代碼會原封不動傳達到 API 與 CLI；只有沒有已登錄代碼的失敗才會變成 `OL_E_RUNTIME_OPERATION_FAILED`。 |
 | 控制回覆 | 本機控制平面回覆（`LocalControlResponse`）的 `ErrorCode`。 |
 | CLI 封套 | `--json` 封套中的 `error.code`，或主控台上的 `<code>: <message>`；並提供結束代碼。 |
 | 遙測 | 由主機對應為工作階段診斷訊息的執行階段事件名稱。 |
@@ -35,8 +35,9 @@
 
 | 代碼 | 引發位置 | 意義／典型原因 | 呈現方式 | 處置 |
 | --- | --- | --- | --- | --- |
-| `OL_E_BUILD_VALIDATION_FAILED` | `OmsiLaunchService.ApplyTelemetry`（於 `plugin.build.invalid` 時） | 雖然主機已接受該執行檔，外掛程式在處理程序內的組建檢查（設定檔 `Omsi23004_692EBFBF` 加上原生 VMT 探測）卻失敗，例如記憶體內配置不同的允許清單內 Steam LAA 組建，或經過修補的 OMSI。 | 工作階段診斷訊息（`Failed`） | 使用已於執行階段驗證的組建；請參閱[相容性](compatibility.md)。 |
-| `OL_E_UNSUPPORTED_BUILD` | `SessionPlanner`（`omsi.profile.OMSI23004` 無法使用） | `Omsi.exe` 不存在，或其大小／SHA-256 既不符合設定檔指紋，也不在允許清單中。 | 計畫診斷訊息 | 安裝受支援的 OMSI 2.3.004 組建。 |
+| `OL_E_BUILD_VALIDATION_FAILED` | `OmsiLaunchService.ApplyTelemetry`（於 `plugin.build.invalid` 時） | 啟動功能已解析，但外掛程式在準備無介面啟動時，即時的啟動表單或其某個 hook 位置不在預期狀態（例如已有另一個外掛程式修補過它）。 | 工作階段診斷訊息（`Failed`） | 移除衝突的外掛程式；請參閱[相容性](compatibility.md)。 |
+| `OL_E_CAPABILITY_UNRESOLVED` | 外掛程式（啟動時的 `plugin.capability.unresolved`；執行階段操作） | 要求所需的原生功能無法在此 OMSI 組建上解析並驗證，因此無法使用。啟動時，工作階段會在任何 hook 之前失敗並還原檔案；執行階段操作會在不觸及 OMSI 記憶體的情況下被拒絕。`Data["capability"]`（執行階段）或遙測的 `capabilities` 值會指出它。 | 工作階段診斷訊息（`Failed`）；執行階段結果 | 請參閱[相容性](compatibility.md)：該功能在此組建上無法使用。 |
+| `OL_E_UNSUPPORTED_BUILD` | `SessionPlanner`（`omsi.omsi2` 無法使用） | 該安裝不是 OMSI 2 安裝：`Omsi.exe` 不存在、不是 32 位元 x86 PE 映像、沒有 OMSI 2（2.x）版本，或根目錄沒有 `maps\` 或 `Vehicles\` 目錄。執行檔的雜湊不是判斷條件。 | 計畫診斷訊息 | 將 OmsiLaunch 指向 OMSI 2 安裝根目錄。 |
 | `OL_E_UNSUPPORTED_OPERATING_SYSTEM` | `SessionPlanner`（`runtime.current-windows-x64` 無法使用）；`CurrentWindowsX64Platform.ValidateCurrent` 也會擲回，但服務不會呼叫該方法 | 並非 Windows 10 或更新版本，或作業系統或主機處理程序不是 x64。 | 計畫診斷訊息（擲回時 CLI 結束代碼 3） | 在 64 位元 Windows 10 或更新版本上執行。 |
 | `OL_E_UNSUPPORTED_OS_ARCHITECTURE` | 僅 `CurrentWindowsX64Platform.ValidateCurrent` | 作業系統或主機架構不是 x64。服務不會呼叫 `ValidateCurrent`；目前沒有引發路徑。 | 僅由該方法擲回（`PlatformNotSupportedException`） | 請參閱原始碼 `src/OmsiLaunch.Process/RuntimePlatform.cs`。 |
 
@@ -44,9 +45,16 @@
 
 | 代碼 | 引發位置 | 意義／典型原因 | 呈現方式 | 處置 |
 | --- | --- | --- | --- | --- |
-| `OL_E_ENTRYPOINT_NOT_FOUND` | `LaunchValidation` | NEW_MAP 沒有 `EntrypointIdentity`，且 `PresentedEntrypointIndex` 未設定或為負值。 | 計畫診斷訊息 | 設定 `PresentedEntrypointIndex`（`/entrypoint-index:<n>`）；以 `/list:entrypoints /map:<id>` 找出進入點。 |
+| `OL_E_ENTRYPOINT_NOT_FOUND` | `LaunchValidation`；`SessionPlanner` | 驗證：NEW_MAP 沒有 `EntrypointIdentity`，且 `PresentedEntrypointIndex` 未設定或為負值。規劃器：該地圖沒有具有所要求識別或精確（區分大小寫）標籤的進入點。 | 計畫診斷訊息 | 設定 `PresentedEntrypointIndex`（`/entrypoint-index:<n>`），或使用 `/list:entrypoints /map:<id>` 列出的識別。 |
+| `OL_E_WEATHER_INVALID` | `SessionPlanner`（`StartWeatherResolver`） | 起始天氣無法套用：預設組合不是安裝的 `weather` 資料夾中的檔案，或 ICAO 不是四個字母或數字。 | 計畫診斷訊息 | 使用已安裝的預設組合或有效的測站代碼。 |
+| `OL_E_ENTRYPOINT_NOT_PRESENTED` | `SessionPlanner` | 所要求的進入點與該地圖較早的一筆記錄共用標籤；OMSI 只呈現每個標籤的第一筆記錄，因此無法在啟動時選取它。 | 計畫診斷訊息 | 選擇具有該標籤的第一筆記錄，或另一個進入點。 |
 | `OL_E_ENTRYPOINT_REQUIRED` | `SessionPlanner`（`world.presented-entrypoint` 無法使用） | NEW_MAP 地圖已解析，但沒有呈現索引也沒有識別。一定與 `OL_E_ENTRYPOINT_NOT_FOUND` 同時出現。 | 計畫診斷訊息 | 同上。 |
 | `OL_E_HOF_NOT_FOUND` | `SessionPlanner` | `PlayerVehicle.Hof` 不是已安裝的 `Vehicles\...\*.hof`。 | 計畫診斷訊息 | 使用 `/list:hofs` 列出的識別。（無論如何，玩家車輛欄位在此組建上都不可執行。） |
+| `OL_E_HOF_SOURCE_NOT_FOUND` | `HofPlanner` | [HOF 管理](hof-management.md)的來源（集合、目錄、車輛或檔案）不存在、沒有 `.hof`，或缺少 `Files` 中指名的檔案。 | 計畫診斷訊息；啟動失敗 | 修正來源或檔案清單。 |
+| `OL_E_HOF_TARGET_NOT_FOUND` | `HofPlanner` | HOF 目標車輛檔案或資料夾未安裝。 | 計畫診斷訊息；啟動失敗 | 使用 `/list:vehicles` 的車輛識別，或 `Vehicles\` 之下已存在的資料夾。 |
+| `OL_E_HOF_PATH_ESCAPE` | `HofPlanner` | HOF 路徑離開了安裝、目標不在 `Vehicles\` 之下、集合名稱不是單純的名稱，或經過了 junction/symlink。 | 計畫診斷訊息；啟動失敗 | 使用相對於安裝、不含 `..` 且不含連結的路徑。 |
+| `OL_E_HOF_CONFLICT` | `HofPlanner`、`OmsiLaunchService` | 兩個 HOF 操作將不同的位元組寫入同一個檔案，或鏡像移除了另一個操作寫入的檔案。 | 計畫診斷訊息；啟動失敗 | 重新排序、拆分或移除衝突的操作。 |
+| `OL_E_HOF_INVALID` | `HofPlanner` | HOF 操作沒有目標或來源、檔案來源不是 `.hof`、目標檔案不是 `.bus`/`.ovh`，或超出大小／數量限制（每個檔案 8 MiB、每個操作 256 個檔案、每個工作階段 256 MiB）。 | 計畫診斷訊息；啟動失敗 | 修正該操作。 |
 | `OL_E_MAP_NOT_FOUND` | `LaunchValidation`；`SessionPlanner` | 驗證：NEW_MAP 的 `MapIdentity` 未設定，或格式不是 `maps\<dir>\global.cfg`。規劃器：該地圖未安裝。 | 計畫診斷訊息 | 使用 `/list:maps` 列出的識別。 |
 | `OL_E_NOT_FOUND` | `CliProgram.Classify` | 有不含代碼的 `FileNotFoundException`／`DirectoryNotFoundException` 傳出，例如 `/list:repaints` 搭配未知的 `/vehicle-scope`，或 `/list:entrypoints` 搭配未知的 `/map`。 | CLI 封套，結束代碼 6 | 修正識別。 |
 | `OL_E_REPAINT_NOT_FOUND` | `SessionPlanner` | `PlayerVehicle.Repaint` 不是該車型的 `.cti` 項目（僅在設定 `Model` 時檢查）。 | 計畫診斷訊息 | 使用 `/list:repaints /vehicle-scope:<bus>` 列出的識別。 |
@@ -132,7 +140,7 @@
 
 ## Runtime
 
-「執行階段細節」表示 `ErrorCode = OL_E_RUNTIME_OPERATION_FAILED`，且代碼位於 `Values["detail"]` 的開頭。
+「執行階段細節」表示具體代碼位於 `ErrorCode`，訊息位於 `Values["detail"]`，例外型別位於 `Values["exception"]`。
 
 | 代碼 | 引發位置 | 意義／典型原因 | 呈現方式 | 處置 |
 | --- | --- | --- | --- | --- |
@@ -170,11 +178,13 @@
 | `OL_E_RUNTIME_REQUEST_ID_REUSED` | `CurrentRuntimeCommandStore.RequestAsync` | 槽位保存了一個與新請求具有相同 request id 的過時回應。該過時回應會在引發錯誤前被清除。 | 擲回（`InvalidOperationException`） | 使用嚴格遞增的 request id。 |
 | `OL_E_RUNTIME_REQUEST_TIMEOUT` | `CurrentRuntimeCommandStore.RequestAsync` | 在 `timeout` 內沒有回應；槽位會被重設，延遲到達的回應會被捨棄。 | 擲回（`TimeoutException`）；CLI 結束代碼 5 | 以較長的逾時重試；確認 OMSI 沒有被阻塞（強制回應對話方塊、載入中）。 |
 | `OL_E_RUNTIME_RESPONSE_INVALID` | `CurrentRuntimeCommandStore` | 回應封套毀損、長度錯誤（負值、零或大於槽位）、屬於其他工作階段的 session id，或不同的 request id。槽位會在引發錯誤前重設，因此下一個請求可正常運作。 | 擲回（`InvalidDataException`） | 重試；若持續發生請回報。 |
-| `OL_E_RUNTIME_RESPONSE_TOO_LARGE` | `CurrentRuntimeCommandMailbox.TryDispatch` | 序列化後的結果超過 64 KiB 信箱。有界清單結果（具有 `returned_count` 與 `truncated` 者）則會改為縮短以符合大小（文件稽核 BUG-05）；實際上，此代碼仍可能出現在不屬於有界清單的 `timetable.logs.read`。 | 執行階段結果 | 使用範圍較窄的操作（例如在極大的集合上，以 `road-vehicles.read` 取代 `road-vehicles.list`）。 |
+| `OL_E_RUNTIME_CURSOR_INVALID` | `ListPage`（外掛程式） | 清單操作的 `cursor` 格式錯誤，或屬於另一種清單。 | 執行階段細節 | 傳入同一操作上一頁的 `next_cursor`，或省略它。 |
+| `OL_E_RUNTIME_RESPONSE_TOO_LARGE` | `CurrentRuntimeCommandMailbox.TryDispatch` | 序列化後的結果超過 64 KiB 信箱。分頁清單結果則會改為縮短以符合大小，並以 `next_cursor` 繼續；沒有任何清單結果會到達此代碼。 | 執行階段結果 | 使用範圍較窄的操作或較小的 `limit`。 |
 | `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` | `OmsiRuntimeReaders` | 車輛的腳本定義或狀態指標為 null。 | 執行階段細節 | 該車輛沒有腳本物件。 |
 | `OL_E_RUNTIME_SESSION_MISMATCH` | `OmsiLaunchService.ExecuteRuntimeAsync`；`CurrentRuntimeCommandStore`；外掛程式信箱 | `RuntimeCommand.SessionId` 與 handle 的 session id 不同（由主機擲回），或請求送達了繫結於另一個工作階段的外掛程式（由外掛程式以具型別結果回傳）。 | 擲回（`InvalidOperationException`）／執行階段結果 | 以 `session.SessionId` 建構命令。 |
-| `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` | `CurrentRuntimeControl.SetWeather` | `weather.set` 一律遭拒：OMSI 會在下一次天氣更新時覆寫已剖析的天氣欄位，因此寫入無法回報為語意上的變更。 | 執行階段結果 | 無；`weather.set` 為 `UNAVAILABLE`。 |
-| `OL_E_RUNTIME_SETTING_UNAVAILABLE` | `OmsiWeatherWriter` | 未知的天氣欄位名稱。由於 `weather.set` 會更早遭拒，目前無法觸及。 | 執行階段細節（已定義） | 請參閱原始碼 `src/OmsiLaunch.Interop/OmsiWeatherWriter.cs`。 |
+| `OL_E_WEATHER_APPLY_FAILED` | `PluginRuntime`（`world.failed` 事件的 `code`） | 世界啟動後無法套用起始天氣：OMSI 沒有為 `/weather-real` 設定 ICAO 測站，或其天氣物件無法使用。工作階段失敗。 | 工作階段失敗 | 在 OMSI 中設定測站，或使用 `/weather-icao`。 |
+| `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` | `OmsiWeatherWriter.Prepare` | `weather.set` 的某個索引鍵指名了 OMSI 在每個天氣更新週期都會推導的值（濕度、光線係數、雲透明度、降水旗標、潮濕地面）；不會寫入任何內容。 | 執行階段結果 | 設定 `detail` 中指名的來源索引鍵（例如以 `dew_point` 取代 `relative_humidity`）。 |
+| `OL_E_RUNTIME_SETTING_UNAVAILABLE` | `OmsiWeatherWriter.Prepare` | 未知的 `weather.set` 索引鍵；不會寫入任何內容。 | 執行階段結果 | 使用[功能](capabilities.md#weather)中列出的索引鍵。 |
 | `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` | `OmsiRuntimeReaders` | `name` 不在字串變數表中。 | 執行階段細節 | 先列出字串變數。 |
 | `OL_E_RUNTIME_VALUE_INVALID` | `OmsiWeatherWriter.ParseBoolean` | 天氣布林值不是 `true`／`false`／`1`／`0`。目前無法觸及（見上文）。 | 執行階段細節（已定義） | 請參閱原始碼。 |
 | `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` | `CurrentRuntimeControl`、`OmsiCameraWriter`、`OmsiCameraLockWriter`、`OmsiRuntimeReaders`、`OmsiWeatherWriter` | `time.set`：`hour` 0..23、`minute` 0..59、`second` 0..59.999；`camera.set`：`family` 0..3、`field_of_view` 10..170；`camera.lock`：`preset` 不是整數、`family` 0..3、`preset` 0..255；`road-vehicles.place-random`：`ai_type` 0..255、`group`／`type`／`tour`／`line` 0..65535（`type` 可為 -1）、`scheduled` 0..1；`vehicle.variable.set`：`value` 不是有限值；`vehicle.curve.evaluate`：`x` 不是有限值。 | 執行階段細節 | 使用範圍內的值。 |
@@ -206,7 +216,7 @@
 | `OL_E_HEADLESS_ARM_FAILED` | `ApplyTelemetry`（於 `headless.arm.failed` 時） | 外掛程式無法在 OMSI 中佈署一次性的無頭啟動掛鉤。 | 工作階段診斷訊息（`Failed`） | 驗證組建；回報。 |
 | `OL_E_NO_ACTIVE_SESSION` | CLI 用戶端（`ReportForwarded`、`CliEventWatch`） | 該安裝的控制管道上沒有擁有者回應（沒有工作階段，或擁有者仍在啟動／驗證中）。 | CLI 封套，結束代碼 4 | 啟動工作階段，或等到其狀態為 `Running`。 |
 | `OL_E_PLUGIN_NOT_LOADED` | `SuperviseAsync` | 在 `plugin.started` 之前已超過 `StartupTimeoutSeconds`（OMSI 未載入 `plugins\OmsiLaunch.Plugin.opl`，或卡在外掛程式初始化之前）。 | 工作階段診斷訊息（`Failed`） | 檢查外掛程式封閉集、`plugins\OmsiLaunch.Plugin.opl` 與 OMSI 的 `logfile.txt`。 |
-| `OL_E_PLUGIN_PROTOCOL_MISMATCH` | `ApplyTelemetry`（於 `plugin.handoff.invalid` 或無法剖析的遙測 JSON 時） | 外掛程式無法讀取／驗證啟動交接（版本 3/4、SHA-256），或送出了無效的遙測。 | 工作階段診斷訊息（`Failed`） | 使用相符的主機與外掛程式版本（重新安裝套件）。 |
+| `OL_E_PLUGIN_PROTOCOL_MISMATCH` | `ApplyTelemetry`（於 `plugin.handoff.invalid` 或無法剖析的遙測 JSON 時） | 外掛程式無法讀取／驗證啟動交接（版本 3 至 6、SHA-256），或送出了無效的遙測。 | 工作階段診斷訊息（`Failed`） | 使用相符的主機與外掛程式版本（重新安裝套件）。 |
 | `OL_E_SESSION_ALREADY_ACTIVE` | `CliProgram.RunAsync` | 此安裝已有擁有者回應 `session.status`。 | CLI 封套，結束代碼 7 | 使用用戶端命令（`session status`、`session stop`、執行階段命令）。 |
 | `OL_E_SESSION_NOT_RUNNING` | `OmsiLaunchService.ExecuteRuntimeAsync` | 工作階段狀態不是 `Running`。 | 擲回（`InvalidOperationException`） | 先呼叫 `WaitForAsync(session, SessionState.Running, ...)`。 |
 | `OL_E_SESSION_PRESENTATION_INVALID` | `SessionPlanner` | 無法建立啟動畫面／ITX 計畫；訊息帶有呈現相關代碼。 | 計畫診斷訊息 | 請參閱 [Presentation](#presentation)。 |
@@ -223,12 +233,12 @@
 | 代碼 | 意義／典型原因 | 處置 |
 | --- | --- | --- |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | 預設組合的啟動畫面 `assets` 目錄或 Internet Textures `profile` 檔案不存在於套件內。 | 加入該資產。 |
-| `OL_E_SESSION_PROFILE_INVALID` | 結構或限制違規：超過 256 KiB、根對應不是恰好一個、YAML 錨點、未知的鍵、缺少必要的鍵、需要純量處卻不是純量、`id` 與目錄名稱不同、預設組合不在 1..5 範圍內或 `index` 重複、非正值的逾時、不受支援的天氣／啟動畫面／Internet Textures 模式、日期／時間不是 `explicit`、無效的 YAML、數字／日期剖析錯誤。 | 依訊息修正 YAML。 |
+| `OL_E_SESSION_PROFILE_INVALID` | 結構或限制違規：超過 256 KiB、根對應不是恰好一個、YAML 錨點、未知的鍵、缺少必要的鍵、需要純量處卻不是純量、`id` 與目錄名稱不同、預設組合不在 1..99 範圍內或 `index` 重複、非正值的逾時、不受支援的天氣／啟動畫面／Internet Textures 模式、日期／時間不是 `explicit`、無效的 YAML、數字／日期剖析錯誤。 | 依訊息修正 YAML。 |
 | `OL_E_SESSION_PROFILE_MAP_MISMATCH` | `compatibility.maps` 非空，且不包含所選地圖（NEW_MAP）或所選情境的地圖（SAVED_SITUATION）。 | 選擇相容的世界。 |
 | `OL_E_SESSION_PROFILE_NOT_FOUND` | `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` 不存在。 | 檢查 id。 |
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | 明確的 CLI 參數指向了所選設定檔／預設組合所擁有的欄位。 | 移除該旗標或選擇其他預設組合。 |
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | id 包含 `\`、`/`、`:` 或 `..`；或資產路徑為根路徑、跳脫出套件，或經過 junction／符號連結。 | 讓路徑保持在套件內。 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | 缺少 `/predefined-profile-index`、超出 1..5，或該設定檔未宣告此索引。 | 使用已宣告的預設組合索引。 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | 缺少 `/predefined-profile-index`、超出 1..99，或該設定檔未宣告此索引。 | 使用已宣告的預設組合索引。 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` 不是 `omsilaunch.session-profile/v1`。 | 使用受支援的 schema。 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | 某個預設組合的設定鍵為已知但不可寫入。 | 移除該鍵。 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | 某個預設組合的設定鍵不在目錄中。 | 使用目錄中的鍵。 |
@@ -252,7 +262,38 @@
 
 | 代碼 | 引發位置 | 意義 | 呈現方式 | 處置 |
 | --- | --- | --- | --- | --- |
+| `OL_W_BUILD_UNRECOGNIZED` | `SessionPlanner` | 該 OMSI 2 執行檔沒有已知配置（其程式碼識別不在組建目錄中）。計畫仍可執行：每個原生功能都會在處理程序內解析並驗證，無法驗證者即無法使用。 | 計畫診斷訊息（不影響可執行性） | 無需處理；請以 `/plan` 與 `profiles` 查看預測的功能。 |
+| `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE` | `OmsiLaunchService`（監督程式） | 已要求 `Behavior.CooperativeShutdown`，但無法要求 OMSI 結束（其結束常式在此組建上未解析，或 OMSI 已在關閉），或它未在 `ShutdownTimeoutSeconds` 內結束：OMSI 改為被終止。還原照常執行。 | 工作階段診斷訊息 | 無：工作階段的結束方式與強制終止相同。 |
+| `OL_W_CAPABILITY_PENDING` | `SessionPlanner` | 啟動所需的功能無法由執行檔解析（例如受 DRM 保護、載入映像與檔案不同的執行檔）。它會在啟動時於處理程序內解析。 | 計畫診斷訊息（不影響可執行性） | 無需處理；若在處理程序內也無法解析，啟動會以 `OL_E_CAPABILITY_UNRESOLVED` 失敗。 |
+| `OL_W_MODULE_NOT_LOADED` | `SessionPlanner` | 自行加入工作階段的模組（設定檔、內容或預設啟用）無法載入（`Data["code"]` 指出原因，`Data["activation"]` 指出加入方式）。 | 計畫診斷訊息（不影響可執行性） | 修正、停用或移除該模組。 |
+| `OL_W_MODULE_SETTING_IGNORED` | `SessionPlanner`、`ModuleSettingsFile`、`ModuleSettings` | `.omsilaunch\modules.ini` 的某個項目無法使用（不是模組區段、位於區段之外、未知的索引鍵、無效值；改用預設值），或為工作階段未載入的模組要求了設定。 | 計畫診斷訊息（不影響可執行性） | 更正該項目或要求。 |
 | `OL_W_RESTORE_FOREIGN_FILE_RETAINED` | `FileConfigurationTransaction.RestoreAsync` | 某個工作階段刪除路徑（ITX 目標、`Texture\standard.ipr`、`closecheck`）在工作階段之前不存在、現在卻存在，但此日誌下從未啟動過任何 OMSI 處理程序，因此該檔案不可能是工作階段的副產物。它會被保留並回報（訊息 = 相對路徑，`Data["sha256"]`）；交易仍會完成。 | 工作階段診斷訊息／`RecoveryStatus.Diagnostics`（不影響狀態） | 檢查該檔案；若不需要請自行移除。 |
+
+## Module
+
+執行階段模組（請參閱[執行階段模組](../../../reference/runtime-modules.md)）。規劃時，代碼是計畫診斷訊息：對被要求的模組，它會使計畫不可執行；對自行加入的模組（設定檔、內容、預設），計畫改為回報 `OL_W_MODULE_NOT_LOADED`。在工作階段中，代碼是工作階段診斷訊息（除非代碼為 `OL_E_MODULE_SESSION_FAILED`，否則工作階段會繼續），對模組操作而言則是執行階段結果。
+
+| 代碼 | 引發位置 | 意義／典型原因 | 呈現方式 | 處置 |
+| --- | --- | --- | --- | --- |
+| `OL_E_MODULE_MANIFEST_INVALID` | `ModuleManifestParser`、`ModuleCatalog` | `module.json` 不存在、不是有效的 `omsilaunch.runtime-module/v1`，或其 `id` 與目錄名稱不同。訊息會指出欄位。 | 計畫診斷訊息；`ListRuntimeModulesAsync` | 修正資訊清單。 |
+| `OL_E_MODULE_NOT_FOUND` | `ModuleEligibility` | 被要求的模組 id 未安裝在 `plugins\OmsiLaunch.Modules` 之下。 | 計畫診斷訊息 | 檢查 `/list:RuntimeModules`。 |
+| `OL_E_MODULE_INTEGRITY` | `ModuleCatalog`、`ModuleHost` | 固定的檔案不存在、與其固定的 SHA-256 不同，或是透過重新剖析點到達；或者在處理程序內，`module.json` 在規劃之後變更。 | 計畫診斷訊息；工作階段診斷訊息 | 重新安裝模組。 |
+| `OL_E_MODULE_PROTOCOL_UNSUPPORTED` | `ModuleEligibility` | 模組的 `bridge_protocol` 範圍不包含此組建所提供的任何協定（1 與 2）。 | 計畫診斷訊息 | 使用為此 OmsiLaunch 製作的模組版本。 |
+| `OL_E_MODULE_CAPABILITY_UNRESOLVED` | `ModuleEligibility`、`ModuleHost` | 必要的功能此組建不認得、在此安裝上無法使用，或未在處理程序內解析。 | 計畫診斷訊息；工作階段診斷訊息 | 請參閱[功能](capabilities.md)與 `profiles`。 |
+| `OL_E_MODULE_CONTENT_BINDING` | `ModuleEligibility`、`ModuleHost` | 工作階段未執行模組所綁定的地圖，或某個綁定的檔案與其固定的 SHA-256 不同。 | 計畫診斷訊息；工作階段診斷訊息 | 以綁定的內容啟動綁定的地圖。 |
+| `OL_E_MODULE_COMPONENT_UNSUPPORTED` | `ModuleHost` | 模組要求啟動的檔案不是其輔助元件之一。 | 模組內的執行階段結果 | 模組缺陷。 |
+| `OL_E_MODULE_LOAD_FAILED` | `ModuleHost`、`ModuleSessionPrograms` | 無法載入受管理元件或建立其進入型別；或模組的工作階段程式無法啟動，或在就緒前就結束。 | 工作階段診斷訊息 | 檢查模組組建（與 x86 相容，進入型別實作 `IRuntimeModule`）。 |
+| `OL_E_MODULE_PHASE_FAILED` | `ModuleHost` | `Arm`、`GameplayReady` 或 `Stop` 擲回例外。 | 工作階段診斷訊息 | 模組缺陷；已套用其 `failure_policy`。 |
+| `OL_E_MODULE_PHASE_TIMEOUT` | `ModuleHost`、`ModuleSessionPrograms` | 某個階段或操作在其預算（`timeouts`、`timeout_ms`）之後才傳回，或工作階段程式未在 `prepare_ms` 內就緒。 | 工作階段診斷訊息；執行階段結果 | 模組缺陷；已套用其 `failure_policy`。 |
+| `OL_E_MODULE_DISABLED` | `ModuleHost` | 該模組已被停用，或在工作階段稍早失敗。 | 執行階段結果 | 請查看工作階段診斷訊息中的第一個失敗。 |
+| `OL_E_MODULE_NOT_LOADED` | `OmsiLaunchService.ExecuteRuntimeAsync`、`ModuleHost` | 工作階段未載入此模組，或它尚未就緒（遊戲過程之前）。 | 執行階段結果 | 在啟動時要求該模組；等待 `Running`。 |
+| `OL_E_MODULE_OPERATION_UNKNOWN` | `OmsiLaunchService.ExecuteRuntimeAsync`、`ModuleHost` | 該模組沒有宣告這個操作。 | 執行階段結果 | 檢查模組的 `operations`。 |
+| `OL_E_MODULE_OPERATION_FAILED` | `ModuleHost` | 操作失敗且沒有已登錄的代碼；模組自己的代碼位於 `Values["module_code"]`。 | 執行階段結果 | 依模組而定。 |
+| `OL_E_MODULE_CLEANUP_INCOMPLETE` | `ModuleHost` | 停止或失敗之後，某個被追蹤的資源仍然存活（未結束的輔助處理程序、未結束的背景執行緒），或釋放它時擲回例外。 | 工作階段診斷訊息 | 回報該模組；無論如何，處理程序都會隨 OMSI 結束。 |
+| `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` 為 `fail-session` 的模組失敗；工作階段被停止並還原。 | 工作階段診斷訊息（狀態 `Failed`） | 請參閱前面的模組代碼。 |
+| `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 被要求的模組設定無效或模組未宣告它、某個模組同時被啟用與停用、設定名稱不是 `<module-id>.<key>`，或某個模組旗標由多個模組宣告。 | 計畫診斷訊息（不可執行）；CLI 錯誤 | 修正要求；`/list:RuntimeModules` 會顯示每個模組的設定。 |
+| `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | 模組在 `conflicts.plugins` 下列出的某個 OMSI 外掛程式已啟用（`plugins\*.opl`），或已在 OMSI 中載入。原因會指出該 `.opl`。 | 計畫診斷訊息；工作階段診斷訊息 | 停用或移除該外掛程式。OmsiLaunch 絕不會變更它。 |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生元件改為接收[執行階段模組](../../../reference/runtime-modules.md#native-components-and-hooks)中所述的數值 hook 結果。 | 無 | 無 |
 
 <a id="non-error-diagnostic-codes"></a>
 ## 非錯誤的診斷碼
@@ -263,6 +304,8 @@
 | `closecheck.stale-removed` | `OmsiLaunchService.RemoveStaleClosecheck` | 訊息 = 已移除檔案的 SHA-256 | 工作階段之前就已存在的 `closecheck` 已被永久移除（`SuppressStaleClosecheckWarning = true`）。工作階段診斷訊息。 |
 | `restore.session-artifact-removed` | `FileConfigurationTransaction.RestoreAsync` | 訊息 = 相對路徑；`Data["sha256"]` | 在處理程序已啟動的工作階段期間，OMSI 重新建立了某個工作階段刪除路徑；為了還原原本不存在的狀態，它已被移除。工作階段診斷訊息／`RecoveryStatus.Diagnostics`。 |
 | `plugin.integrity.reference` | `OmsiLaunchService.PlanSessionAsync` | 訊息 = `manifest` 或 `self` | 永久外掛程式驗證所使用的參考來源。計畫診斷訊息。 |
+| `module.planned` | `SessionPlanner` | 訊息 = 模組 id；`Data["module"]`、`Data["status"]`、`Data["activation"]` | 該模組在計畫中。計畫診斷訊息。 |
+| `module.disabled` | `SessionPlanner` | 訊息 = 模組 id | 內容或預設模組因停用（要求或設定檔）而被排除。計畫診斷訊息。 |
 | `session_profile.selected` | `SessionPlanner` | 訊息 = 設定檔 id；`Data["session_profile.id|name|version|author|preset_id|preset_index|preset_name|path"]` | 由工作階段設定檔編譯而成的工作階段之來源資訊。計畫診斷訊息。 |
 
 執行階段事件名稱（`RuntimeEvent.Type`，並非診斷訊息）列於[工作階段生命週期](../concepts/session-lifecycle.md#telemetry-events)。

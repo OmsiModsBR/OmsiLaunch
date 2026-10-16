@@ -1,7 +1,7 @@
 # Sitzungslebenszyklus
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> Übersetzung der [englischen Originalseite](../../../concepts/session-lifecycle.md) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> Übersetzung der [englischen Originalseite](../../../concepts/session-lifecycle.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
 Diese Seite beschreibt, wie eine OmsiLaunch-Sitzung `SessionState` von `Created` bis `Completed` oder `Failed` durchläuft: welche Komponente jeden Zustand setzt, welche Telemetrieereignisse des Plugins die Übergänge auslösen, wie das Start-Timeout funktioniert, was Stoppen bedeutet (erzwungene Beendigung), was `WaitForAsync` zurückgibt, welche Zustände terminal sind, welche Zustände nie oder kaum beobachtbar sind und welche Garantien der CLI-Eigentümer gibt. Alles hier stammt aus `OmsiLaunchService.StartAsync`, `SuperviseAsync` und `ApplyTelemetry` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), `PluginRuntime` (`src/OmsiLaunch.Plugin/PluginRuntime.cs`) und `OwnerSession` (`tools/OmsiLaunch.Cli/Program.cs`).
 
@@ -80,7 +80,7 @@ Die erneute Planung behält die `SessionId` des Aufrufers bei, sodass die ID im 
 
 Der Supervisor läuft in einem Thread-Pool-Task und durchläuft alle 100 ms eine Schleife, bis OMSI beendet ist oder ein Stopp angefordert wurde:
 
-1. Die neueste Telemetrieprobe lesen (ein Slot für den jeweils neuesten Wert mit einer Produzenten-Sequenznummer; inkonsistente Proben werden übersprungen; identische aufeinanderfolgende Ereignisse sind unterscheidbar, weil sich die Sequenznummer unterscheidet). Jede neue Probe wird an `RuntimeEvents` angehängt und von `ApplyTelemetry` zugeordnet.
+1. Jedes Telemetrieereignis lesen, das das Plugin seit dem letzten Lesen festgeschrieben hat, in der richtigen Reihenfolge (ein Ereignisring; ein Leser, der zurückgefallen ist, erhält `telemetry.lost` mit der Anzahl). Jedes Ereignis wird an `RuntimeEvents` angehängt und von `ApplyTelemetry` abgebildet.
 2. Ist die Sitzung `Failed`, die Schleife verlassen.
 3. Ist die Sitzung noch nicht `Running` und ist die Frist (`StartupTimeoutSeconds` nach Eintritt in den Supervisor) abgelaufen: `Fail` mit `OL_E_STARTUP_TIMEOUT`, wenn `PluginBootstrap` erreicht wurde, andernfalls `OL_E_PLUGIN_NOT_LOADED`; die Schleife verlassen.
 

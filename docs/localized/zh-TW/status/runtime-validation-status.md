@@ -1,9 +1,9 @@
 # 執行階段驗證狀態
 
-<!-- l10n: source=status/runtime-validation-status.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../status/runtime-validation-status.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=status/runtime-validation-status.md source-sha256=87cfe5eca3645bba4beefa62ea72d3bda5ef7a9f355158a7ea38eb1b61d8376d -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../status/runtime-validation-status.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-本頁是 OmsiLaunch 0.1.0-beta3 唯一的證據總表。每一列列出一項功能（capability）或特性及其證據狀態。`RUNTIME_VALIDATED` 可引用 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（矩陣 id RV-nnn、阻礙項 BI-nnn，以及其 2026-09-20 執行表中的工作階段 id），或引用 post-Fable Round A 報告 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）；其餘一切皆由程式碼與離線測試套件推導而來。2026-09-21 的強化回合（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`，發現項目 S-01 至 S-34）變更了還原、復原、控制平面與邊界行為；這些變更當時只有離線證據。2026-09-23 的最終執行階段收尾回合（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`，情境 id 例如 `F01`、`S05`、`T01`，候選版本 2 與 3）在經授權的安裝上以實際工作階段執行了這些變更；由該回合提升狀態的列會引用其情境 id 與工作階段 id。因此 `RUNTIME_VALIDATED` 也可以引用該報告。
+本頁是 OmsiLaunch 0.1.0-beta4 唯一的證據總表。每一列列出一項功能（capability）或特性及其證據狀態。`RUNTIME_VALIDATED` 可引用 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（矩陣 id RV-nnn、阻礙項 BI-nnn，以及其 2026-09-20 執行表中的工作階段 id），或引用 post-Fable Round A 報告 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）；其餘一切皆由程式碼與離線測試套件推導而來。2026-09-21 的強化回合（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`，發現項目 S-01 至 S-34）變更了還原、復原、控制平面與邊界行為；這些變更當時只有離線證據。2026-09-23 的最終執行階段收尾回合（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`，情境 id 例如 `F01`、`S05`、`T01`，候選版本 2 與 3）在經授權的安裝上以實際工作階段執行了這些變更；由該回合提升狀態的列會引用其情境 id 與工作階段 id。因此 `RUNTIME_VALIDATED` 也可以引用該報告。
 
 證據狀態：
 
@@ -115,9 +115,9 @@
 | Internet Textures `Disabled`（處理程序內下載器抑制） | STATICALLY_VALIDATED | `internet-textures.suppressed` 遙測路徑；矩陣中未引用 |
 | Internet Textures `.itx` 目標防護（Round A RA-011/RA-012、修正回合 CP-05、附錄 E）：標準根目錄、標準目標、相對路徑、區段規則；只有根目錄之下名為 `texture` 的目錄區段才符合（`mytexture`、`texture_backup`、`texture2` 以及絕對根目錄中的 `texture` 皆不符合）；拒絕周遊、絕對、相對於根目錄及連接點（junction）目標；各種拼寫會收斂為同一個標準交易路徑 | STATICALLY_VALIDATED | `presentation.itx-target-root-normalization`、`presentation.itx-target-guard-rejections` |
 | Internet Textures `Override` | RUNTIME_VALIDATED | 執行階段收尾回合（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`）：`I01` 工作階段 `6eac2dac-c7e9-49a1-acbf-2a5d59c1c0d3`：OMSI 的下載器針對一個既有目標與一個原本不存在的目標，向回送（loopback）伺服器送出 `HEAD` 與 `GET`，並寫入兩者；標準停止後，原本不存在的目標被移除，既有目標逐位元組精確還原；`I02` 工作階段 `a8f2b720-e41a-4e34-86bf-125bf519a5bd`：在擁有者與 OMSI 都被終止後，透過 `/recover` 得到相同結果。 |
-| `/date`、`/time`、`/year`、天氣旗標、玩家車輛旗標（`STATICALLY_PARTIAL`） | UNAVAILABLE | 規劃器將計畫標示為不可執行（`OL_E_CAPABILITY_UNAVAILABLE`）；外掛程式拒絕非 `Unset` 的日期／時間模式 |
-| `/entrypoint:<identity>`（BI-001） | PARTIAL | 計畫不可執行（`RUNTIME_PARTIAL`） |
-| `/last`（`LastMapState`，BI-006） | UNAVAILABLE | `UNSUPPORTED_FOR_CURRENT_PROFILE` |
+| `/date`、`/time`、`/year`、天氣旗標、玩家車輛旗標 | UNAVAILABLE | 規劃器將計畫標示為不可執行（`OL_E_CAPABILITY_UNAVAILABLE`）；外掛程式拒絕非 `Unset` 的日期／時間模式 |
+| `/entrypoint:<identity>`（BI-001） | PARTIAL | 計畫不可執行（計畫證據 `PARTIAL`） |
+| `/last`（`LastMapState`，BI-006） | UNAVAILABLE | 計畫不可執行；沒有 `.osn` 退路 |
 | `InputSpec` 鍵盤／控制器 overlay（BI-005） | UNAVAILABLE | 剖析器存在；未套用 |
 | 無頭 PlayerVehicle 指派（BI-007）、`SetActualDateTime`（BI-002）、ICAO 天氣控制（BI-003）、字串變數寫入（BI-004）、跨圖塊重新定位（BI-008） | UNAVAILABLE | 在實作完成前受阻 |
 | `/list` 探索（`content.*`） | STATICALLY_VALIDATED；已於執行階段觀察到 | `discovery.fixture`；執行階段收尾對經授權的安裝使用了 `/list:situations`（識別包括非 ASCII 的 `situations\Nur für Fortgeschrittene.osn`） |
@@ -144,6 +144,37 @@
 | 公告的 CLI 路由皆為實際可用的語法（BUG-07） | RUNTIME_VALIDATED | 已安裝的 `help --json` 與 `capabilities --json`（32 個描述項）所列印的每個用戶端路由替代寫法，都被已安裝的剖析器接受；沒有任何一個列印出用法說明（`doc-bug07-routes.json`；已安裝套件 `9f8cc87b...`） |
 | CLI 範例頁面中的每一行命令 | RUNTIME_VALIDATED | 對擁有者工作階段 `08df97b8-06cc-4faa-be8b-f49ca1538dce`（已儲存情境；`events watch` 因會執行到 Ctrl+C 為止而略過）執行了 43 行用戶端命令，最後以該頁面本身的 `session stop` 結束（擁有者結束代碼 0）。除了 `vehicle.constant.get` 搭配 `name=max_speed` 以外，所有結果都與頁面相符；該巴士沒有這個常數，頁面現改用 `antrieb_getr_version`。`grundorf-quick` 設定檔範例無法規劃（純 YAML 純量中的反斜線被重複）且已修正；所有不需工作階段的命令列都從安裝根目錄執行，啟動命令列則搭配 `/plan` 執行（`doc-client-examples.json`、`doc-examples-no-session.json`、`doc-profile-example.json`） |
 | 在最終套件上以 `/observe-seconds` 進行 NEW_MAP 冒煙測試 | RUNTIME_VALIDATED | `R01` 工作階段 `08570134-cfd8-4726-a472-5f6dd2f04c8f`，結束狀態乾淨（`research/reports/runtime-closure/doc-R01-*`） |
+
+<a id="beta-4-development-round-a-2026-09-28"></a>
+## Beta 4 開發（第 A 輪，2026-09-28）
+
+已知配置 `Omsi23004` 上的開發候選版 `4AF6A180…`（`research/reports/beta4-runtime/ROUND-A-REPORT.md`）。
+
+| 特性 | 狀態 | 證據 |
+| --- | --- | --- |
+| 處理程序內依功能的原生解析、無位址的原生邊界（已知配置） | RUNTIME_VALIDATED | A02 工作階段 `088f0491-114a-4841-afc0-e5ba483364b5`：無介面啟動、NEW_MAP、43 個用戶端範例中的 40 個（2 個失敗是已記載的 `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE` 與 `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`），透過原生 `SetTime` 的 `time set`，透過原生 `MakeVehicle` 的 `vehicles spawn`；A03 工作階段 `cf49d2c1-ca69-41e2-af0c-c4b08fa083c3`：已儲存情境 `Linie 5`。工作階段擁有的檔案已精確還原。 |
+| 在沒有已知配置的 OMSI 2 組建上，不依賴組建的解析 | STATICALLY_VALIDATED | 離線：隱藏其程式碼識別的參考執行檔，在 82 個非配置目標中有 81 個解析為參考值（`build-detection.reference-executable`、`native-resolution.per-capability`）。沒有其他 OMSI 2 組建可供執行工作階段。 |
+| OMSI 2 偵測、計畫證據、`profiles` 報告 | RUNTIME_VALIDATED | 已安裝候選版 `4af6a180` 上的 A01：`is_omsi2`，識別 `known`，`build_id` 為 `Omsi23004`；工作階段 `088f0491` 與 `cf49d2c1` 的計畫都接受了該安裝。 |
+| 具型別的執行階段錯誤碼一路保留到 CLI | RUNTIME_VALIDATED | A02 工作階段 `088f0491-114a-4841-afc0-e5ba483364b5`（上述代碼原封不動地到達 CLI）。 |
+| HOF 管理（鏡像、精確還原） | RUNTIME_VALIDATED | C01 工作階段 `e37318a2-73b3-4fb3-be11-b0225f15226d`：`Vehicles\MB_O305` 在工作階段期間恰好持有 `Vehicles\MAN_SD202` 的 14 個 HOF，並逐位元組還原，包括時間戳記與屬性。 |
+| HOF 管理（當機復原） | RUNTIME_VALIDATED | C02 工作階段 `02568113-3f28-4e31-958b-23eac83d7b0b`：在 `Running` 時終止擁有者與 OMSI；`/recover` 精確還原了 `Vehicles\MAN_SD200` 並移除日誌。 |
+| 工作階段設定檔 1..99 與探索 | STATICALLY_VALIDATED | 離線關卡 `session-profiles.preset-range-1-99`、`session-profiles.discovery`、`session-profiles.hofs`。 |
+| Internet Textures `Disabled` | STATICALLY_VALIDATED | A04 以該模式正常啟動並結束；`PluginStart` 遙測無法透過 Beta 3 的最新值槽位觀察到。已由第 B 輪取代（見下）。 |
+
+<a id="beta-4-development-round-b-2026-09-29"></a>
+## Beta 4 開發（第 B 輪，2026-09-29）
+
+已知配置 `Omsi23004` 上的開發候選版 `beta4-b2` 至 `beta4-b5`（`research/reports/beta4-runtime/ROUND-B-REPORT.md`）。
+
+| 特性 | 狀態 | 證據 |
+| --- | --- | --- |
+| 遙測事件環狀緩衝區（每個外掛程式事件依序送達；單調遞增的工作階段 tick） | RUNTIME_VALIDATED | B03 工作階段 `0c5ae237-c587-47b4-a409-a55989e7e38b`：依序收到所有 `PluginStart` 事件，包括 `native.capabilities` 與 `internet-textures.suppressed`，沒有 `telemetry.lost`；B06 工作階段 `f231ab2a-5b0d-40e6-a21d-085e061f1de8`：事件 tick 單調遞增。 |
+| 標準功能目錄與針對某個安裝的 `GetCapabilitiesAsync` | RUNTIME_VALIDATED | 第 B 輪，已安裝候選版 `1355c928` 上的 B01：53 個目錄項目，含操作、原生功能、分頁與變更原則；`GetCapabilitiesAsync` 評估了 68 個項目（`time.read`：`native: RESOLVED_KNOWN_LAYOUT`）；B02 工作階段 `d875a24e-8154-4774-93b3-83567a90dbf1` 透過衍生的 CLI 路由執行了每個用戶端範例。 |
+| 執行階段模組 v1：信任、規劃、內容啟用、生命週期、操作、`disable-module` | RUNTIME_VALIDATED | B05（安裝上的信任與計畫）；B06 工作階段 `f231ab2a-5b0d-40e6-a21d-085e061f1de8` 與 `227d35a3-7e3d-4fcb-9013-f129840c49a7`：三個模組已載入、已啟動並就緒（其中一個由內容啟用），操作與具型別錯誤經由 CLI 傳達，失敗的模組被停用並釋放，而 OMSI 持續執行。 |
+| 執行階段模組 v1：`fail-session` | RUNTIME_VALIDATED | B07 工作階段 `59324c59-c3bc-4118-9fe9-57fbdc26f353`：某個操作失敗後，工作階段在 185 ms 後以 `OL_E_MODULE_SESSION_FAILED` 結束，OMSI 停止且檔案已還原；載入階段的情形見工作階段 `8b1d392f-4453-4e88-9231-d41a8fff1829`。 |
+| 原生模組元件與 hook 登錄 | PARTIAL | 工作階段 `f231ab2a-5b0d-40e6-a21d-085e061f1de8`、`227d35a3-7e3d-4fcb-9013-f129840c49a7` 與 `dfbd70a5-11a9-401d-967c-a9d154e15129`：`Omsi.exe` 匯入的 IAT hook 已安裝、串接並移除；未知目標被拒絕；裝置 `Present` 與 `Reset` hook 已安裝（`Reset` 疊加在產品自己的 hook 之上）。未解決：在此安裝上，登錄之外的某個元件在遊戲過程開始後不久，把 runtime 原本的 `Present` 與 `Reset` 寫回裝置的 vtable，因此裝置 hook 並未持續存在（模組的 `Present` detour 從未執行）；登錄將兩個位置都回報為已變更（`OL_E_MODULE_CLEANUP_INCOMPLETE`）且未覆寫它們。屬於 Stage E 的項目。 |
+| 執行階段清單的統一分頁 | RUNTIME_VALIDATED | B04 工作階段 `8a45e79c-37c2-4f66-a3a3-b536a00a2421`（Berlin-Spandau）：20 個清單分頁後恰好等於其數量，沒有任何資料列重複，包括以符合信箱大小的頁面取得的 4747 個班次項目與 825 個路線軌跡項目；cursor 與 limit 錯誤皆為具型別。 |
+| Internet Textures `Disabled` | RUNTIME_VALIDATED | B03 工作階段 `0c5ae237-c587-47b4-a409-a55989e7e38b`：原生抑制已套用（`internet-textures.suppressed`，沒有 `internet-textures.suppression.failed`），工作階段正常執行並結束。 |
 
 <a id="consolidated-runtime_validation_required-list"></a>
 ## 彙整的 RUNTIME_VALIDATION_REQUIRED 清單

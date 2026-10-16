@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The null test module: a minimal first-party-shaped module used by the
+       plugin integration tests and by the Stage B runtime validation. The
+       contracts come from the bridge, so they are not copied next to it. -->
+  <PropertyGroup><TargetFramework>net6.0</TargetFramework><PlatformTarget>AnyCPU</PlatformTarget><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\OmsiLaunch.Runtime.Modules\OmsiLaunch.Runtime.Modules.csproj" Private="false" /><ProjectReference Include="..\..\src\OmsiLaunch.Api\OmsiLaunch.Api.csproj" Private="false" /></ItemGroup>
+</Project>

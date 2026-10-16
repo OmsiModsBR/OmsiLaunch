@@ -14,6 +14,10 @@ public sealed record AddonContent(string Identity, string RelativePath, string A
 // The raw entrypoint record, not its display label, is the persistent offline
 // identity. OMSI's presented list is resolved separately during startup.
 public sealed record EntrypointContent(string MapIdentity, string Identity, string DisplayName, string RecordFingerprint, bool IsReadable);
+// The label OMSI's position dialog shows for a requested entrypoint. OMSI
+// presents only the first record (file order) of each exact, case-sensitive
+// label; Presented is false for a later record sharing its label.
+public sealed record EntrypointLabel(bool Found, bool Presented, string? Label);
 
 public interface IOmsiContentCatalog
 {
@@ -124,7 +128,22 @@ public sealed class FileSystemContentCatalog : IOmsiContentCatalog
             .OrderBy(x => x.Identity, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    public IReadOnlyList<EntrypointContent> EnumerateEntrypoints(string mapIdentity)
+    public IReadOnlyList<EntrypointContent> EnumerateEntrypoints(string mapIdentity) =>
+        EntrypointsInFileOrder(mapIdentity).OrderBy(entry => entry.Identity, StringComparer.Ordinal).ToArray();
+
+    // identity: an opaque identity from EnumerateEntrypoints or an exact label
+    // (research report beta4-static entrypoint-last-player-vehicle.md section 1).
+    public EntrypointLabel ResolveEntrypointLabel(string mapIdentity, string identity)
+    {
+        var entries = EntrypointsInFileOrder(mapIdentity);
+        var record = entries.FirstOrDefault(entry => string.Equals(entry.Identity, identity, StringComparison.OrdinalIgnoreCase))
+            ?? entries.FirstOrDefault(entry => string.Equals(entry.DisplayName, identity, StringComparison.Ordinal));
+        if (record is null) return new(false, false, null);
+        var first = entries.First(entry => string.Equals(entry.DisplayName, record.DisplayName, StringComparison.Ordinal));
+        return new(true, ReferenceEquals(first, record), record.DisplayName);
+    }
+
+    private IReadOnlyList<EntrypointContent> EntrypointsInFileOrder(string mapIdentity)
     {
         var map = ResolveMap(mapIdentity);
         var lines = ReadLines(map.AbsolutePath, 16_384).ToArray();
@@ -145,7 +164,7 @@ public sealed class FileSystemContentCatalog : IOmsiContentCatalog
             var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalRecord)));
             entries.Add(new EntrypointContent(map.Identity, map.Identity + "#entrypoint:" + fingerprint, fields[11], fingerprint, map.IsReadable));
         }
-        return entries.OrderBy(entry => entry.Identity, StringComparer.Ordinal).ToArray();
+        return entries;
     }
 
     public MapContent ResolveMap(string identity) => EnumerateMaps().SingleOrDefault(x => SameIdentity(x.Identity, identity))

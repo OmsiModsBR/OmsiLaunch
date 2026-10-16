@@ -46,8 +46,10 @@ public sealed class RuntimeArtifactSet
     {
         // Every plugin file the manifest promises must be installed, not only
         // the files that happen to be present in the closure directory.
+        // Files below plugins\<folder>\ (runtime modules) are not part of the
+        // plugin closure; the module catalog verifies them.
         if (ExpectedHashes is not null)
-            foreach (var expectedPath in ExpectedHashes.Keys)
+            foreach (var expectedPath in ExpectedHashes.Keys.Where(key => key.Count(c => c == '/') == 1))
                 if (!Artifacts.Any(artifact => string.Equals(NormalizeKey(artifact.DestinationRelativePath), expectedPath, StringComparison.OrdinalIgnoreCase)))
                     throw new FileNotFoundException("OL_E_PERMANENT_PLUGIN_MISSING", Path.Combine(installationRoot, expectedPath.Replace('/', '\\')));
         foreach (var artifact in Artifacts)
@@ -135,29 +137,25 @@ public sealed class CurrentStartupHandoffStore : IDisposable
 
 public sealed class CurrentTelemetryStore : IDisposable
 {
-    private const int Capacity = 4096;
-    private const int LengthOffset = 0;
-    private const int SequenceOffset = 4;
-    private const int DataOffset = 8;
     private readonly MemoryMappedFile mapping;
+    private long lastSequence;
     public string Name { get; }
     private CurrentTelemetryStore(MemoryMappedFile mapping, string name) { this.mapping = mapping; Name = name; }
     public static CurrentTelemetryStore Create(Guid sessionId)
     {
         var name = "OmsiLaunch.Telemetry." + sessionId.ToString("N");
-        return new CurrentTelemetryStore(MemoryMappedFile.CreateNew(name, Capacity, MemoryMappedFileAccess.ReadWrite), name);
+        var mapping = MemoryMappedFile.CreateNew(name, TelemetryRingWire.Capacity, MemoryMappedFileAccess.ReadWrite);
+        using (var view = mapping.CreateViewAccessor(0, TelemetryRingWire.Capacity, MemoryMappedFileAccess.ReadWrite)) TelemetryRingWire.Initialize(view);
+        return new CurrentTelemetryStore(mapping, name);
     }
-    // Returns the latest complete sample and its producer sequence. The
-    // producer commits length last; a sample whose length or sequence changed
-    // while it was being copied is torn and is skipped until the next poll.
-    public (int Sequence, string Payload)? ReadLatest()
+    // Every event committed since the previous call, oldest first, and how
+    // many were overwritten before they could be read.
+    public (IReadOnlyList<(long Sequence, string Payload)> Events, long Lost) ReadNew()
     {
-        using var view = mapping.CreateViewAccessor(0, Capacity, MemoryMappedFileAccess.Read);
-        var length = view.ReadInt32(LengthOffset); var sequence = view.ReadInt32(SequenceOffset);
-        if (length <= 0 || length > Capacity - DataOffset) return null;
-        var data = new byte[length]; view.ReadArray(DataOffset, data, 0, length);
-        if (view.ReadInt32(LengthOffset) != length || view.ReadInt32(SequenceOffset) != sequence) return null;
-        return (sequence, System.Text.Encoding.UTF8.GetString(data));
+        using var view = mapping.CreateViewAccessor(0, TelemetryRingWire.Capacity, MemoryMappedFileAccess.Read);
+        var (events, last, lost) = TelemetryRingWire.ReadSince(view, lastSequence);
+        lastSequence = last;
+        return (events, lost);
     }
     public void Dispose() => mapping.Dispose();
 }

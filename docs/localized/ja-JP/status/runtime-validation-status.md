@@ -1,9 +1,9 @@
 # ランタイム検証ステータス
 
-<!-- l10n: source=status/runtime-validation-status.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../status/runtime-validation-status.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=status/runtime-validation-status.md source-sha256=87cfe5eca3645bba4beefa62ea72d3bda5ef7a9f355158a7ea38eb1b61d8376d -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../status/runtime-validation-status.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-このページは、OmsiLaunch 0.1.0-beta3 の唯一のエビデンス表です。各行はケイパビリティまたは機能と、そのエビデンスの状態を示します。`RUNTIME_VALIDATED` の根拠として引用できるのは、`research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（マトリクス ID RV-nnn、ブロッカー BI-nnn、および 2026-09-20 の実行表に記載されたセッション ID）、または Fable 後の Round A レポート `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）です。それ以外はすべてコードとオフラインテストスイートから導かれたものです。2026-09-21 の堅牢化ラウンド（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`、指摘事項 S-01 〜 S-34）では、復元、リカバリ、コントロールプレーン、境界の動作が変更されましたが、これらの変更にはオフラインのエビデンスしかありませんでした。2026-09-23 の最終ランタイムクロージャーラウンド（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`、`F01`、`S05`、`T01` などのシナリオ ID、候補 2 および 3）では、承認済みのインストール環境上の実セッションでこれらを実行しました。このラウンドで昇格した行には、そのシナリオ ID とセッション ID を記載しています。したがって、`RUNTIME_VALIDATED` はこのレポートを引用することもできます。
+このページは、OmsiLaunch 0.1.0-beta4 の唯一のエビデンス表です。各行はケイパビリティまたは機能と、そのエビデンスの状態を示します。`RUNTIME_VALIDATED` の根拠として引用できるのは、`research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（マトリクス ID RV-nnn、ブロッカー BI-nnn、および 2026-09-20 の実行表に記載されたセッション ID）、または Fable 後の Round A レポート `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）です。それ以外はすべてコードとオフラインテストスイートから導かれたものです。2026-09-21 の堅牢化ラウンド（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`、指摘事項 S-01 〜 S-34）では、復元、リカバリ、コントロールプレーン、境界の動作が変更されましたが、これらの変更にはオフラインのエビデンスしかありませんでした。2026-09-23 の最終ランタイムクロージャーラウンド（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`、`F01`、`S05`、`T01` などのシナリオ ID、候補 2 および 3）では、承認済みのインストール環境上の実セッションでこれらを実行しました。このラウンドで昇格した行には、そのシナリオ ID とセッション ID を記載しています。したがって、`RUNTIME_VALIDATED` はこのレポートを引用することもできます。
 
 エビデンスの状態:
 
@@ -115,9 +115,9 @@
 | Internet Textures の `Disabled`（プロセス内ダウンローダーの抑止） | STATICALLY_VALIDATED | `internet-textures.suppressed` テレメトリ経路。マトリクスでは引用されていません |
 | Internet Textures の `.itx` ターゲットガード（Round A RA-011/RA-012、修正パス CP-05、補遺 E）: 正規化されたルート、正規化されたターゲット、相対パス、セグメント規則。ルートより下にある `texture` という名前のディレクトリセグメントのみが対象となります（`mytexture`、`texture_backup`、`texture2`、および絶対ルート内の `texture` は対象外）。トラバーサル、絶対パス、ルート相対パス、ジャンクションのターゲットは拒否されます。表記の違いは 1 つの正規化されたトランザクションパスに集約されます | STATICALLY_VALIDATED | `presentation.itx-target-root-normalization`、`presentation.itx-target-guard-rejections` |
 | Internet Textures の `Override` | RUNTIME_VALIDATED | ランタイムクロージャーラウンド（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`）: `I01` セッション `6eac2dac-c7e9-49a1-acbf-2a5d59c1c0d3`: OMSI のダウンローダーが既存のターゲットと元々存在しなかったターゲットについてループバックサーバーに `HEAD` と `GET` を送信し、両方を書き込みました。正規の停止後、存在しなかったターゲットは削除され、既存のターゲットはバイト単位で正確に復元されました。`I02` セッション `a8f2b720-e41a-4e34-86bf-125bf519a5bd`: オーナーと OMSI を強制終了した後、`/recover` によって同じ結果になりました。 |
-| `/date`、`/time`、`/year`、天候フラグ、プレイヤー車両フラグ（`STATICALLY_PARTIAL`） | UNAVAILABLE | プランナーはプランを実行不可としてマークします（`OL_E_CAPABILITY_UNAVAILABLE`）。プラグインは `Unset` 以外の日付/時刻モードを拒否します |
-| `/entrypoint:<identity>`（BI-001） | PARTIAL | プランは実行不可（`RUNTIME_PARTIAL`） |
-| `/last`（`LastMapState`、BI-006） | UNAVAILABLE | `UNSUPPORTED_FOR_CURRENT_PROFILE` |
+| `/date`、`/time`、`/year`、天候フラグ、プレイヤー車両フラグ | UNAVAILABLE | プランナーはプランを実行不可としてマークします（`OL_E_CAPABILITY_UNAVAILABLE`）。プラグインは `Unset` 以外の日付/時刻モードを拒否します |
+| `/entrypoint:<identity>`（BI-001） | PARTIAL | プランは実行不可（プランのエビデンスは `PARTIAL`） |
+| `/last`（`LastMapState`、BI-006） | UNAVAILABLE | プランは実行不可。`.osn` へのフォールバックはありません |
 | `InputSpec` のキーボード/コントローラーのオーバーレイ（BI-005） | UNAVAILABLE | パーサーは存在しますが、適用されません |
 | ヘッドレスでの PlayerVehicle の割り当て（BI-007）、`SetActualDateTime`（BI-002）、ICAO 天候制御（BI-003）、文字列変数の書き込み（BI-004）、タイルをまたぐ再配置（BI-008） | UNAVAILABLE | 実装が完了するまでブロックされています |
 | `/list` による検出（`content.*`） | STATICALLY_VALIDATED、ランタイムで観測済み | `discovery.fixture`。ランタイムクロージャーでは、承認済みのインストール環境に対して `/list:situations` を使用しました（非 ASCII の `situations\Nur für Fortgeschrittene.osn` を含む識別子） |
@@ -144,6 +144,35 @@
 | 公開されている CLI ルートが実際の構文であること（BUG-07） | RUNTIME_VALIDATED | インストール済みの `help --json` と `capabilities --json` が出力したクライアントルートのすべての代替形（32 個の記述子）が、インストール済みのパーサーに受け入れられ、使用方法を出力したものはありませんでした（`doc-bug07-routes.json`、インストール済みパッケージ `9f8cc87b...`） |
 | CLI の例ページのすべてのコマンドライン | RUNTIME_VALIDATED | オーナーセッション `08df97b8-06cc-4faa-be8b-f49ca1538dce`（保存済みシチュエーション。`events watch` は Ctrl+C まで実行し続けるためスキップ）に対して 43 行のクライアントコマンドを実行し、最後にページ自身の `session stop` で終了しました（オーナーの終了コード 0）。`name=max_speed` を指定した `vehicle.constant.get` を除き、すべてページの記載と一致しました。この定数はそのバスには存在しないため、ページでは現在 `antrieb_getr_version` を使用しています。`grundorf-quick` プロファイルの例はプランを作成できなかったため（プレーンな YAML スカラー内のバックスラッシュの二重化）、修正しました。セッションなしの行はすべてインストールルートから実行し、起動の行は `/plan` 付きで実行しました（`doc-client-examples.json`、`doc-examples-no-session.json`、`doc-profile-example.json`） |
 | 最終パッケージでの `/observe-seconds` 付き NEW_MAP のスモークテスト | RUNTIME_VALIDATED | `R01` セッション `08570134-cfd8-4726-a472-5f6dd2f04c8f`、クリーンな終了状態（`research/reports/runtime-closure/doc-R01-*`） |
+
+## Beta 4 development (round A, 2026-09-28)
+
+既知のレイアウト `Omsi23004` 上の開発候補 `4AF6A180…`（`research/reports/beta4-runtime/ROUND-A-REPORT.md`）。
+
+| 機能 | 状態 | エビデンス |
+| --- | --- | --- |
+| プロセス内でのケイパビリティごとのネイティブ解決、アドレスを含まないネイティブ境界（既知のレイアウト） | RUNTIME_VALIDATED | A02 セッション `088f0491-114a-4841-afc0-e5ba483364b5`: ヘッドレス開始、NEW_MAP、クライアントの例 43 件中 40 件（失敗した 2 件は、ドキュメントに記載された `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE` と `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`）、ネイティブ `SetTime` による `time set`、ネイティブ `MakeVehicle` による `vehicles spawn`。A03 セッション `cf49d2c1-ca69-41e2-af0c-c4b08fa083c3`: 保存済みシチュエーション `Linie 5`。セッションが所有するファイルは正確に復元されました。 |
+| 既知のレイアウトを持たない OMSI 2 ビルドでのビルド非依存の解決 | STATICALLY_VALIDATED | オフライン: コード ID を伏せた参照実行ファイルで、レイアウトに依存しない 82 ターゲットのうち 81 が参照値に解決されます（`build-detection.reference-executable`、`native-resolution.per-capability`）。セッションを実行できる他の OMSI 2 ビルドは入手できませんでした。 |
+| OMSI 2 の検出、プランのエビデンス、`profiles` レポート | RUNTIME_VALIDATED | インストールされた候補 `4af6a180` での A01: `is_omsi2`、identity `known`、`build_id` `Omsi23004`。セッション `088f0491` と `cf49d2c1` のプランはインストール環境を受け入れました。 |
+| CLI まで保持される型付きランタイムエラーコード | RUNTIME_VALIDATED | A02 セッション `088f0491-114a-4841-afc0-e5ba483364b5`（上記のコードは変更されずに CLI に届きました）。 |
+| HOF 管理（ミラー、正確な復元） | RUNTIME_VALIDATED | C01 セッション `e37318a2-73b3-4fb3-be11-b0225f15226d`: `Vehicles\MB_O305` は、セッション中 `Vehicles\MAN_SD202` の HOF 14 件とまったく同じ内容を保持し、タイムスタンプと属性を含めてバイト単位で復元されました。 |
+| HOF 管理（クラッシュからのリカバリ） | RUNTIME_VALIDATED | C02 セッション `02568113-3f28-4e31-958b-23eac83d7b0b`: `Running` の間にオーナーと OMSI を強制終了し、`/recover` が `Vehicles\MAN_SD200` を正確に復元してジャーナルを削除しました。 |
+| セッションプロファイルの 1..99 とディスカバリ | STATICALLY_VALIDATED | オフラインゲート `session-profiles.preset-range-1-99`、`session-profiles.discovery`、`session-profiles.hofs`。 |
+| Internet Textures の `Disabled` | STATICALLY_VALIDATED | A04 はこのモードで開始し、正常に終了しました。`PluginStart` のテレメトリは Beta 3 の最新値スロットでは観測できませんでした。ラウンド B（下記）に置き換えられました。 |
+
+## Beta 4 development (round B, 2026-09-29)
+
+既知のレイアウト `Omsi23004` 上の開発候補 `beta4-b2` から `beta4-b5`（`research/reports/beta4-runtime/ROUND-B-REPORT.md`）。
+
+| 機能 | 状態 | エビデンス |
+| --- | --- | --- |
+| テレメトリイベントリング（プラグインのすべてのイベントが順番に届く。単調増加するセッションティック） | RUNTIME_VALIDATED | B03 セッション `0c5ae237-c587-47b4-a409-a55989e7e38b`: `native.capabilities` と `internet-textures.suppressed` を含むすべての `PluginStart` イベントが順番に届き、`telemetry.lost` はありませんでした。B06 セッション `f231ab2a-5b0d-40e6-a21d-085e061f1de8`: イベントのティックは単調増加でした。 |
+| 正規のケイパビリティカタログと、インストール環境に対する `GetCapabilitiesAsync` | RUNTIME_VALIDATED | ラウンド B、インストールされた候補 `1355c928` での B01: 操作、ネイティブケイパビリティ、ページング、変更ポリシーを持つカタログエントリ 53 件。`GetCapabilitiesAsync` は 68 エントリを評価しました（`time.read`: `native: RESOLVED_KNOWN_LAYOUT`）。B02 セッション `d875a24e-8154-4774-93b3-83567a90dbf1` は、導出された CLI ルートを通じてすべてのクライアントの例を実行しました。 |
+| Runtime Modules v1: 信頼、プランニング、コンテンツによるアクティベーション、ライフサイクル、操作、`disable-module` | RUNTIME_VALIDATED | B05（インストール環境での信頼とプラン）。B06 セッション `f231ab2a-5b0d-40e6-a21d-085e061f1de8` と `227d35a3-7e3d-4fcb-9013-f129840c49a7`: 3 つのモジュールが読み込まれ、アームされ、準備完了になりました（1 つはコンテンツによるアクティベーション）。CLI を通じた操作と型付きエラー。失敗したモジュールは、OMSI が動作し続ける間に無効化され解放されました。 |
+| Runtime Modules v1: `fail-session` | RUNTIME_VALIDATED | B07 セッション `59324c59-c3bc-4118-9fe9-57fbdc26f353`: 操作の失敗から 185 ms 後にセッションが `OL_E_MODULE_SESSION_FAILED` で終了し、OMSI は停止してファイルは復元されました。読み込み時の失敗はセッション `8b1d392f-4453-4e88-9231-d41a8fff1829` で確認しました。 |
+| ネイティブモジュールコンポーネントとフックレジストリ | PARTIAL | セッション `f231ab2a-5b0d-40e6-a21d-085e061f1de8`、`227d35a3-7e3d-4fcb-9013-f129840c49a7`、`dfbd70a5-11a9-401d-967c-a9d154e15129`: `Omsi.exe` のインポートの IAT フックが設置、連鎖、解除されました。未知のターゲットは拒否されました。デバイスの `Present` と `Reset` のフックが設置されました（`Reset` は製品のものの上に積み重ねられました）。未解決: このインストール環境では、レジストリ外のコンポーネントが、ゲームプレイ開始の直後にランタイムの元の `Present` と `Reset` をデバイスの vtable に書き戻したため、デバイスのフックは維持されませんでした（モジュールの `Present` デトゥールは一度も実行されませんでした）。レジストリは両方のサイトが変更されたと報告し（`OL_E_MODULE_CLEANUP_INCOMPLETE`）、上書きしませんでした。ステージ E の項目です。 |
+| ランタイムリストの一貫したページネーション | RUNTIME_VALIDATED | B04 セッション `8a45e79c-37c2-4f66-a3a3-b536a00a2421`（Berlin-Spandau）: 20 のリストが、行の重複なく正確にその件数までページングされました。メールボックスに収まるページでの 4747 件のツアーエントリと 825 件のトラックエントリを含みます。カーソルと limit のエラーは型付きでした。 |
+| Internet Textures の `Disabled` | RUNTIME_VALIDATED | B03 セッション `0c5ae237-c587-47b4-a409-a55989e7e38b`: ネイティブの抑制が適用され（`internet-textures.suppressed`、`internet-textures.suppression.failed` なし）、セッションは正常に実行され終了しました。 |
 
 <a id="consolidated-runtime_validation_required-list"></a>
 ## RUNTIME_VALIDATION_REQUIRED の統合リスト

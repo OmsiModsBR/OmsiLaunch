@@ -1,7 +1,7 @@
 # Inventario dell’API pubblica
 
-<!-- l10n: source=reference/public-api-inventory.md -->
-> Traduzione della [pagina originale in inglese](../../../reference/public-api-inventory.md) di OmsiLaunch 0.1.0-beta3. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+> Traduzione della [pagina originale in inglese](../../../reference/public-api-inventory.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
 Questa pagina è generata dagli assembly compilati tramite `tests/OmsiLaunch.DocumentationTests` (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); il controllo della documentazione fallisce quando non corrisponde più al codice. Elenca ogni tipo esportato da `OmsiLaunch.Api`, `OmsiLaunch.Core` e `OmsiLaunch.Process`, con la sua stabilità e la firma di ogni membro pubblico. Semantica, precondizioni, errori ed esempi sono documentati nella pagina indicata in ciascun titolo (predefinita: [API pubblica](public-api.md)). Vocabolario di stabilità: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (pubblico per motivi tecnici, non è una superficie di integrazione), `UNAVAILABLE` (vedere [API pubblica](public-api.md#stability-vocabulary)). I membri dei record generati dal compilatore (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`) sono omessi.
 
@@ -45,6 +45,8 @@ Enumerazione (`byte`) in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica:
 | valore | `Registrations = 6` |
 | valore | `Addons = 7` |
 | valore | `Entrypoints = 8` |
+| valore | `SessionProfiles = 9` |
+| valore | `RuntimeModules = 10` |
 
 ### `D3DDeviceState`
 
@@ -231,6 +233,48 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [launch
 | proprietà | `IReadOnlyDictionary<string, OptionalValue<string>> Keyboard { get; init; }` |
 | proprietà | `IReadOnlyDictionary<string, OptionalValue<string>> Controllers { get; init; }` |
 
+### `HofApplyMode`
+
+Enumerazione (`byte`) in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| valore | `Add = 0` |
+| valore | `Mirror = 1` |
+
+### `HofManagementSpec`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `HofManagementSpec(IReadOnlyList<HofOperationSpec> Operations)` |
+| proprietà | `IReadOnlyList<HofOperationSpec> Operations { get; init; }` |
+
+### `HofOperationSpec`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `HofOperationSpec(HofSourceKind SourceKind, string Source, IReadOnlyList<string> TargetVehicles, HofApplyMode Mode = Add, IReadOnlyList<string> Files = null)` |
+| proprietà | `HofSourceKind SourceKind { get; init; }` |
+| proprietà | `string Source { get; init; }` |
+| proprietà | `IReadOnlyList<string> TargetVehicles { get; init; }` |
+| proprietà | `HofApplyMode Mode { get; init; }` |
+| proprietà | `IReadOnlyList<string> Files { get; init; }` |
+
+### `HofSourceKind`
+
+Enumerazione (`byte`) in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| valore | `Collection = 0` |
+| valore | `Directory = 1` |
+| valore | `Vehicle = 2` |
+| valore | `File = 3` |
+
 ### `IOmsiLaunch`
 
 Interfaccia in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
@@ -242,6 +286,8 @@ Interfaccia in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-a
 | metodo | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | metodo | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | metodo | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| metodo | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| metodo | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | metodo | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | metodo | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | metodo | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -305,11 +351,12 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [launch
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30)` |
+| costruttore | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30, bool CooperativeShutdown = false)` |
 | proprietà | `bool RestoreConfiguration { get; init; }` |
 | proprietà | `bool SuppressStaleClosecheckWarning { get; init; }` |
 | proprietà | `int StartupTimeoutSeconds { get; init; }` |
 | proprietà | `int ShutdownTimeoutSeconds { get; init; }` |
+| proprietà | `bool CooperativeShutdown { get; init; }` |
 
 ### `LaunchDiagnostic`
 
@@ -328,7 +375,7 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [launch
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null)` |
+| costruttore | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null, HofManagementSpec HofManagement = null, RuntimeModulesSpec Modules = null)` |
 | proprietà | `InstallationSpec Installation { get; init; }` |
 | proprietà | `WorldSpec World { get; init; }` |
 | proprietà | `DateSpec Date { get; init; }` |
@@ -343,6 +390,10 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [launch
 | proprietà | `SessionPresentationSpec Presentation { get; init; }` |
 | proprietà | `InternetTexturesSpec InternetTextures { get; init; }` |
 | proprietà | `SessionProfileMetadata SessionProfile { get; init; }` |
+| proprietà | `HofManagementSpec HofManagement { get; init; }` |
+| proprietà | `RuntimeModulesSpec Modules { get; init; }` |
+| proprietà | `HofManagementSpec EffectiveHofManagement { get; }` |
+| proprietà | `RuntimeModulesSpec EffectiveModules { get; }` |
 | proprietà | `YearSpec EffectiveYear { get; }` |
 | proprietà | `WeatherSpec EffectiveWeather { get; }` |
 | proprietà | `InputSpec EffectiveInput { get; }` |
@@ -371,6 +422,44 @@ Record struct in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [launch
 | proprietà | `bool IsSet { get; }` |
 | proprietà statica | `OptionalValue<T> Unset { get; }` |
 | metodo statico | `OptionalValue<T> Set(T value)` |
+
+### `PlannedModule`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| costante | `string Eligible = "ELIGIBLE"` |
+| costante | `string Rejected = "REJECTED"` |
+| costante | `string ActivationRequested = "requested"` |
+| costante | `string ActivationSettingsFile = "settings-file"` |
+| costante | `string ActivationContent = "content"` |
+| costante | `string ActivationDefault = "default"` |
+| proprietà | `string Id { get; init; }` |
+| proprietà | `string Version { get; init; }` |
+| proprietà | `string Status { get; init; }` |
+| proprietà | `bool Requested { get; init; }` |
+| proprietà | `string FailurePolicy { get; init; }` |
+| proprietà | `IReadOnlyList<string> Operations { get; init; }` |
+| proprietà | `string Code { get; init; }` |
+| proprietà | `string Reason { get; init; }` |
+| proprietà | `string ManifestSha256 { get; init; }` |
+| proprietà | `string Activation { get; init; }` |
+| proprietà | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| proprietà | `bool IsEligible { get; }` |
+| proprietà | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+
+### `PlannedModuleSetting`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `PlannedModuleSetting(string Key, string Value, string Source)` |
+| proprietà | `string Key { get; init; }` |
+| proprietà | `string Value { get; init; }` |
+| proprietà | `string Source { get; init; }` |
 
 ### `PlannedMutation`
 
@@ -424,7 +513,7 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [capabi
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null)` |
+| costruttore | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null, IReadOnlyList<PublicRuntimeOperation> Operations = null, string NativeCapability = null, string EvidenceNote = null)` |
 | proprietà | `string Id { get; init; }` |
 | proprietà | `string Family { get; init; }` |
 | proprietà | `PublicCapabilityClassification Classification { get; init; }` |
@@ -436,6 +525,11 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [capabi
 | proprietà | `string RuntimeValidation { get; init; }` |
 | proprietà | `string Description { get; init; }` |
 | proprietà | `IReadOnlyList<string> HandleTypes { get; init; }` |
+| proprietà | `IReadOnlyList<PublicRuntimeOperation> Operations { get; init; }` |
+| proprietà | `string NativeCapability { get; init; }` |
+| proprietà | `string EvidenceNote { get; init; }` |
+| proprietà | `IReadOnlyList<PublicRuntimeOperation> EffectiveOperations { get; }` |
+| proprietà | `IReadOnlyList<string> NativeCapabilities { get; }` |
 
 ### `PublicCapabilityKind`
 
@@ -457,9 +551,16 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [capab
 | costante | `string ProtocolVersion = "0.1"` |
 | campo statico | `IReadOnlyList<PublicCapabilityDescriptor> All` |
 | proprietà statica | `IReadOnlyCollection<string> PublicRuntimeOperationIds { get; }` |
+| proprietà statica | `IReadOnlyList<PublicRuntimeOperation> RuntimeOperations { get; }` |
+| proprietà statica | `IReadOnlyDictionary<string, string> CliRoutes { get; }` |
+| metodo statico | `PublicCapabilityDescriptor Get(string id)` |
 | metodo statico | `IReadOnlyList<PublicRuntimeArgumentDescriptor> GetRuntimeArguments(string operation)` |
 | metodo statico | `bool IsInternalResultKey(string key)` |
+| metodo statico | `bool IsModuleOperation(string operation)` |
 | metodo statico | `bool IsPublicRuntimeOperation(string operation)` |
+| metodo statico | `string NativeCapabilityOf(string operation)` |
+| metodo statico | `bool TryGet(string id, out PublicCapabilityDescriptor descriptor)` |
+| metodo statico | `bool TryGetOperation(string operation, out PublicCapabilityDescriptor capability, out PublicRuntimeOperation descriptor)` |
 | metodo statico | `PublicRuntimeArgumentValidation ValidateRuntimeArguments(string operation, IReadOnlyDictionary<string, string> arguments)` |
 
 ### `PublicErrorCategory`
@@ -488,12 +589,19 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [error
 | costante | `string WINDOWS_HOST_MISSING = "OL_E_WINDOWS_HOST_MISSING"` |
 | costante | `string WINDOWS_HOST_START_FAILED = "OL_E_WINDOWS_HOST_START_FAILED"` |
 | costante | `string BUILD_VALIDATION_FAILED = "OL_E_BUILD_VALIDATION_FAILED"` |
+| costante | `string CAPABILITY_UNRESOLVED = "OL_E_CAPABILITY_UNRESOLVED"` |
 | costante | `string UNSUPPORTED_BUILD = "OL_E_UNSUPPORTED_BUILD"` |
 | costante | `string UNSUPPORTED_OPERATING_SYSTEM = "OL_E_UNSUPPORTED_OPERATING_SYSTEM"` |
 | costante | `string UNSUPPORTED_OS_ARCHITECTURE = "OL_E_UNSUPPORTED_OS_ARCHITECTURE"` |
 | costante | `string ENTRYPOINT_NOT_FOUND = "OL_E_ENTRYPOINT_NOT_FOUND"` |
 | costante | `string ENTRYPOINT_REQUIRED = "OL_E_ENTRYPOINT_REQUIRED"` |
+| costante | `string ENTRYPOINT_NOT_PRESENTED = "OL_E_ENTRYPOINT_NOT_PRESENTED"` |
 | costante | `string HOF_NOT_FOUND = "OL_E_HOF_NOT_FOUND"` |
+| costante | `string HOF_CONFLICT = "OL_E_HOF_CONFLICT"` |
+| costante | `string HOF_INVALID = "OL_E_HOF_INVALID"` |
+| costante | `string HOF_PATH_ESCAPE = "OL_E_HOF_PATH_ESCAPE"` |
+| costante | `string HOF_SOURCE_NOT_FOUND = "OL_E_HOF_SOURCE_NOT_FOUND"` |
+| costante | `string HOF_TARGET_NOT_FOUND = "OL_E_HOF_TARGET_NOT_FOUND"` |
 | costante | `string MAP_NOT_FOUND = "OL_E_MAP_NOT_FOUND"` |
 | costante | `string NOT_FOUND = "OL_E_NOT_FOUND"` |
 | costante | `string REPAINT_NOT_FOUND = "OL_E_REPAINT_NOT_FOUND"` |
@@ -541,6 +649,8 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [error
 | costante | `string PROCESS_WAIT_FAILED = "OL_E_PROCESS_WAIT_FAILED"` |
 | costante | `string CAMERA_PRESET_FAMILY_UNSUPPORTED = "OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED"` |
 | costante | `string DATE_TIME_APPLY_FAILED = "OL_E_DATE_TIME_APPLY_FAILED"` |
+| costante | `string WEATHER_INVALID = "OL_E_WEATHER_INVALID"` |
+| costante | `string WEATHER_APPLY_FAILED = "OL_E_WEATHER_APPLY_FAILED"` |
 | costante | `string MAKEVEHICLE_BUS_NOT_FOUND = "OL_E_MAKEVEHICLE_BUS_NOT_FOUND"` |
 | costante | `string MAKEVEHICLE_DELTA_MULTIPLE = "OL_E_MAKEVEHICLE_DELTA_MULTIPLE"` |
 | costante | `string MAKEVEHICLE_DELTA_ZERO = "OL_E_MAKEVEHICLE_DELTA_ZERO"` |
@@ -581,6 +691,7 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [error
 | costante | `string RUNTIME_STRING_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND"` |
 | costante | `string RUNTIME_VALUE_INVALID = "OL_E_RUNTIME_VALUE_INVALID"` |
 | costante | `string RUNTIME_VALUE_OUT_OF_RANGE = "OL_E_RUNTIME_VALUE_OUT_OF_RANGE"` |
+| costante | `string RUNTIME_CURSOR_INVALID = "OL_E_RUNTIME_CURSOR_INVALID"` |
 | costante | `string RUNTIME_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_VARIABLE_NOT_FOUND"` |
 | costante | `string RUNTIME_VARIABLE_UNAVAILABLE = "OL_E_RUNTIME_VARIABLE_UNAVAILABLE"` |
 | costante | `string TIME_APPLY_FAILED = "OL_E_TIME_APPLY_FAILED"` |
@@ -606,6 +717,25 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [error
 | costante | `string STARTUP_TIMEOUT = "OL_E_STARTUP_TIMEOUT"` |
 | costante | `string START_SESSION = "OL_E_START_SESSION"` |
 | costante | `string WORLD_START_FAILED = "OL_E_WORLD_START_FAILED"` |
+| costante | `string MODULE_MANIFEST_INVALID = "OL_E_MODULE_MANIFEST_INVALID"` |
+| costante | `string MODULE_NOT_FOUND = "OL_E_MODULE_NOT_FOUND"` |
+| costante | `string MODULE_INTEGRITY = "OL_E_MODULE_INTEGRITY"` |
+| costante | `string MODULE_PROTOCOL_UNSUPPORTED = "OL_E_MODULE_PROTOCOL_UNSUPPORTED"` |
+| costante | `string MODULE_CAPABILITY_UNRESOLVED = "OL_E_MODULE_CAPABILITY_UNRESOLVED"` |
+| costante | `string MODULE_CONTENT_BINDING = "OL_E_MODULE_CONTENT_BINDING"` |
+| costante | `string MODULE_COMPONENT_UNSUPPORTED = "OL_E_MODULE_COMPONENT_UNSUPPORTED"` |
+| costante | `string MODULE_LOAD_FAILED = "OL_E_MODULE_LOAD_FAILED"` |
+| costante | `string MODULE_PHASE_FAILED = "OL_E_MODULE_PHASE_FAILED"` |
+| costante | `string MODULE_PHASE_TIMEOUT = "OL_E_MODULE_PHASE_TIMEOUT"` |
+| costante | `string MODULE_DISABLED = "OL_E_MODULE_DISABLED"` |
+| costante | `string MODULE_NOT_LOADED = "OL_E_MODULE_NOT_LOADED"` |
+| costante | `string MODULE_OPERATION_UNKNOWN = "OL_E_MODULE_OPERATION_UNKNOWN"` |
+| costante | `string MODULE_OPERATION_FAILED = "OL_E_MODULE_OPERATION_FAILED"` |
+| costante | `string MODULE_CLEANUP_INCOMPLETE = "OL_E_MODULE_CLEANUP_INCOMPLETE"` |
+| costante | `string MODULE_SESSION_FAILED = "OL_E_MODULE_SESSION_FAILED"` |
+| costante | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
+| costante | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
+| costante | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
 | costante | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | costante | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | costante | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -625,7 +755,13 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [error
 | costante | `string RESTORE_DEFERRED = "OL_E_RESTORE_DEFERRED"` |
 | costante | `string RESTORE_FAILED = "OL_E_RESTORE_FAILED"` |
 | costante | `string RESTORE_FOREIGN_FILE_RETAINED = "OL_W_RESTORE_FOREIGN_FILE_RETAINED"` |
+| costante | `string BUILD_UNRECOGNIZED = "OL_W_BUILD_UNRECOGNIZED"` |
+| costante | `string COOPERATIVE_SHUTDOWN_UNAVAILABLE = "OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE"` |
+| costante | `string CAPABILITY_PENDING = "OL_W_CAPABILITY_PENDING"` |
+| costante | `string MODULE_NOT_LOADED_WARNING = "OL_W_MODULE_NOT_LOADED"` |
+| costante | `string MODULE_SETTING_IGNORED = "OL_W_MODULE_SETTING_IGNORED"` |
 | campo statico | `IReadOnlyList<PublicErrorDescriptor> All` |
+| metodo statico | `string FromMessage(string message)` |
 
 ### `PublicErrorDescriptor`
 
@@ -636,6 +772,19 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [errors
 | costruttore | `PublicErrorDescriptor(string Code, string Category)` |
 | proprietà | `string Code { get; init; }` |
 | proprietà | `string Category { get; init; }` |
+
+### `PublicEvidence`
+
+Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costante | `string RuntimeValidated = "RUNTIME_VALIDATED"` |
+| costante | `string StaticallyValidated = "STATICALLY_VALIDATED"` |
+| costante | `string Partial = "PARTIAL"` |
+| costante | `string RuntimeValidationRequired = "RUNTIME_VALIDATION_REQUIRED"` |
+| costante | `string Unavailable = "UNAVAILABLE"` |
+| campo statico | `IReadOnlyList<string> All` |
 
 ### `PublicExitCode`
 
@@ -653,6 +802,18 @@ Enumerazione (`int`) in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: 
 | valore | `OperationRejected = 7` |
 | valore | `TransactionRecoveryFailed = 8` |
 | valore | `InternalError = 10` |
+
+### `PublicMutationPolicy`
+
+Classe statica in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costante | `string None = "none"` |
+| costante | `string OmsiState = "omsi-state"` |
+| costante | `string SessionResource = "session-resource"` |
+| costante | `string SessionPolicy = "session-policy"` |
+| campo statico | `IReadOnlyList<string> All` |
 
 ### `PublicRuntimeArgumentDescriptor`
 
@@ -675,6 +836,20 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public
 | proprietà | `bool Accepted { get; init; }` |
 | proprietà | `string ErrorCode { get; init; }` |
 | proprietà | `string Message { get; init; }` |
+
+### `PublicRuntimeOperation`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `PublicRuntimeOperation(string Id, string NativeCapability, IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments, IReadOnlyList<string> CliRoutes, bool Paged = false, string MutationPolicy = "none")` |
+| proprietà | `string Id { get; init; }` |
+| proprietà | `string NativeCapability { get; init; }` |
+| proprietà | `IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments { get; init; }` |
+| proprietà | `IReadOnlyList<string> CliRoutes { get; init; }` |
+| proprietà | `bool Paged { get; init; }` |
+| proprietà | `string MutationPolicy { get; init; }` |
 
 ### `RecoveryStatus`
 
@@ -733,11 +908,60 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data)` |
+| costruttore | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data, long? SessionTickMilliseconds = default)` |
 | proprietà | `string Type { get; init; }` |
 | proprietà | `DateTimeOffset TimestampUtc { get; init; }` |
 | proprietà | `long Sequence { get; init; }` |
 | proprietà | `IReadOnlyDictionary<string, string> Data { get; init; }` |
+| proprietà | `long? SessionTickMilliseconds { get; init; }` |
+
+### `RuntimeModuleSettingSummary`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `RuntimeModuleSettingSummary(string Key, string Type, string Default, bool AllowsAuto = false, string Minimum = null, string Maximum = null, IReadOnlyList<string> Choices = null, string Flag = null, string Description = null)` |
+| proprietà | `string Key { get; init; }` |
+| proprietà | `string Type { get; init; }` |
+| proprietà | `string Default { get; init; }` |
+| proprietà | `bool AllowsAuto { get; init; }` |
+| proprietà | `string Minimum { get; init; }` |
+| proprietà | `string Maximum { get; init; }` |
+| proprietà | `IReadOnlyList<string> Choices { get; init; }` |
+| proprietà | `string Flag { get; init; }` |
+| proprietà | `string Description { get; init; }` |
+
+### `RuntimeModuleSummary`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `RuntimeModuleSummary(string Id, string Version, string Name, string Activation, bool IsValid, IReadOnlyList<string> Operations, string ContentBindingMap = null, string ErrorCode = null, string ErrorMessage = null, IReadOnlyList<RuntimeModuleSettingSummary> Settings = null)` |
+| proprietà | `string Id { get; init; }` |
+| proprietà | `string Version { get; init; }` |
+| proprietà | `string Name { get; init; }` |
+| proprietà | `string Activation { get; init; }` |
+| proprietà | `bool IsValid { get; init; }` |
+| proprietà | `IReadOnlyList<string> Operations { get; init; }` |
+| proprietà | `string ContentBindingMap { get; init; }` |
+| proprietà | `string ErrorCode { get; init; }` |
+| proprietà | `string ErrorMessage { get; init; }` |
+| proprietà | `IReadOnlyList<RuntimeModuleSettingSummary> Settings { get; init; }` |
+
+### `RuntimeModulesSpec`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyList<string> Disable = null, IReadOnlyDictionary<string, string> Settings = null)` |
+| proprietà | `IReadOnlyList<string> Enable { get; init; }` |
+| proprietà | `IReadOnlyList<string> Disable { get; init; }` |
+| proprietà | `IReadOnlyDictionary<string, string> Settings { get; init; }` |
+| proprietà | `IReadOnlyList<string> EffectiveDisable { get; }` |
+| proprietà | `IReadOnlyDictionary<string, string> EffectiveSettings { get; }` |
 
 ### `RuntimePlatformInfo`
 
@@ -799,7 +1023,7 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable)` |
+| costruttore | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable, IReadOnlyList<PlannedModule> PlannedModules = null)` |
 | proprietà | `Guid SessionId { get; init; }` |
 | proprietà | `string BuildProfileId { get; init; }` |
 | proprietà | `LaunchSpec Spec { get; init; }` |
@@ -812,6 +1036,8 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public
 | proprietà | `IReadOnlyList<PlannedMutation> PlannedMutations { get; init; }` |
 | proprietà | `IReadOnlyList<LaunchDiagnostic> Diagnostics { get; init; }` |
 | proprietà | `bool IsRunnable { get; init; }` |
+| proprietà | `IReadOnlyList<PlannedModule> PlannedModules { get; init; }` |
+| proprietà | `IReadOnlyList<PlannedModule> EffectivePlannedModules { get; }` |
 
 ### `SessionPresentationSpec`
 
@@ -840,6 +1066,35 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [launch
 | proprietà | `int PresetIndex { get; init; }` |
 | proprietà | `string PresetName { get; init; }` |
 | proprietà | `string PackagePath { get; init; }` |
+
+### `SessionProfilePresetSummary`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `SessionProfilePresetSummary(int Index, string Id, string Name)` |
+| proprietà | `int Index { get; init; }` |
+| proprietà | `string Id { get; init; }` |
+| proprietà | `string Name { get; init; }` |
+
+### `SessionProfileSummary`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `SessionProfileSummary(string Id, string Name, string Version, string Author, IReadOnlyList<string> CompatibleMaps, string MapIdentity, IReadOnlyList<SessionProfilePresetSummary> Presets, bool IsValid, string ErrorCode, string ErrorMessage)` |
+| proprietà | `string Id { get; init; }` |
+| proprietà | `string Name { get; init; }` |
+| proprietà | `string Version { get; init; }` |
+| proprietà | `string Author { get; init; }` |
+| proprietà | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
+| proprietà | `string MapIdentity { get; init; }` |
+| proprietà | `IReadOnlyList<SessionProfilePresetSummary> Presets { get; init; }` |
+| proprietà | `bool IsValid { get; init; }` |
+| proprietà | `string ErrorCode { get; init; }` |
+| proprietà | `string ErrorMessage { get; init; }` |
 
 ### `SessionState`
 
@@ -890,13 +1145,38 @@ Enumerazione (`byte`) in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica:
 | valore | `Native = 0` |
 | valore | `Managed = 1` |
 
+### `StartDateTime`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `StartDateTime(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)` |
+| proprietà | `int? Year { get; init; }` |
+| proprietà | `int? DayOfYear { get; init; }` |
+| proprietà | `int? Hour { get; init; }` |
+| proprietà | `int? Minute { get; init; }` |
+| proprietà | `int? Second { get; init; }` |
+| proprietà | `bool IsEmpty { get; }` |
+
+### `StartWeather`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `StartWeather(WeatherMode Mode, string Preset = "", string Icao = "")` |
+| proprietà | `WeatherMode Mode { get; init; }` |
+| proprietà | `string Preset { get; init; }` |
+| proprietà | `string Icao { get; init; }` |
+
 ### `StartupHandoff`
 
 Record sealed in `OmsiLaunch.Api`. Stabilità: `INTERNAL`. Semantica: [public-api](public-api.md).
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "")` |
+| costruttore | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "", IReadOnlyList<StartupModule> Modules = null, bool PluginTrace = false, bool NativeTrace = false, StartDateTime Start = null, StartWeather Weather = null)` |
 | proprietà | `Guid SessionId { get; init; }` |
 | proprietà | `string BuildProfileId { get; init; }` |
 | proprietà | `WorldMode WorldMode { get; init; }` |
@@ -908,6 +1188,11 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `INTERNAL`. Semantica: [public-ap
 | proprietà | `DateTimeMode TimeMode { get; init; }` |
 | proprietà | `string EntrypointIdentity { get; init; }` |
 | proprietà | `string SituationIdentity { get; init; }` |
+| proprietà | `IReadOnlyList<StartupModule> Modules { get; init; }` |
+| proprietà | `bool PluginTrace { get; init; }` |
+| proprietà | `bool NativeTrace { get; init; }` |
+| proprietà | `StartDateTime Start { get; init; }` |
+| proprietà | `StartWeather Weather { get; init; }` |
 
 ### `StartupHandoffWire`
 
@@ -916,9 +1201,38 @@ Classe statica in `OmsiLaunch.Api`. Stabilità: `INTERNAL`. Semantica: [public-a
 | Membro | Firma |
 | --- | --- |
 | costante | `uint Magic = 1330402120` |
-| costante | `ushort Version = 4` |
+| costante | `ushort Version = 7` |
 | metodo statico | `byte[] Serialize(StartupHandoff value)` |
 | metodo statico | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
+
+### `StartupModule`
+
+Record sealed in `OmsiLaunch.Api`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| proprietà | `string RelativeDirectory { get; init; }` |
+| proprietà | `string ManifestSha256 { get; init; }` |
+| proprietà | `string Settings { get; init; }` |
+
+### `TelemetryRingWire`
+
+Classe statica in `OmsiLaunch.Api`. Stabilità: `INTERNAL`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costante | `uint Magic = 1381256271` |
+| costante | `int Version = 1` |
+| costante | `int SlotCount = 64` |
+| costante | `int SlotSize = 2048` |
+| costante | `int HeaderSize = 64` |
+| costante | `int Capacity = 131136` |
+| costante | `int MaxPayload = 2036` |
+| metodo statico | `void Initialize(MemoryMappedViewAccessor view)` |
+| metodo statico | `bool IsRing(MemoryMappedViewAccessor view)` |
+| metodo statico | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long, long> ReadSince(MemoryMappedViewAccessor view, long after)` |
+| metodo statico | `bool Write(MemoryMappedViewAccessor view, byte[] payload)` |
 
 ### `TimeSpec`
 
@@ -989,6 +1303,15 @@ Record sealed in `OmsiLaunch.Api`. Stabilità: `PARTIAL`. Semantica: [launchspec
 
 ## `OmsiLaunch.Core`
 
+### `HofPlanningException`
+
+Classe sealed in `OmsiLaunch.Core`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costruttore | `HofPlanningException(string code, string message)` |
+| proprietà | `string Code { get; }` |
+
 ### `LaunchValidation`
 
 Classe statica in `OmsiLaunch.Core`. Stabilità: `INTERNAL`. Semantica: [public-api](public-api.md).
@@ -996,7 +1319,16 @@ Classe statica in `OmsiLaunch.Core`. Stabilità: `INTERNAL`. Semantica: [public-
 | Membro | Firma |
 | --- | --- |
 | metodo statico | `bool IsMapIdentity(string value)` |
+| metodo statico | `bool IsSha256(string value)` |
 | metodo statico | `IReadOnlyList<LaunchDiagnostic> Validate(LaunchSpec spec)` |
+
+### `ModuleDataStore`
+
+Classe statica in `OmsiLaunch.Core`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| metodo statico | `bool Clear(string installationRoot, string moduleId)` |
 
 ### `OmsiLaunchRuntimePaths`
 
@@ -1021,6 +1353,8 @@ Classe sealed in `OmsiLaunch.Core`. Stabilità: `STABLE_BETA`. Semantica: [publi
 | metodo | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | metodo | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | metodo | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| metodo | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| metodo | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | metodo | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | metodo | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | metodo | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -1048,7 +1382,7 @@ Record sealed in `OmsiLaunch.Core`. Stabilità: `EXPERIMENTAL`. Semantica: [sess
 
 | Membro | Firma |
 | --- | --- |
-| costruttore | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior)` |
+| costruttore | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior, IReadOnlyList<HofOperationSpec> Hofs, RuntimeModulesSpec Modules = null)` |
 | proprietà | `int Index { get; init; }` |
 | proprietà | `string Id { get; init; }` |
 | proprietà | `string Name { get; init; }` |
@@ -1056,6 +1390,8 @@ Record sealed in `OmsiLaunch.Core`. Stabilità: `EXPERIMENTAL`. Semantica: [sess
 | proprietà | `SessionPresentationSpec Presentation { get; init; }` |
 | proprietà | `InternetTexturesSpec InternetTextures { get; init; }` |
 | proprietà | `LaunchBehaviorSpec Behavior { get; init; }` |
+| proprietà | `IReadOnlyList<HofOperationSpec> Hofs { get; init; }` |
+| proprietà | `RuntimeModulesSpec Modules { get; init; }` |
 
 ### `SessionPlanner`
 
@@ -1074,8 +1410,11 @@ Classe statica in `OmsiLaunch.Core`. Stabilità: `EXPERIMENTAL`. Semantica: [ses
 | --- | --- |
 | costante | `string Schema = "omsilaunch.session-profile/v1"` |
 | costante | `long MaxBytes = 262144` |
+| costante | `int MinPresetIndex = 1` |
+| costante | `int MaxPresetIndex = 99` |
 | campo statico | `IReadOnlyDictionary<string, IReadOnlyList<string>> SchemaKeys` |
 | metodo statico | `LaunchSpec Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` |
+| metodo statico | `IReadOnlyList<SessionProfileSummary> Discover(string installationRoot)` |
 | metodo statico | `SessionProfilePackage Load(string installationRoot, string id, int presetIndex)` |
 | metodo statico | `void ValidateCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode)` |
 
@@ -1100,6 +1439,24 @@ Record sealed in `OmsiLaunch.Core`. Stabilità: `EXPERIMENTAL`. Semantica: [sess
 | proprietà | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
 | proprietà | `ProfileNew New { get; init; }` |
 | proprietà | `ProfilePreset Preset { get; init; }` |
+
+### `StartDateTimeResolver`
+
+Classe statica in `OmsiLaunch.Core`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costante | `int MinimumYear = 1900` |
+| costante | `int MaximumYear = 2200` |
+| metodo statico | `StartDateTime Resolve(LaunchSpec spec, DateTime now, out string error)` |
+
+### `StartWeatherResolver`
+
+Classe statica in `OmsiLaunch.Core`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| metodo statico | `StartWeather Resolve(LaunchSpec spec, out string error)` |
 
 ## `OmsiLaunch.Process`
 
@@ -1135,7 +1492,7 @@ Classe sealed in `OmsiLaunch.Process`. Stabilità: `INTERNAL`. Semantica: [publi
 | proprietà | `string Name { get; }` |
 | metodo statico | `CurrentTelemetryStore Create(Guid sessionId)` |
 | metodo | `void Dispose()` |
-| metodo | `ValueTuple<int, string>? ReadLatest()` |
+| metodo | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long> ReadNew()` |
 
 ### `CurrentWindowsX64Platform`
 
@@ -1196,6 +1553,22 @@ Classe sealed in `OmsiLaunch.Process`. Stabilità: `INTERNAL`. Semantica: [publi
 | proprietà | `int ThreadId { get; }` |
 | proprietà | `ProcessIdentity Identity { get; }` |
 | metodo | `void Dispose()` |
+
+### `ModuleSessionProcess`
+
+Classe sealed in `OmsiLaunch.Process`. Stabilità: `STABLE_BETA`. Semantica: [public-api](public-api.md).
+
+| Membro | Firma |
+| --- | --- |
+| costante | `int MaxLineBytes = 65536` |
+| proprietà | `int ProcessId { get; }` |
+| proprietà | `bool HasExited { get; }` |
+| proprietà | `int? ExitCode { get; }` |
+| metodo | `void Dispose()` |
+| metodo | `void Kill()` |
+| metodo statico | `ModuleSessionProcess Start(string executable, string workingDirectory, Guid sessionId, Action<string> onLine)` |
+| metodo | `bool TryWriteLine(string line)` |
+| metodo | `bool WaitForExit(TimeSpan timeout)` |
 
 ### `OmsiProcessState`
 

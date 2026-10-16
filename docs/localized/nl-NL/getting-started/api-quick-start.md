@@ -1,6 +1,6 @@
 # Snelstart publieke API
 
-<!-- l10n: source=getting-started/api-quick-start.md -->
+<!-- l10n: source=getting-started/api-quick-start.md source-sha256=cd9b92efa4f35f7a4f8947145e72af4b066eb29e49c6f4435497e0001eadc69c -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../getting-started/api-quick-start.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Op deze pagina start je één OmsiLaunch-sessie vanuit je eigen .NET-programma, lees je die uit en beëindig je die. Er wordt van uitgegaan dat het pakket in de OMSI 2-map is geïnstalleerd (zie [installatie](installation.md)) en dat `OmsiLaunch.exe /plan` daar werkt (zie [eerste sessie](first-session.md)). Het volledige contract staat in de [referentie van de publieke API](../reference/public-api.md).

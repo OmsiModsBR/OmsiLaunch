@@ -1,7 +1,7 @@
 # `.omsilaunch` Installation State Directory
 
 > Superseded by [Packaging / Installation Layout](../reference/packaging.md)
-> and [Transactions and Recovery](../concepts/transactions-and-recovery.md).
+> and [Transactions and Recovery](transactions-and-recovery.md).
 > This page is kept only so that existing links keep resolving; it is not
 > normative.
 

@@ -19,6 +19,7 @@
     "reference/errors.md",
     "concepts/session-lifecycle.md",
     "reference/session-profiles.md",
+    "reference/hof-management.md",
     "concepts/transactions-and-recovery.md",
     "concepts/permanent-plugin.md",
     "reference/capabilities.md",
@@ -34,7 +35,7 @@
       "english_name": "Portuguese (Brazil)",
       "website_route": "/",
       "windows_ui": "pt-BR",
-      "banner": "Tradução da [página original em inglês]({source}) do OmsiLaunch 0.1.0-beta3. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.",
+      "banner": "Tradução da [página original em inglês]({source}) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.",
       "forbidden": [
         "\\bficheiros?\\b",
         "\\butilizador",
@@ -76,7 +77,7 @@
       "english_name": "Portuguese (Portugal)",
       "website_route": "/pt-pt/",
       "windows_ui": "en",
-      "banner": "Tradução da [página original em inglês]({source}) do OmsiLaunch 0.1.0-beta3. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.",
+      "banner": "Tradução da [página original em inglês]({source}) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.",
       "forbidden": [
         "\\bvocês?\\b",
         "\\barquivos?\\b",
@@ -120,7 +121,7 @@
       "english_name": "English (United Kingdom)",
       "website_route": "/en-gb/",
       "windows_ui": "en",
-      "banner": "British English edition of the [canonical page]({source}) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.",
+      "banner": "British English edition of the [canonical page]({source}) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.",
       "forbidden": [
         "\\bbehavior",
         "\\bcolor\\b",
@@ -166,7 +167,7 @@
       "english_name": "French",
       "website_route": "/fr/",
       "windows_ui": "fr",
-      "banner": "Traduction de la [page originale en anglais]({source}) d’OmsiLaunch 0.1.0-beta3. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.",
+      "banner": "Traduction de la [page originale en anglais]({source}) d’OmsiLaunch 0.1.0-beta4. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.",
       "forbidden": [],
       "inventory": {
         "title": "Inventaire de l’API publique",
@@ -201,7 +202,7 @@
       "english_name": "German",
       "website_route": "/de/",
       "windows_ui": "de",
-      "banner": "Übersetzung der [englischen Originalseite]({source}) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.",
+      "banner": "Übersetzung der [englischen Originalseite]({source}) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.",
       "forbidden": [],
       "inventory": {
         "title": "Inventar der öffentlichen API",
@@ -236,7 +237,7 @@
       "english_name": "Spanish (Spain)",
       "website_route": "/es/",
       "windows_ui": "en",
-      "banner": "Traducción de la [página original en inglés]({source}) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.",
+      "banner": "Traducción de la [página original en inglés]({source}) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.",
       "forbidden": [
         "\\bcomputadora",
         "\\barchivo de computadora",
@@ -275,7 +276,7 @@
       "english_name": "Spanish (Latin America)",
       "website_route": "/es-latam/",
       "windows_ui": "en",
-      "banner": "Traducción de la [página original en inglés]({source}) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.",
+      "banner": "Traducción de la [página original en inglés]({source}) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.",
       "forbidden": [
         "\\bvosotros\\b",
         "\\bordenador",
@@ -316,7 +317,7 @@
       "english_name": "Italian",
       "website_route": "/it/",
       "windows_ui": "en",
-      "banner": "Traduzione della [pagina originale in inglese]({source}) di OmsiLaunch 0.1.0-beta3. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.",
+      "banner": "Traduzione della [pagina originale in inglese]({source}) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.",
       "forbidden": [],
       "inventory": {
         "title": "Inventario dell’API pubblica",
@@ -351,7 +352,7 @@
       "english_name": "Polish",
       "website_route": "/pl/",
       "windows_ui": "pl",
-      "banner": "Tłumaczenie [oryginalnej strony w języku angielskim]({source}) dla OmsiLaunch 0.1.0-beta3. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.",
+      "banner": "Tłumaczenie [oryginalnej strony w języku angielskim]({source}) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.",
       "forbidden": [],
       "inventory": {
         "title": "Inwentarz publicznego API",
@@ -386,7 +387,7 @@
       "english_name": "Dutch",
       "website_route": "/nl/",
       "windows_ui": "en",
-      "banner": "Vertaling van de [oorspronkelijke Engelse pagina]({source}) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.",
+      "banner": "Vertaling van de [oorspronkelijke Engelse pagina]({source}) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.",
       "forbidden": [],
       "inventory": {
         "title": "Inventaris van de publieke API",
@@ -421,7 +422,7 @@
       "english_name": "Russian",
       "website_route": "/ru/",
       "windows_ui": "en",
-      "banner": "Перевод [исходной страницы на английском языке]({source}) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.",
+      "banner": "Перевод [исходной страницы на английском языке]({source}) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.",
       "forbidden": [],
       "inventory": {
         "title": "Перечень публичного API",
@@ -456,7 +457,7 @@
       "english_name": "Chinese (Simplified)",
       "website_route": "/zh-cn/",
       "windows_ui": "en",
-      "banner": "本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面]({source}) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。",
+      "banner": "本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面]({source}) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。",
       "forbidden": [
         "[這們個為說時發過還進對數據後務調實應該錄連錯誤運話員讀寫與關線項類載當現問題執態統從頁視動選擇無顯屬輸構結會塊參備編譯鏈節單層維稱變換歷級斷開啟標籤證驗測試報權遠網絡緩離創刪檢轉響請協議規範細則須覽圖僅將義處間產訊釋於]"
       ],
@@ -493,7 +494,7 @@
       "english_name": "Chinese (Traditional, Taiwan)",
       "website_route": "/zh-tw/",
       "windows_ui": "en",
-      "banner": "本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面]({source}) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。",
+      "banner": "本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面]({source}) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。",
       "forbidden": [
         "[这们个为说时发过还进对数据后务调实应该录连错误运话员读写与关线项类载当现问题执态统从页视动选择无显属输构结会块参备编译链节单层维称变换历级断开启标签证验测试报权远网络缓离创删检转响请协议规范细则须览图仅将义处间产讯释]",
         "软件",
@@ -539,7 +540,7 @@
       "english_name": "Japanese",
       "website_route": "/ja/",
       "windows_ui": "en",
-      "banner": "このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ]({source})の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。",
+      "banner": "このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ]({source})の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。",
       "forbidden": [],
       "inventory": {
         "title": "公開 API インベントリ",

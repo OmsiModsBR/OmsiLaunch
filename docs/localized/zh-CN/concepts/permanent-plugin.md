@@ -1,7 +1,7 @@
 # 永久插件
 
-<!-- l10n: source=concepts/permanent-plugin.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../concepts/permanent-plugin.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=concepts/permanent-plugin.md source-sha256=f18a0812b1fa4194aa62d0fa6366ba35b3140f830d4c9b12f57c2f82e2cfb8c3 -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../concepts/permanent-plugin.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 OmsiLaunch 通过一个插件从 OMSI 进程内部控制 OMSI。该插件作为产品的一部分，只在 `plugins\OmsiLaunch.*` 下安装一次。会话从不对它进行暂存、复制、快照、还原或删除。本页说明插件闭包包含哪些文件、OMSI 如何加载它、主机如何在每次启动前校验它、主机与插件如何通信（交接、遥测、运行时邮箱），以及在未通过 OmsiLaunch 启动 OMSI 时插件会做什么。来源：`src/OmsiLaunch.Process/RuntimeDeployment.cs`（`RuntimeArtifactSet`、`ReleaseManifest`、三个共享内存存储）、`src/OmsiLaunch.Plugin/CurrentDnneAdapter.cs`、`src/OmsiLaunch.Plugin/PluginRuntime.cs`、`src/OmsiLaunch.Plugin/OmsiLaunch.Plugin.opl`、`src/OmsiLaunch.Api/StartupHandoff.cs` 和 `src/OmsiLaunch.Api/RuntimeControlProtocol.cs`。
 
@@ -48,7 +48,7 @@ OmsiLaunch 通过一个插件从 OMSI 进程内部控制 OMSI。该插件作为�
 
 只使用清单中的 `plugins/` 条目；清单是数据，从不是策略。清单由发行打包脚本生成，包含每个暂存文件的 SHA-256。当控制器从 OMSI 根目录运行时（发行布局），源目录和目标目录是同一个目录；因此在没有清单的情况下，检查会退化为存在性和自一致性检查，这就是发行包始终带有 `release-manifest.json` 的原因。不匹配时的修复方法：重新安装该包，使 `plugins\` 与 `release-manifest.json` 一致。
 
-插件会在进程内再次验证版本（build）：`NativeServices.ValidateBuild` 只接受构建配置标识 `Omsi23004_692EBFBF`，并要求 `NativeValidateBuild` 针对正在运行的可执行文件验证成功；失败时发出遥测 `plugin.build.invalid`，主机将其映射为 `OL_E_BUILD_VALIDATION_FAILED`。参见[兼容性](../reference/compatibility.md)。
+在打补丁之前，插件会针对已加载的映像解析并校验版本构建目录中的每个原生目标，并将校验后的表交给不含任何 OMSI 地址的 `OmsiLaunch.Native.x86.dll`（遥测 `native.capabilities`）。`boot.headless-start` 或世界模式能力不可用的启动会以 `plugin.capability.unresolved`（`OL_E_CAPABILITY_UNRESOLVED`）失败；处于意外状态的实时 Start 窗体会以 `plugin.build.invalid`（`OL_E_BUILD_VALIDATION_FAILED`）失败。参见[兼容性](../reference/compatibility.md)。
 
 <a id="host-to-plugin-environment-variables"></a>
 ## 主机到插件：环境变量
@@ -75,7 +75,7 @@ OmsiLaunch 通过一个插件从 OMSI 进程内部控制 OMSI。该插件作为�
 <a id="telemetry-slot"></a>
 ## 遥测槽
 
-`OmsiLaunch.Telemetry.<session>` 是一个 4096 字节的最新值槽：`length`（偏移 0 处的 int32）、`sequence`（偏移 4 处的 int32）、偏移 8 处的 UTF-8 JSON `{ "name": ..., "data": { ... } }`。生产者先使长度失效，写入载荷，发布新的序号，最后发布长度。主机每 100 ms 采样一次，若复制期间长度或序号发生变化，则将该样本视为撕裂样本并跳过；只有当样本序号与上一个不同时才处理它，因此相同的连续事件仍被视为不同事件。事件被追加到 `SessionStatus.RuntimeEvents`（仅保留最近 256 个），并驱动语义生命周期（`plugin.started`、`world.starting`、`gameplay.entered`、各类失败）。由于只保留最新值，快于主机 100 ms 采样的一连串事件可能会丢失中间事件；插件会在 `gameplay.entered` 之后将 D3D 生命周期事件推迟 2 s，从而确保 `Running` 边界永远不会被掩盖。
+`OmsiLaunch.Telemetry.<session>` 是一个事件环（Beta 4，`TelemetryRingWire`）：64 字节头部（魔数 `OLTR`、版本 1、槽数、槽大小、已提交序号）和 64 个带编号的 2048 字节槽，每个槽保存一个 UTF-8 JSON 事件 `{ "name": ..., "data": { ... }, "tick": <ms> }`（`tick` 是插件的单调会话时钟）。插件是唯一的写入方：先使某个槽失效，写入该槽，提交该槽的序号，然后发布环的序号。主机每 100 ms 按顺序读取自上次读取以来提交的每个事件；复制期间被覆盖的槽会被计为丢失，绝不会以撕裂状态交付。落后超过 64 个事件的主机会收到运行时事件 `telemetry.lost`，并带有确切的计数。大于一个槽的事件会被指明它的 `telemetry.oversized` 替换。事件被追加到 `SessionStatus.RuntimeEvents`（仅保留最近 256 个），并驱动语义生命周期（`plugin.started`、`world.starting`、`gameplay.entered`、模块事件和失败事件）。
 
 <a id="runtime-command-mailbox"></a>
 ## 运行时命令邮箱

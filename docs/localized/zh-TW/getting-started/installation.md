@@ -1,9 +1,9 @@
 # 安裝
 
-<!-- l10n: source=getting-started/installation.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../getting-started/installation.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=getting-started/installation.md source-sha256=a547bd23c9342584c75eb8f54ddbc7a43478458dd0863949b72893826df2e136 -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../getting-started/installation.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-本頁說明 OmsiLaunch `0.1.0-beta3` 的需求、支援的 OMSI 組建、如何將發行套件安裝到 OMSI 安裝根目錄，以及在啟動工作階段之前如何以 `/version` 和 `/plan` 驗證安裝。套件內容規範於[封裝](../reference/packaging.md)；首次啟動說明於[第一個工作階段](first-session.md)。
+本頁說明 OmsiLaunch `0.1.0-beta4` 的需求、支援的 OMSI 組建、如何將發行套件安裝到 OMSI 安裝根目錄，以及在啟動工作階段之前如何以 `/version` 和 `/plan` 驗證安裝。套件內容規範於[封裝](../reference/packaging.md)；首次啟動說明於[第一個工作階段](first-session.md)。
 
 <a id="requirements"></a>
 ## 需求
@@ -13,7 +13,7 @@
 | Windows 10 或更新版本，64 位元 | 控制器會檢查 `Environment.OSVersion.Version.Major >= 10`、x64 作業系統以及 x64 處理程序。 | 計畫不可執行，錯誤為 `OL_E_UNSUPPORTED_OPERATING_SYSTEM`（或 `OL_E_UNSUPPORTED_OS_ARCHITECTURE`），結束代碼 `1`/`3`。 |
 | .NET 6 Desktop Runtime，**x64** | `OmsiLaunch.Controller.runtimeconfig.json` 需要 `Microsoft.NETCore.App` 6.0 與 `Microsoft.WindowsDesktop.App` 6.0（系統匣指示器使用 Windows Forms）。shim 透過 `nethost.dll` 尋找 runtime。 | `OmsiLaunch.exe` 在產生任何輸出之前即以 shim 代碼 `102`..`106` 結束；`OmsiLaunchW.exe` 會顯示 `OmsiLaunch could not start the .NET host (code N).`。 |
 | .NET 6 Runtime，**x86** | `plugins\OmsiLaunch.Plugin.runtimeconfig.json` 需要 x86 版的 `Microsoft.NETCore.App` 6.0，因為外掛程式在 32 位元的 `Omsi.exe` 內執行。x86 .NET 6 Desktop Runtime 套組同樣可滿足此需求。 | 外掛程式無法在 OMSI 內啟動；工作階段無法進入 `Running`（`OL_E_PLUGIN_NOT_LOADED`／`OL_E_STARTUP_TIMEOUT`），結束代碼 `1`，檔案已還原。 |
-| 受支援的 OMSI 2 組建 | `Omsi.exe` 的 SHA-256 為 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243`（8,503,440 位元組），設定檔 `Omsi23004_692EBFBF`，已於執行階段驗證。Steam LAA 執行檔 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` 可被接受，但其驗證狀態為 `pending_beta_field_validation`。每次規劃與每次啟動時都會重新檢查雜湊。 | `OL_E_UNSUPPORTED_BUILD`；計畫不可執行，結束代碼 `1`。請參閱[相容性](../reference/compatibility.md)。 |
+| 已安裝 OMSI 2 | 32 位元的 `Omsi.exe`，版本為 OMSI 2（2.x），且根目錄中有 `maps\` 與 `Vehicles\`。不要求特定的執行檔雜湊；OMSI 2.3.004 是已知且已於執行階段驗證的配置，在其他組建上，每項功能都會在處理程序內解析並驗證。 | `OL_E_UNSUPPORTED_BUILD`；計畫不可執行，結束代碼 `1`。組建上無法使用的功能會以 `OL_E_CAPABILITY_UNRESOLVED` 失敗。請參閱[相容性](../reference/compatibility.md)。 |
 | 可寫入的安裝根目錄 | 交易會寫入 `.omsilaunch\`、`GUI\` 與 `Texture\` 下的 overlay（暫時覆蓋）以及 `options.cfg`，之後再將其還原；目前使用者必須對根目錄具有寫入權限（若無適當權限，請避免使用 `Program Files`）。 | `OL_E_INSTALLATION_NOT_WRITABLE`，結束代碼 `1`。 |
 | 每個安裝一位使用者、一個擁有者 | 安裝租用 `Local\OmsiLaunch.Installation.<sha256(root)>` 與控制管道都以登入工作階段為範圍。 | `OL_E_INSTALLATION_BUSY`／`OL_E_SESSION_ALREADY_ACTIVE`，結束代碼 `7`。 |
 
@@ -34,7 +34,7 @@ Get-FileHash '<OMSI_PATH>\Omsi.exe' -Algorithm SHA256
 <a id="install-the-package"></a>
 ## 安裝套件
 
-1. 下載 `OmsiLaunch-0.1.0-beta3.zip` 與 `OmsiLaunch-0.1.0-beta3.zip.sha256`，並驗證總和檢查碼（`Get-FileHash` 必須等於 `.sha256` 檔中的值）。
+1. 下載 `OmsiLaunch-0.1.0-beta4.zip` 與 `OmsiLaunch-0.1.0-beta4.zip.sha256`，並驗證總和檢查碼（`Get-FileHash` 必須等於 `.sha256` 檔中的值）。
 2. 將封存檔**直接解壓縮到 OMSI 安裝根目錄**（包含 `Omsi.exe` 的資料夾）。封存檔的配置即對應該根目錄：
    - 根目錄下的 `OmsiLaunch.exe`、`OmsiLaunchW.exe`、`nethost.dll`、`OmsiLaunch.Controller.dll` 與其他 `OmsiLaunch.*.dll` 控制器組件、`YamlDotNet.dll`、`release-manifest.json`、`LICENSE`、`THIRD-PARTY-NOTICES.md`；
    - 永久外掛程式的完整檔案集 `plugins\OmsiLaunch.*`（9 個檔案），放在您既有的外掛程式旁，既有外掛程式絕不會被變更；
@@ -52,7 +52,7 @@ Get-FileHash '<OMSI_PATH>\Omsi.exe' -Algorithm SHA256
 ```text
 OmsiLaunch.exe /version
 ```
-預期結果：`"version": "0.1.0-beta3"`、`"protocol_version": "0.1"`、`"supported_family": "OMSI_2_3_004_COMMON"`；結束代碼 `0`。結束代碼 `102`..`106` 表示缺少 x64 .NET 6 runtime，或套件不完整。
+預期結果：`"version": "0.1.0-beta4"`、`"protocol_version": "0.1"`、`"supported_family": "OMSI_2"`；結束代碼 `0`。結束代碼 `102`..`106` 表示缺少 x64 .NET 6 runtime，或套件不完整。
 
 ```text
 OmsiLaunch.exe profiles
@@ -63,7 +63,7 @@ OmsiLaunch.exe /list:Maps
 ```text
 OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /plan
 ```
-預期結果：`Plan: READY profile=Omsi23004_692EBFBF` 且結束代碼 `0`（可使用 `/list:Maps` 中的任何地圖識別；進入點索引必須是該地圖所呈現的索引，請參閱 `/list:Entrypoints /map:<identity>`）。加上 `--json` 時，計畫會列出 `TouchedFiles`（啟動畫面 overlay）、`PlannedMutations`、`RequiredCapabilities`（全部為 `STATICALLY_VALIDATED`）、`Diagnostics`（包含 `plugin.integrity.reference`）以及 `IsRunnable`。若為 `Plan: NOT RUNNABLE` 並以結束代碼 `1` 結束，原因會列在 `Diagnostics` 中（`OL_E_UNSUPPORTED_BUILD`、`OL_E_MAP_NOT_FOUND`、`OL_E_ENTRYPOINT_REQUIRED`、`OL_E_RUNTIME_ARTIFACT_MISSING`……）。規劃絕不會啟動 OMSI，也絕不會寫入安裝目錄。
+預期結果：`Plan: READY profile=Omsi23004`（在已知配置上；其他情況為 `unrecognized`）且結束代碼 `0`（可使用 `/list:Maps` 中的任何地圖識別；進入點索引必須是該地圖所呈現的索引，請參閱 `/list:Entrypoints /map:<identity>`）。加上 `--json` 時，計畫會列出 `TouchedFiles`（啟動畫面 overlay）、`PlannedMutations`、`RequiredCapabilities`（`STATICALLY_VALIDATED`；在已知配置上，原生啟動功能為 `RESOLVED_KNOWN_LAYOUT`）、`Diagnostics`（包含 `plugin.integrity.reference`）以及 `IsRunnable`。若為 `Plan: NOT RUNNABLE` 並以結束代碼 `1` 結束，原因會列在 `Diagnostics` 中（`OL_E_UNSUPPORTED_BUILD`、`OL_E_MAP_NOT_FOUND`、`OL_E_ENTRYPOINT_REQUIRED`、`OL_E_RUNTIME_ARTIFACT_MISSING`……）。規劃絕不會啟動 OMSI，也絕不會寫入安裝目錄。
 
 <a id="where-things-live-afterwards"></a>
 ## 安裝後各項目的位置

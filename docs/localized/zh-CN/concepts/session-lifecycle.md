@@ -1,7 +1,7 @@
 # 会话生命周期
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../concepts/session-lifecycle.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../concepts/session-lifecycle.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页说明 OmsiLaunch 会话如何在 `SessionState` 中从 `Created` 推进到 `Completed` 或 `Failed`：哪个组件设置每个状态、哪些插件遥测事件驱动状态转换、启动超时如何工作、停止意味着什么（强制终止）、`WaitForAsync` 返回什么、哪些状态是终止状态、哪些状态从不可见或几乎不可见，以及 CLI 所有者提供哪些保证。本页所有内容均取自 `OmsiLaunchService.StartAsync`、`SuperviseAsync` 和 `ApplyTelemetry`（`src/OmsiLaunch.Core/OmsiLaunchService.cs`）、`PluginRuntime`（`src/OmsiLaunch.Plugin/PluginRuntime.cs`）以及 `OwnerSession`（`tools/OmsiLaunch.Cli/Program.cs`）。
 
@@ -80,7 +80,7 @@ SuperviseAsync ─ background task ───────────────
 
 监管器在线程池任务上运行，每 100 ms 循环一次，直到 OMSI 退出或收到停止请求：
 
-1. 读取最新的遥测样本（一个带生产者序号的最新值槽；撕裂的样本会被跳过；相同的连续事件因序号不同而被视为不同事件）。每个新样本都会追加到 `RuntimeEvents`，并由 `ApplyTelemetry` 进行映射。
+1. 按顺序读取自上次读取以来插件提交的每个遥测事件（一个事件环；落后的读取方会收到带有计数的 `telemetry.lost`）。每个事件都会追加到 `RuntimeEvents`，并由 `ApplyTelemetry` 进行映射。
 2. 如果会话为 `Failed`，退出循环。
 3. 如果会话尚未进入 `Running` 且截止时间（监管器进入后 `StartupTimeoutSeconds`）已过：若已到达 `PluginBootstrap`，则以 `OL_E_STARTUP_TIMEOUT` 执行 `Fail`，否则以 `OL_E_PLUGIN_NOT_LOADED` 执行；退出循环。
 

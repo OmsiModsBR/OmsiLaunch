@@ -1,15 +1,17 @@
 # Known Limitations
 
-<!-- l10n: source=reference/known-limitations.md -->
-> British English edition of the [canonical page](../../../reference/known-limitations.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+> British English edition of the [canonical page](../../../reference/known-limitations.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
-This page lists, from the code, everything in OmsiLaunch 0.1.0-beta3 that is `UNAVAILABLE`, `PARTIAL`, or an accepted risk, so that users and integrators do not build on behaviour the product does not provide. Each row names the limitation, its stability, why it exists, and where it is documented in detail. The English documentation is normative; localised copies under `docs/localized/` are not maintained at the same level and may lag behind (see the last section).
+This page lists, from the code, everything in OmsiLaunch 0.1.0-beta4 that is `UNAVAILABLE`, `PARTIAL`, or an accepted risk, so that users and integrators do not build on behaviour the product does not provide. Each row names the limitation, its stability, why it exists, and where it is documented in detail. The English documentation is normative; localised copies under `docs/localized/` are not maintained at the same level and may lag behind (see the last section).
 
 ## Compatibility
 
 | Limitation | Stability | Detail |
 | --- | --- | --- |
-| Only `Omsi23004_692EBFBF` is supported (`692EBFBF...6243`); the Steam LAA hash `7DAB063D...D759` is allow-listed; its fingerprint and plan were validated with a controlled copy, but gameplay needs a genuine Steam installation (the image is the DRM-protected Steam executable) | `PARTIAL` for Steam LAA | [compatibility](compatibility.md) |
+| Capabilities that read object layouts (vehicles, humans, weather, map, camera, timetable, scripts, drivers, tickets) are verified only on a known layout (`Omsi23004`); on another OMSI 2 build they are unavailable (`OL_E_CAPABILITY_UNRESOLVED`) until structural validators exist | `PARTIAL` on unknown builds | [compatibility](compatibility.md) |
+| The genuine Steam executable (DRM-protected) has not been runtime validated; a controlled LAA copy was | `PARTIAL` for Steam | [compatibility](compatibility.md) |
+| Only the known layout has been runtime validated; the build-independent resolution is verified offline against the reference executable with its identity withheld | `EXPERIMENTAL` on unknown builds | [runtime validation status](../status/runtime-validation-status.md) |
 | Windows 10+ x64 only; no Windows 7/8, no XP, no ARM64 | `UNAVAILABLE` | [compatibility](compatibility.md) |
 | The plugin needs the **x86** .NET 6 runtime in addition to the x64 runtime used by the controller | | [compatibility](compatibility.md) |
 
@@ -17,16 +19,14 @@ This page lists, from the code, everything in OmsiLaunch 0.1.0-beta3 that is `UN
 
 | Limitation | Stability | Detail |
 | --- | --- | --- |
-| `LAST_MAP_STATE` (`/last`, `WorldMode.LastMapState`) is not implemented; no timestamp-based `.osn` fallback is ever substituted | `UNAVAILABLE` (BI-006) | Plan diagnostic `OL_E_CAPABILITY_UNAVAILABLE` |
-| Explicit or system date, time and year (`/date`, `/time`, `/year`, profile `new.date`/`new.time`/`new.year`, `DateSpec`/`TimeSpec`/`YearSpec`) are carried in the spec but make the plan not runnable; the plugin rejects non-`Unset` modes | `UNAVAILABLE` (`STATICALLY_PARTIAL`) | [session profiles](session-profiles.md), [launchspec](launchspec.md) |
-| Weather preset, ICAO and real-current at start (`/weather*`, `new.weather`) | `UNAVAILABLE` (`STATICALLY_PARTIAL`, BI-003) | as above |
-| Player vehicle model, repaint, HOF, fleet number, registration at start (`/vehicle` family, `PlayerVehicleSpec`) are resolved against the content catalogue but not applied; requesting them makes the plan not runnable; deterministic headless PlayerVehicle assignment is a future extension | `UNAVAILABLE` (BI-007) | `player.assign-headless` in [capabilities](capabilities.md) |
-| Entrypoint by identity (`/entrypoint:<identity>`) is not correlated with OMSI's presented list; use `/entrypoint-index` | `PARTIAL` (BI-001) | plan capability `world.entrypoint-identity` = `RUNTIME_PARTIAL` |
-| Keyboard and controller document overlays (`InputSpec`, `Environment.Keyboard`, `Environment.Controllers`) are parsed but never applied by a session | `UNAVAILABLE` (BI-005) | `input.*` capabilities |
-| `LaunchBehaviorSpec.RestoreConfiguration` and `InstallationSpec.ExpectedExecutableSha256` are declared but never read | `UNAVAILABLE` | [launchspec](launchspec.md) |
-| `ShutdownTimeoutSeconds` (`/shutdown-timeout`, profile `shutdown-timeout`) is accepted and carried but not consumed by the supervisor | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | [session lifecycle](../concepts/session-lifecycle.md) |
-| `/quiet` and `/serve` | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | [CLI](cli.md) |
-| Diagnostics flags (`/log`, `/logall`, `/omsi-logall`, `/verbose`, `/trace`, `/trace-process`, `/trace-plugin`, `/trace-native`) populate `DiagnosticsSpec`; the visible effect is limited to the host trace under `.omsilaunch\diagnostics` | `PARTIAL` | [CLI](cli.md) |
+| `LAST_MAP_STATE` (`/last /map:<identity>`) is implemented from static analysis of OMSI's last-state branch and validated offline only | `EXPERIMENTAL` | [CLI](cli.md) |
+| Explicit or system date, time and year (`/date`, `/time`, `/year`, profile `new.date`/`new.time`/`new.year`) apply to NEW_MAP starts only and are validated offline; runtime validation is pending. 31 December of a leap year cannot be requested (OMSI's calendar wraps day 366) | `EXPERIMENTAL` | [launchspec](launchspec.md#datespec-timespec-yearspec) |
+| Weather preset, ICAO and real-current at start (`/weather*`, `new.weather`) are applied right after the world starts through OMSI's own weather loading and METAR flags (closed statically, BI-003); runtime validation is pending. The weather OMSI shows on the very first frame may still be the map's default | `EXPERIMENTAL` | [CLI](cli.md) |
+| Player vehicle model, repaint, HOF, fleet number, registration at start (`/vehicle` family, `PlayerVehicleSpec`) are resolved against the content catalogue but not applied; requesting them makes the plan not runnable. The native assignment sequence (placement through OMSI's position dialogue, `MakeVehicle`, the per-unit finalise steps, `CopyTempListIntoMainList`, the player index) is closed statically, but it creates and registers a live vehicle and is not implemented before it can be validated at runtime; it is planned for a later beta. A saved situation or `/last` restores its own player vehicle | `UNAVAILABLE` (BI-007) | `player.assign-headless` in [capabilities](capabilities.md) |
+| Entrypoint by identity (`/entrypoint:<identity>`) selects the exact label OMSI presents (closed statically, BI-001); a later record sharing a label cannot be selected, as in OMSI's own dialogue. Runtime validation pending | `EXPERIMENTAL` | plan capability `world.entrypoint-identity` |
+| Keyboard and controller settings by key (`Environment.Keyboard`, `Environment.Controllers`) have no catalogued keys: whole files are replaced with `InputSpec` instead | `UNAVAILABLE` | [launchspec](launchspec.md#inputspec) |
+| Cooperative shutdown (`/cooperative-shutdown`, `Behavior.CooperativeShutdown`) is opt-in and validated offline only; by default OMSI is terminated when a session ends and `ShutdownTimeoutSeconds` has no effect | `EXPERIMENTAL` | [CLI](cli.md) |
+| Diagnostics flags `/log`, `/omsi-logall`, `/verbose`, `/trace`, `/trace-process` populate `DiagnosticsSpec` without a further effect (the host trace under `.omsilaunch\diagnostics` is always written); `/trace-plugin` and `/trace-native` add plugin and native trace events to it | `PARTIAL` | [CLI](cli.md) |
 | `/runtime-batch`, `/runtime-write-batch`, `/d3d-batch` are validation harnesses | `INTERNAL` | [CLI](cli.md) |
 
 ## Session end and process control
@@ -52,20 +52,21 @@ This page lists, from the code, everything in OmsiLaunch 0.1.0-beta3 that is `UN
 
 | Limitation | Stability | Detail |
 | --- | --- | --- |
-| `weather.set` is rejected (`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`): OMSI overwrites both profiled wind candidates on its next weather tick | `UNAVAILABLE` | [capabilities](capabilities.md) |
-| Calendar writes (`SetActualDateTime`) | `UNAVAILABLE` (BI-002) | `calendar.set-actual-date-time` |
-| String-variable writes, named triggers, sound triggers (Delphi managed-string ownership) | `UNAVAILABLE` (BI-004) | `scripts.string.read` is read-only |
+| `weather.set` and `weather.metar.set` write OMSI's source weather record (closed statically); persistence over the weather tick, cloud-type resolution and the METAR download await runtime validation. Derived values (humidity, light factors, actual wind) cannot be set; while OMSI is paused they update only after unpausing | `EXPERIMENTAL` | [capabilities](capabilities.md) |
+| `SetActualDateTime` only copies the PC clock into OMSI's start clock (static analysis); OmsiLaunch does not call it and sets the start clock itself | by design | `calendar.set-actual-date-time` |
+| String-variable writes, named triggers and sound triggers go through OMSI's own methods (closed statically, BI-004); their effect on vehicle scripts awaits runtime validation. Only road vehicles are targets | `EXPERIMENTAL` | `scripts.string.write`, `scripts.trigger` |
 | No vehicle relocation, no cross-tile spatial rebinding, no ODE-safe transform authority; position fields are read-only | `UNAVAILABLE` (BI-008) | `road-vehicle.read` |
 | `camera.lock` / `camera.unlock` need a PlayerVehicle; the headless NEW_MAP start has none (a saved situation provides one) | by design (BI-007) | RV-004 |
 | Runtime mutations (`time.set`, `camera.set`, `camera.lock`, `vehicle.variable.set`, spawn, place-random, D3D textures) are not journalled and not restored | by design | [runtime control](runtime-control.md) |
-| Handle fingerprint blind spot: an object of the same class and definition recreated at the same address between two list reads is not detected as stale; natural-removal lifetime (RV-002) has no safe runtime producer and stays offline | `PARTIAL` | [runtime control](runtime-control.md) |
+| Handle staleness is decided from OMSI's own never-reused instance number (`IDCode`) and, for humans, from despawn and respawn; it is validated offline. Natural removal (RV-002: AI cars leaving the loaded path network) is still to be observed at runtime, and no `entity.removed` event is emitted yet | `PARTIAL` | [runtime control](runtime-control.md) |
 | Results are bounded by the 64 KiB mailbox: long lists are truncated (`truncated=true`); pixel payloads are limited to 48 KiB per `d3d.texture.update` | by design | [capabilities](capabilities.md) |
 | Single-flight channel: one request at a time per session; a busy slot is `OL_E_RUNTIME_CHANNEL_BUSY`; request ids must not be reused | by design | [runtime control](runtime-control.md) |
-| Telemetry is a latest-value slot: bursts faster than the host's 100 ms sampling can lose intermediate events (sequence numbers keep identical consecutive events distinct; torn samples are skipped) | `PARTIAL` | [permanent plugin](../concepts/permanent-plugin.md) |
+| Telemetry is a 64-event ring: a host that falls more than 64 events behind loses the oldest ones and is told how many (`telemetry.lost`) | `EXPERIMENTAL` | [permanent plugin](../concepts/permanent-plugin.md) |
+| A module's Direct3D device hooks are vtable hooks: on an installation where another component writes the device's original methods back (observed on the regression installation shortly after gameplay starts), they stop being called and cannot be removed at cleanup (`OL_E_MODULE_CLEANUP_INCOMPLETE`; the component stays loaded) | `PARTIAL` | [runtime modules](../../../reference/runtime-modules.md#native-components-and-hooks) |
+| Runtime module loading is open: OmsiLaunch does not check who made a module; it guarantees only that modules never run inside the OmsiLaunch process and that a session program is confined to its job (no second process, ended with the session) | by design (E21) | [runtime modules](../../../reference/runtime-modules.md#security-boundary) |
+| Module protocol 2 (settings, default activation, the settings file, session programs, plugin conflicts, notices, `get_value`) is validated offline only | `EXPERIMENTAL` | [runtime modules](../../../reference/runtime-modules.md) |
 | D3D device reset was observed at runtime (`resetting`, `restored`, generation invalidation); a distinct `lost` transition was not produced because OMSI's device went straight to `DEVICENOTRESET` | `PARTIAL` (RV-007) | [runtime validation status](../status/runtime-validation-status.md) |
-| Bounded list results (the `timetable.*.list` operations, `vehicle.variables.list`, `vehicle.string-variables.list`) return at most the rows that fit the 64 KiB runtime slot; the rest are left out with `truncated=true` and a smaller `returned_count` (documentation audit BUG-05). There is no paging in this release | by design | [capabilities](capabilities.md) |
-| `timetable.logs.read`, `road-vehicles.list`, `humans.list`, `vehicle.constants.list` and `vehicle.curves.list` are not bounded: a result larger than the slot fails with `OL_E_RUNTIME_RESPONSE_TOO_LARGE` (observed for none of them on the tested maps) | `PARTIAL` | [capabilities](capabilities.md) |
-| The self-reported evidence strings (`PublicCapabilityRegistry` `RuntimeValidation`, `GetCapabilitiesAsync` `EvidenceState`) were not updated after the runtime closure round: `camera.lock` still reads `STATICALLY_VALIDATED` and `runtime.d3d.lifecycle.reset` `IMPLEMENTED_NOT_RUNTIME_VALIDATED`. The [runtime validation status](../status/runtime-validation-status.md) page is authoritative | documentation lag, not a behaviour difference | [capabilities](capabilities.md) |
+| Runtime lists are paged (`cursor`, `limit`, `next_cursor`): a page holds at most the list's maximum rows and what fits the 64 KiB runtime slot | `EXPERIMENTAL` | [capabilities](capabilities.md#pagination) |
 | Some advanced map/tile/path/object graph fields are not exposed; runtime readers are profile-gated typed snapshots, never arbitrary memory access | by design | [capabilities](capabilities.md) |
 | In-process memory reads are check-then-use against a live OMSI; a concurrent OMSI mutation between the check and the read can yield an inconsistent snapshot (`OL_E_RUNTIME_OPERATION_FAILED`) | accepted risk (S-33) | |
 
@@ -91,6 +92,6 @@ This page lists, from the code, everything in OmsiLaunch 0.1.0-beta3 that is `UN
 
 ## Documentation
 
-The English pages under `docs/` are the normative documentation for this release. `docs/localized/<locale>/` contains translations of the same `0.1.0-beta3` pages (see [`LOCALIZATION-MANIFEST.md`](../../LOCALIZATION-MANIFEST.md)); where a translation differs from the English text, the English text and the code are authoritative. The historical and legacy pages listed there are available in English only.
+The English pages under `docs/` are the normative documentation for this release. `docs/localized/<locale>/` contains translations of the same `0.1.0-beta4` pages (see [`LOCALIZATION-MANIFEST.md`](../../LOCALIZATION-MANIFEST.md)); where a translation differs from the English text, the English text and the code are authoritative. The historical and legacy pages listed there are available in English only.
 
 Related: [capabilities](capabilities.md), [runtime validation status](../status/runtime-validation-status.md), [errors](errors.md).

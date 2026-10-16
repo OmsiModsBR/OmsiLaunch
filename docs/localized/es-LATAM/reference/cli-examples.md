@@ -1,9 +1,9 @@
 # Ejemplos de la CLI
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Traducción de la [página original en inglés](../../../reference/cli-examples.md) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Traducción de la [página original en inglés](../../../reference/cli-examples.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
 
-Invocaciones mínimas y correctas de `OmsiLaunch.exe` para OmsiLaunch `0.1.0-beta3`, cada una con su código de salida esperado del proceso y una nota sobre qué se modifica y qué se restaura. Salvo que se indique lo contrario, cada ejemplo se ejecuta desde la raíz de la instalación de OMSI (`<OMSI_PATH>`); la sintaxis se define en la [referencia de la CLI](cli.md) y los códigos de salida en [códigos de salida](exit-codes.md). Se puede agregar `--json` a cualquier comando para obtener el envoltorio estructurado.
+Invocaciones mínimas y correctas de `OmsiLaunch.exe` para OmsiLaunch `0.1.0-beta4`, cada una con su código de salida esperado del proceso y una nota sobre qué se modifica y qué se restaura. Salvo que se indique lo contrario, cada ejemplo se ejecuta desde la raíz de la instalación de OMSI (`<OMSI_PATH>`); la sintaxis se define en la [referencia de la CLI](cli.md) y los códigos de salida en [códigos de salida](exit-codes.md). Se puede agregar `--json` a cualquier comando para obtener el envoltorio estructurado.
 
 <a id="conventions"></a>
 ## Convenciones
@@ -21,7 +21,7 @@ Invocaciones mínimas y correctas de `OmsiLaunch.exe` para OmsiLaunch `0.1.0-bet
 ```text
 OmsiLaunch.exe /version
 ```
-Salida `0`. Imprime `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family`. No modifica nada.
+Salida `0`. Imprime `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family`. No modifica nada.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Salida `0` (`2` si falta `handle`, `name` o `value`). Modifica una variable numérica de script de ese vehículo. No se revierte.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Salida `7`. Siempre se rechaza con `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; no se cambia nada.
+Salida `0`. Escribe el registro de clima de origen de OMSI y detiene las actualizaciones de METAR en vivo; OMSI deriva la niebla, la luz, el viento actual y la humedad a partir de él en su siguiente ciclo de clima sin pausa. Cada valor se comprueba antes de escribir nada (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, salida `7`). Una clave derivada, como `relative_humidity`, devuelve `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` e indica la clave que debe establecerse en su lugar. No se revierte. EXPERIMENTAL: validación en runtime pendiente.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Salida `0`. Cambia al clima METAR en vivo de esa estación; OMSI lo descarga en su siguiente actualización de clima. EXPERIMENTAL: validación en runtime pendiente.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Salida `0`. `scripts string set` pasa por el `SetStringVariable` propio de OMSI y devuelve el valor leído de vuelta; un nombre que el script del vehículo no declara devuelve `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (salida `7`). `scripts trigger` activa un trigger como lo hacen los manejadores de entrada de OMSI (`1` presionar, `0` soltar); el script del vehículo lo ejecuta de inmediato. Los nombres de triggers y de variables los define cada modelo de vehículo; los anteriores son ejemplos. No se revierte. EXPERIMENTAL: validación en runtime pendiente.
 
 ## Spawn
 

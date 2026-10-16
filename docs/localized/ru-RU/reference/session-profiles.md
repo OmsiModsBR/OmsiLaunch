@@ -1,9 +1,9 @@
 # Профили сеанса
 
-<!-- l10n: source=reference/session-profiles.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/session-profiles.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/session-profiles.md source-sha256=5bc9beef6e11a8c70d3ea3056678096ccc42321393f0d09fd40217e53c271e4e -->
+> Перевод [исходной страницы на английском языке](../../../reference/session-profiles.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-Профиль сеанса — это декларативный YAML-пакет, который автор контента поставляет вместе с картой или дополнением, чтобы конечные пользователи могли одной командой запустить воспроизводимый сеанс OmsiLaunch (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..5> /new`). Эта страница — нормативный справочник по формату `omsilaunch.session-profile/v1` в том виде, в каком его реализует `SessionProfileCompiler` в `src/OmsiLaunch.Core/SessionProfiles.cs`, по правилам приоритета, которые применяет CLI (`CliInput.BuildSpecAsync` и `RejectProfileConflicts` в `tools/OmsiLaunch.Cli/Program.cs`), а также по каталогу параметров, которые может записывать профиль (`ConfigurationCatalog`). Всё, что умеет профиль, умеют и флаги CLI, и [LaunchSpec](launchspec.md); профиль лишь упаковывает этот выбор.
+Профиль сеанса — это декларативный YAML-пакет, который автор контента поставляет вместе с картой или дополнением, чтобы конечные пользователи могли одной командой запустить воспроизводимый сеанс OmsiLaunch (`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..99> /new`). Эта страница — нормативный справочник по формату `omsilaunch.session-profile/v1` в том виде, в каком его реализует `SessionProfileCompiler` в `src/OmsiLaunch.Core/SessionProfiles.cs`, по правилам приоритета, которые применяет CLI (`CliInput.BuildSpecAsync` и `RejectProfileConflicts` в `tools/OmsiLaunch.Cli/Program.cs`), а также по каталогу параметров, которые может записывать профиль (`ConfigurationCatalog`). Всё, что умеет профиль, умеют и флаги CLI, и [LaunchSpec](launchspec.md); профиль лишь упаковывает этот выбор.
 
 Стабильность: `STABLE_BETA` для разбора, проверки, обнаружения конфликтов и блоков `settings` / `presentation` / `internet-textures` / `behavior` (офлайн-тест `session-profiles.strict-compiler`; путь overlay (временная замена файла на время сеанса) и восстановления проверен в runtime в рамках RV-005 и RV-006, см. [статус проверки в runtime](../status/runtime-validation-status.md)). Ключи `new.date`, `new.time`, `new.year` и `new.weather` в этой сборке имеют статус `UNAVAILABLE` (см. [Блок `new`](#new)).
 
@@ -57,7 +57,7 @@
 | `version` | строка | да | Строка версии пакета (в свободной форме, заключайте в кавычки: `"1.0"`); передаётся в `SessionProfileMetadata.Version`. |
 | `compatibility` | отображение | нет | См. `compatibility`. |
 | `new` | отображение | нет | Значения по умолчанию для NEW_MAP. См. `new`. |
-| `presets` | последовательность отображений | да | От 1 до 5 записей пресетов. Ноль, более пяти записей или значение, не являющееся последовательностью, дают `OL_E_SESSION_PROFILE_INVALID`. |
+| `presets` | последовательность отображений | да | От 1 до 99 записей пресетов. Ноль, более 99 записей или значение, не являющееся последовательностью, дают `OL_E_SESSION_PROFILE_INVALID`. |
 
 ### `compatibility`
 
@@ -73,13 +73,13 @@
 | --- | --- | --- | --- | --- |
 | `map` | строка | нет | да | Идентификатор карты в нормализованной форме `maps\<Map>\global.cfg` (планирование требует именно такой формы: начинается с `maps\`, заканчивается на `\global.cfg`, без `..`). Устанавливает `WorldSpec.MapIdentity`. |
 | `entrypoint-index` | целое | нет | да | Индекс точки входа из показываемого списка (позиция с отсчётом от 0 в списке точек входа OMSI). Устанавливает `PresentedEntrypointIndex` и сбрасывает идентификатор точки входа, если он был. |
-| `entrypoint` | строка | нет | да | Необработанный идентификатор точки входа. Устанавливает `EntrypointIdentity` и сбрасывает индекс из показываемого списка. Если присутствуют и `entrypoint-index`, и `entrypoint`, побеждает `entrypoint`, потому что он применяется последним. Выбор точки входа по идентификатору имеет статус `PARTIAL` (BI-001): при планировании `world.entrypoint-identity` сообщается как `RUNTIME_PARTIAL`, и план неисполним. Предпочтительно использовать `entrypoint-index`. |
+| `entrypoint` | строка | нет | да | Необработанный идентификатор точки входа. Устанавливает `EntrypointIdentity` и сбрасывает индекс из показываемого списка. Если присутствуют и `entrypoint-index`, и `entrypoint`, побеждает `entrypoint`, потому что он применяется последним. Значение — точная метка (с учётом регистра) или идентификатор из обнаружения контента; OMSI показывает только первую запись для каждой метки (`world.entrypoint-identity`, `EXPERIMENTAL`). |
 | `date` | отображение | нет | нет (`UNAVAILABLE`) | См. `new.date`. |
 | `time` | отображение | нет | нет (`UNAVAILABLE`) | См. `new.time`. |
 | `year` | целое | нет | нет (`UNAVAILABLE`) | Явно заданный год. |
 | `weather` | отображение | нет | нет (`UNAVAILABLE`) | См. `new.weather`. |
 
-`date`, `time`, `year` и `weather` компилируются в `DateSpec`, `TimeSpec`, `YearSpec` и `WeatherSpec` с `DateTimeMode.Explicit` / выбранным `WeatherMode`. Затем планировщик сеанса (`src/OmsiLaunch.Core/SessionPlanner.cs`) сообщает возможности `world.explicit-date`, `world.explicit-time`, `world.explicit-year` и `weather` как `STATICALLY_PARTIAL`, добавляет `OL_E_CAPABILITY_UNAVAILABLE` в диагностику плана и помечает план как **неисполнимый**. Кроме того, плагин отклоняет данные передачи при запуске, если режим даты или времени не `Unset` (`plugin.request.unsupported`). Следствие для этой сборки: профиль, задающий любой из этих четырёх ключей, можно проверить с помощью `/plan`, но нельзя запустить сеанс (код выхода 1, `OL_E_PLAN_NOT_RUNNABLE`). В профилях, предназначенных для запуска, эти ключи следует опускать.
+`date`, `time`, `year` и `weather` компилируются в `DateSpec`, `TimeSpec`, `YearSpec` и `WeatherSpec` с `DateTimeMode.Explicit` / выбранным `WeatherMode`. Затем планировщик сеанса (`src/OmsiLaunch.Core/SessionPlanner.cs`) требует `world.explicit-date`, `world.explicit-time`, `world.explicit-year` и `world.weather`; все четыре имеют статус `EXPERIMENTAL` (закрыты статически, проверка в runtime ожидается). Дата и время запуска применяются только для NEW_MAP; погода применяется в любом режиме мира.
 
 #### `new.date`
 
@@ -108,13 +108,15 @@
 
 | Ключ | Тип | Обязательно | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
-| `index` | целое | да | | От 1 до 5, уникален в пределах профиля. Выбирается с помощью `/predefined-profile-index`. Дубликат или значение вне диапазона: `OL_E_SESSION_PROFILE_INVALID`; индекс, которого нет нигде в профиле: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
+| `index` | целое | да | | От 1 до 99, уникален в пределах профиля; индексы не обязаны идти подряд. Выбирается с помощью `/predefined-profile-index`. Дубликат или значение вне диапазона: `OL_E_SESSION_PROFILE_INVALID`; индекс, которого нет нигде в профиле: `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`. |
 | `id` | строка | да | | Идентификатор пресета; передаётся как `SessionProfileMetadata.PresetId`. |
 | `name` | строка | да | | Отображаемое имя пресета; передаётся как `SessionProfileMetadata.PresetName`. |
 | `settings` | отображение | нет | нет | Семантические параметры `options.cfg`, см. [Параметры](#settings). Ключи сопоставляются с каталогом без учёта регистра. |
 | `presentation` | отображение | нет | наследуется | Оформление заставки, см. `presentation`. Если блок отсутствует, пресет наследует базовое значение (значение из `/spec` или значение CLI по умолчанию, `Managed`). |
 | `internet-textures` | отображение | нет | наследуется | См. `internet-textures`. |
 | `behavior` | отображение | нет | наследуется | Тайм-ауты, см. `behavior`. |
+| `hofs` | последовательность отображений | нет | наследуется | HOF-операции сеанса, см. `hofs`. Если присутствуют, заменяют базовый `HofManagement`. |
+| `modules` | отображение | нет | наследуется | Runtime-модули, см. `modules`. Объединяются с тем, что запрашивает файл `/spec`. |
 
 Применяется только выбранный пресет. Тем не менее разбираются и проверяются все пресеты, поэтому ошибка в пресете 3 приводит к отказу запроса на пресет 1.
 
@@ -149,6 +151,45 @@
 | `shutdown-timeout` | целое (секунды) | нет | 30 | Соответствует `LaunchBehaviorSpec.ShutdownTimeoutSeconds`. ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT (принимается для совместимости, сейчас ни на что не влияет): супервизор напрямую завершает OMSI и никогда не читает это значение. |
 
 Если блок `behavior` присутствует, задаются оба тайм-аута (указанное значение или значение по умолчанию), и они полностью заменяют базовый `LaunchBehaviorSpec`, включая `RestoreConfiguration` и `SuppressStaleClosecheckWarning`, которые возвращаются к значениям по умолчанию (`true`, `true`).
+
+### `hofs`
+
+Каждая запись — одна операция [управления HOF](hof-management.md) и называет ровно один ключ источника (`package`, `collection`, `directory`, `vehicle` или `file`); ноль или несколько: `OL_E_SESSION_PROFILE_INVALID`. Существование источников и целей проверяется при планировании сеанса (`OL_E_HOF_*`), кроме `package`.
+
+| Ключ | Тип | Обязателен | По умолчанию | Описание |
+| --- | --- | --- | --- | --- |
+| `package` | строка | один ключ источника | | Каталог **относительно пакета** с файлами `.hof`, которые поставляет профиль. Должен существовать при загрузке профиля (`OL_E_SESSION_PROFILE_ASSET_MISSING`); действуют правила ограничения путей. Становится источником `Directory`. |
+| `collection` | строка | один ключ источника | | Имя коллекции в `.omsilaunch\hof\`. |
+| `directory` | строка | один ключ источника | | Каталог относительно установки, например рядом с содержимым карты. |
+| `vehicle` | строка | один ключ источника | | Идентичность ТС или каталог, HOF которого копируются. |
+| `file` | строка | один ключ источника | | Файл `.hof` относительно установки. |
+| `targets` | последовательность строк | да | | Целевые ТС (идентичности или каталоги ниже `Vehicles\`). Отсутствует или пуст: `OL_E_SESSION_PROFILE_INVALID`. |
+| `files` | последовательность строк | нет | все | Имена файлов, которые берутся из источника. |
+| `mode` | строка | нет | `add` | `add` или `mirror` (без учёта регистра); любое другое значение: `OL_E_SESSION_PROFILE_INVALID`. |
+
+Пресет с `hofs` в сочетании с флагом `/hof-source`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`.
+
+### `modules`
+
+По одной записи на идентификатор [runtime-модуля](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Каждая запись — отображение со следующими ключами (контекст `module`):
+
+| Ключ | Тип | Обязателен | По умолчанию | Описание |
+| --- | --- | --- | --- | --- |
+| `enabled` | `true` или `false` | нет | не задано | `true` запрашивает модуль (`LaunchSpec.Modules.Enable`); `false` не допускает его в сеанс, включая модуль, загружаемый по умолчанию, по его карте или по файлу параметров (`LaunchSpec.Modules.Disable`). |
+| `settings` | отображение | нет | нет | Параметры модуля по ключам (`LaunchSpec.Modules.Settings` как `<id>.<key>`). Значения проверяются по объявленным параметрам модуля при планировании сеанса (`OL_E_MODULE_SETTING_INVALID`). |
+
+```yaml
+modules:
+  example-preload:
+    enabled: true
+    settings:
+      ram_budget_mb: 8192
+      monitor: false
+  example-hud:
+    enabled: false
+```
+
+Идентификатор модуля, не соответствующий `[a-z0-9][a-z0-9-]{1,47}`, значение `enabled`, отличное от `true` или `false`, или ключ параметра, не соответствующий `[a-z][a-z0-9_]{0,31}`: `OL_E_SESSION_PROFILE_INVALID`. Не установленный модуль сообщается при планировании сеанса (`OL_E_MODULE_NOT_FOUND` для `enabled: true`, `OL_W_MODULE_SETTING_IGNORED` только для параметров).
 
 <a id="settings"></a>
 ## Параметры
@@ -252,6 +293,9 @@
 | `/splash`, `/splash-language`, `/splash-assets` | `presentation` (любой) | любом |
 | `/internet-textures`, `/internet-textures-profile` | `internet-textures` (любой) | любом |
 | `/startup-timeout`, `/shutdown-timeout` | `behavior` (любой) | любом |
+| `/module:<id>` | `modules.<id>.enabled: false` | любом |
+| `/no-module:<id>` | `modules.<id>.enabled: true` | любом |
+| `/module-setting:<id>.<key>=...` или флаг модуля | `modules.<id>.settings.<key>` | любом |
 
 Не являются конфликтами: ключи `/set`, которые пресет не определяет (они добавляются), флаги ТС (`/vehicle`, `/repaint`, `/hof`, `/fleet`, `/registration`, `/no-vehicle`; профиль не может определить ТС игрока) и любой аргумент мира при `/saved` (блок `new` там не применяется). `/map`, `/entrypoint` и `/entrypoint-index` недопустимы вместе с `/saved` независимо от профилей (`OL_E_INVALID_ARGUMENT`).
 
@@ -264,7 +308,7 @@
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | `id` не является простым именем каталога; `assets` / `profile` выходит за пределы пакета или проходит через точку повторной обработки | 2 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` не равно `omsilaunch.session-profile/v1` | 2 |
 | `OL_E_SESSION_PROFILE_INVALID` | ограничение размера, структура документа, якоря, неизвестный ключ, отсутствующий обязательный ключ, нескалярное значение, неверное число/дата/время, несовпадение `id`, правила количества/индексов пресетов, неподдерживаемые слова режимов, неположительный тайм-аут, `presentation` без `splash`, `override` без `profile` | 2 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` отсутствует, вне диапазона 1..5 или нет пресета с таким `index` | 2 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | `/predefined-profile-index` отсутствует, вне диапазона 1..99 или нет пресета с таким `index` | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | ключа `settings` нет в каталоге | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | ключ `settings` есть в каталоге, но доступен только для чтения | 2 |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | каталог `assets` или файл `profile` не существует внутри пакета | 2 |
@@ -272,6 +316,15 @@
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | явный аргумент CLI направлен на поле, которым владеет профиль | 2 |
 
 Все эти ошибки возникают во время компиляции командной строки, до планирования. Это `SessionProfileException` (или `ArgumentException` для конфликта), и они никогда не запускают сеанс. Полный каталог приведён в разделе [ошибки](errors.md); коды выхода — в разделе [коды выхода](exit-codes.md).
+
+<a id="discovering-installed-profiles"></a>
+## Обнаружение установленных профилей
+
+`OmsiLaunch.exe /list:SessionProfiles` (API `ListSessionProfilesAsync`) компилирует каждый пакет в `.omsilaunch\session-profiles\` и выводит по одной записи на пакет: `Id`, `Name`, `Version`, `Author`, `CompatibleMaps`, `MapIdentity` и его `Presets` (`Index`, `Id`, `Name`) в порядке индексов. Пакет, который не компилируется, всё равно перечисляется, с `IsValid: false` и тем же кодом `OL_E_SESSION_PROFILE_*`, который сообщил бы запуск. Ничего не записывается.
+
+```text
+OmsiLaunch.exe /list:SessionProfiles --json
+```
 
 <a id="how-a-profile-appears-in-the-api"></a>
 ## Как профиль отображается в API

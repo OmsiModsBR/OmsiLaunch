@@ -1,6 +1,6 @@
 # 退出码
 
-<!-- l10n: source=reference/exit-codes.md -->
+<!-- l10n: source=reference/exit-codes.md source-sha256=e4c8d0f699c39379c1bb3c3194c29b92bf3ca4b830a086b6b3c2a104b8422cfa -->
 > 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/exit-codes.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页列出 `OmsiLaunch.exe` 和 `OmsiLaunchW.exe` 可能返回的每一个进程退出码：公共托管契约 `PublicExitCode`（`src\OmsiLaunch.Api\PublicControlContract.cs`）、原生 shim 代码 `100`..`106`（`tools\OmsiLaunch.Bootstrapper\OmsiLaunch.Bootstrapper.cpp` 和 `OmsiLaunch.WindowsHost.cpp`），以及 `CliProgram.Classify` 对任何逃逸异常所应用的分类规则（`tools\OmsiLaunch.Cli\Program.cs`）。调用方必须根据退出码和结构化错误信封（envelope）推断语义，绝不能根据消息文本推断。错误码在[错误](errors.md)中列出；产生各个退出码的命令见 [CLI 参考](cli.md)。

@@ -1,7 +1,7 @@
 # Indicador na bandeja do Windows
 
-<!-- l10n: source=reference/windows-tray.md -->
-> Tradução da [página original em inglês](../../../reference/windows-tray.md) do OmsiLaunch 0.1.0-beta3. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> Tradução da [página original em inglês](../../../reference/windows-tray.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.
 
 Toda sessão de proprietário autônoma (iniciada com `OmsiLaunch.exe` ou `OmsiLaunchW.exe`) exibe um ícone na área de notificação que informa o estado da sessão e permite que o usuário a encerre. Esta página especifica o indicador conforme implementado por `SessionTrayIndicator`, `StatusWindow` e `StopConfirmationWindow` em `tools\OmsiLaunch.Cli\WindowsHost.cs`, pelo apresentador somente leitura `SessionStatusPresenter` (`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`) e pelo registro de strings `WindowsUiStrings` (`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`), junto com as caixas de diálogo de falha do `OmsiLaunchW.exe` de `WindowsHost`. A bandeja é apenas um adaptador de apresentação: ela não é proprietária do OMSI nem da recuperação, e sua ação de parada sinaliza o mesmo caminho canônico de parada do proprietário que `session stop` (consulte a [referência da CLI](cli.md) e o [controle local](local-control.md)).
 
@@ -60,7 +60,7 @@ As seções aparecem nesta ordem, e uma seção é omitida quando não tem campo
 | `Presentation` | `Splash` | sempre | `Managed` ou `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | sempre | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-As seções `Environment` e `Vehicle` nunca podem aparecer em uma sessão em execução da Beta 3: solicitar uma data, hora, ano, clima ou qualquer campo do veículo do jogador torna o plano não apto para execução, portanto nenhuma sessão desse tipo é iniciada (consulte [limitações conhecidas](known-limitations.md)). Elas existem para builds futuros e são cobertas pelo teste offline do apresentador.
+A seção `Environment` aparece em uma sessão em execução da Beta 4 quando uma data, hora, ano ou clima foi solicitado (essas solicitações são experimentais, consulte [limitações conhecidas](known-limitations.md)). A seção `Vehicle` nunca pode aparecer em uma sessão em execução: solicitar qualquer campo do veículo do jogador torna o plano não apto para execução, portanto nenhuma sessão desse tipo é iniciada. Ela existe para um build futuro e é coberta pelo teste offline do apresentador.
 
 Evidência de runtime (UI pt-BR, closure de runtime `T01`): uma sessão NEW_MAP em Grundorf exibiu `Sessão em execução`; `Sessão`: `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1`; `Apresentação`: `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

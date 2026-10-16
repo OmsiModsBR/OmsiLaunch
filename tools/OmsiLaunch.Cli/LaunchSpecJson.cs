@@ -41,7 +41,21 @@ internal static class LaunchSpecJson
             if (property is null) throw new InvalidDataException("OL_E_SPEC_UNKNOWN_PROPERTY: " + path + "." + member.Name);
             var propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
             if (member.Value.ValueKind == JsonValueKind.Object && propertyType != typeof(string)) Validate(member.Value, propertyType, path + "." + member.Name);
+            // Arrays of records (HofManagement.Operations) get the same strict
+            // member check per element.
+            if (member.Value.ValueKind == JsonValueKind.Array && ElementType(propertyType) is { } itemType && itemType != typeof(string))
+            {
+                var index = 0;
+                foreach (var item in member.Value.EnumerateArray()) Validate(item, itemType, path + "." + member.Name + "[" + index++ + "]");
+            }
         }
+    }
+
+    private static Type? ElementType(Type type)
+    {
+        if (type.IsArray) return type.GetElementType();
+        var enumerable = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>) ? type : type.GetInterfaces().FirstOrDefault(candidate => candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+        return enumerable?.GetGenericArguments()[0];
     }
 
     private static bool IsGenericDictionary(Type type) =>

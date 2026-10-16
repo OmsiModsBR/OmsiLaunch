@@ -1,16 +1,18 @@
 # 既知の制限事項
 
-<!-- l10n: source=reference/known-limitations.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/known-limitations.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/known-limitations.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-このページでは、OmsiLaunch 0.1.0-beta3 において `UNAVAILABLE`、`PARTIAL`、または受容済みリスクであるものをすべて、コードに基づいて列挙します。これは、利用者やインテグレーターが、製品が提供しない動作を前提に構築してしまうことを防ぐためです。各行には、制限事項、その安定性、それが存在する理由、および詳細が記載されている場所を示します。英語のドキュメントが規範です。`docs/localized/` 配下のローカライズ版は同じ水準では保守されておらず、内容が遅れている場合があります（最後のセクションを参照）。
+このページでは、OmsiLaunch 0.1.0-beta4 において `UNAVAILABLE`、`PARTIAL`、または受容済みリスクであるものをすべて、コードに基づいて列挙します。これは、利用者やインテグレーターが、製品が提供しない動作を前提に構築してしまうことを防ぐためです。各行には、制限事項、その安定性、それが存在する理由、および詳細が記載されている場所を示します。英語のドキュメントが規範です。`docs/localized/` 配下のローカライズ版は同じ水準では保守されておらず、内容が遅れている場合があります（最後のセクションを参照）。
 
 <a id="compatibility"></a>
 ## 互換性
 
 | 制限事項 | 安定性 | 詳細 |
 | --- | --- | --- |
-| サポートされるのは `Omsi23004_692EBFBF`（`692EBFBF...6243`）のみです。Steam LAA のハッシュ `7DAB063D...D759` は許可リストに含まれています。そのフィンガープリントとプランは管理されたコピーで検証済みですが、ゲームプレイには正規の Steam インストール環境が必要です（イメージは DRM で保護された Steam の実行ファイルです） | Steam LAA については `PARTIAL` | [互換性](compatibility.md) |
+| オブジェクトレイアウトを読み取るケイパビリティ（車両、人物、天候、マップ、カメラ、時刻表、スクリプト、運転士、乗車券）は、既知のレイアウト（`Omsi23004`）でのみ検証されます。別の OMSI 2 ビルドでは、構造的なバリデーターが用意されるまで利用できません（`OL_E_CAPABILITY_UNRESOLVED`） | 不明なビルドでは `PARTIAL` | [互換性](compatibility.md) |
+| 正規の Steam 実行ファイル（DRM で保護）はランタイム検証されていません。管理された LAA コピーは検証されました | Steam については `PARTIAL` | [互換性](compatibility.md) |
+| ランタイム検証されたのは既知のレイアウトのみです。ビルド非依存の解決は、ID を伏せた参照実行ファイルに対してオフラインで検証されています | 不明なビルドでは `EXPERIMENTAL` | [ランタイム検証ステータス](../status/runtime-validation-status.md) |
 | Windows 10 以降の x64 のみ。Windows 7/8、XP、ARM64 には対応していません | `UNAVAILABLE` | [互換性](compatibility.md) |
 | プラグインには、コントローラーが使用する x64 ランタイムに加えて **x86** の .NET 6 ランタイムが必要です | | [互換性](compatibility.md) |
 
@@ -19,16 +21,16 @@
 
 | 制限事項 | 安定性 | 詳細 |
 | --- | --- | --- |
-| `LAST_MAP_STATE`（`/last`、`WorldMode.LastMapState`）は未実装です。タイムスタンプに基づく `.osn` へのフォールバックで代替されることは一切ありません | `UNAVAILABLE`（BI-006） | プラン診断 `OL_E_CAPABILITY_UNAVAILABLE` |
-| 明示的な日付・時刻・年、またはシステムの日付・時刻・年（`/date`、`/time`、`/year`、プロファイルの `new.date`/`new.time`/`new.year`、`DateSpec`/`TimeSpec`/`YearSpec`）は spec に保持されますが、プランを実行不可にします。プラグインは `Unset` 以外のモードを拒否します | `UNAVAILABLE`（`STATICALLY_PARTIAL`） | [セッションプロファイル](session-profiles.md)、[launchspec](launchspec.md) |
-| 開始時の天候プリセット、ICAO、現在の実天候（`/weather*`、`new.weather`） | `UNAVAILABLE`（`STATICALLY_PARTIAL`、BI-003） | 同上 |
-| 開始時のプレイヤー車両のモデル、リペイント、HOF、車両番号、ナンバープレート（`/vehicle` 系、`PlayerVehicleSpec`）はコンテンツカタログに照らして解決されますが、適用はされません。これらを要求するとプランは実行不可になります。決定論的なヘッドレスでの PlayerVehicle 割り当ては将来の拡張です | `UNAVAILABLE`（BI-007） | [ケイパビリティ](capabilities.md) の `player.assign-headless` |
-| ID によるエントリポイント指定（`/entrypoint:<identity>`）は、OMSI が表示する一覧と対応付けられません。`/entrypoint-index` を使用してください | `PARTIAL`（BI-001） | プランのケイパビリティ `world.entrypoint-identity` = `RUNTIME_PARTIAL` |
-| キーボードおよびコントローラーのドキュメントオーバーレイ（`InputSpec`、`Environment.Keyboard`、`Environment.Controllers`）は解析されますが、セッションによって適用されることはありません | `UNAVAILABLE`（BI-005） | `input.*` ケイパビリティ |
-| `LaunchBehaviorSpec.RestoreConfiguration` と `InstallationSpec.ExpectedExecutableSha256` は宣言されていますが、読み取られることはありません | `UNAVAILABLE` | [launchspec](launchspec.md) |
-| `ShutdownTimeoutSeconds`（`/shutdown-timeout`、プロファイルの `shutdown-timeout`）は受け付けられて保持されますが、スーパーバイザーでは使用されません | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | [セッションライフサイクル](../concepts/session-lifecycle.md) |
-| `/quiet` と `/serve` | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | [CLI](cli.md) |
-| 診断フラグ（`/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace-process`、`/trace-plugin`、`/trace-native`）は `DiagnosticsSpec` に値を設定します。目に見える効果は `.omsilaunch\diagnostics` 配下のホストトレースに限られます | `PARTIAL` | [CLI](cli.md) |
+| `LAST_MAP_STATE`（`/last /map:<identity>`）は、OMSI の last-state 分岐の静的解析から実装されており、オフラインでのみ検証されています | `EXPERIMENTAL` | [CLI](cli.md) |
+| 明示的な日付・時刻・年、またはシステムの日付・時刻・年（`/date`、`/time`、`/year`、プロファイルの `new.date`/`new.time`/`new.year`）は NEW_MAP の開始にのみ適用され、オフラインで検証されています。ランタイム検証は保留中です。うるう年の 12 月 31 日は要求できません（OMSI のカレンダーは 366 日目で折り返します） | `EXPERIMENTAL` | [launchspec](launchspec.md#datespec-timespec-yearspec) |
+| 開始時の天候プリセット、ICAO、現在の実天候（`/weather*`、`new.weather`）は、ワールドの開始直後に OMSI 自身の天候読み込みと METAR フラグを通じて適用されます（静的に確定済み、BI-003）。ランタイム検証は保留中です。最初のフレームで OMSI が表示する天候は、マップの既定のままである可能性があります | `EXPERIMENTAL` | [CLI](cli.md) |
+| 開始時のプレイヤー車両のモデル、リペイント、HOF、車両番号、ナンバープレート（`/vehicle` 系、`PlayerVehicleSpec`）はコンテンツカタログに照らして解決されますが、適用はされません。これらを要求するとプランは実行不可になります。ネイティブの割り当て手順（OMSI の位置ダイアログによる配置、`MakeVehicle`、ユニットごとの終了処理ステップ、`CopyTempListIntoMainList`、プレイヤーのインデックス）は静的に確定していますが、稼働中の車両を作成して登録するものであり、ランタイムで検証できるようになるまでは実装されません。後のベータで計画しています。保存済みシチュエーションまたは `/last` は、それ自身のプレイヤー車両を復元します | `UNAVAILABLE`（BI-007） | [ケイパビリティ](capabilities.md) の `player.assign-headless` |
+| ID によるエントリポイント指定（`/entrypoint:<identity>`）は、OMSI が提示する正確なラベルを選択します（静的に確定済み、BI-001）。ラベルを共有する後続のレコードは、OMSI 自身のダイアログと同様に選択できません。ランタイム検証は保留中です | `EXPERIMENTAL` | プランのケイパビリティ `world.entrypoint-identity` |
+| キーによるキーボードおよびコントローラーの設定（`Environment.Keyboard`、`Environment.Controllers`）にはカタログ化されたキーがありません。代わりに `InputSpec` でファイル全体が置き換えられます | `UNAVAILABLE` | [launchspec](launchspec.md#inputspec) |
+
+| 協調的なシャットダウン（`/cooperative-shutdown`、`Behavior.CooperativeShutdown`）はオプトインで、オフラインでのみ検証されています。既定では、セッション終了時に OMSI は強制終了され、`ShutdownTimeoutSeconds` は効果を持ちません | `EXPERIMENTAL` | [CLI](cli.md) |
+
+| 診断フラグ `/log`、`/omsi-logall`、`/verbose`、`/trace`、`/trace-process` は `DiagnosticsSpec` に値を設定するだけで、それ以上の効果はありません（`.omsilaunch\diagnostics` 配下のホストトレースは常に書き込まれます）。`/trace-plugin` と `/trace-native` は、プラグインとネイティブのトレースイベントをそこに追加します | `PARTIAL` | [CLI](cli.md) |
 | `/runtime-batch`、`/runtime-write-batch`、`/d3d-batch` は検証ハーネスです | `INTERNAL` | [CLI](cli.md) |
 
 <a id="session-end-and-process-control"></a>
@@ -57,20 +59,22 @@
 
 | 制限事項 | 安定性 | 詳細 |
 | --- | --- | --- |
-| `weather.set` は拒否されます（`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`）。OMSI は次の天候ティックで、プロファイル化された両方の風の候補を上書きします | `UNAVAILABLE` | [ケイパビリティ](capabilities.md) |
-| カレンダーの書き込み（`SetActualDateTime`） | `UNAVAILABLE`（BI-002） | `calendar.set-actual-date-time` |
-| 文字列変数の書き込み、名前付きトリガー、サウンドトリガー（Delphi のマネージド文字列の所有権） | `UNAVAILABLE`（BI-004） | `scripts.string.read` は読み取り専用です |
+| `weather.set` と `weather.metar.set` は OMSI のソース天候レコードに書き込みます（静的に確定済み）。天候ティックをまたぐ永続性、雲の種類の解決、METAR のダウンロードは、ランタイム検証を待っています。導出される値（湿度、光の係数、実際の風）は設定できません。OMSI が一時停止している間は、一時停止を解除した後にのみ更新されます | `EXPERIMENTAL` | [ケイパビリティ](capabilities.md) |
+| `SetActualDateTime` は PC のクロックを OMSI の開始クロックにコピーするだけです（静的解析）。OmsiLaunch はこれを呼び出さず、開始クロックを自ら設定します | 設計上の仕様 | `calendar.set-actual-date-time` |
+| 文字列変数の書き込み、名前付きトリガー、サウンドトリガーは OMSI 自身のメソッドを通じて行われます（静的に確定済み、BI-004）。車両スクリプトへの影響は、ランタイム検証を待っています。対象は道路車両のみです | `EXPERIMENTAL` | `scripts.string.write`、`scripts.trigger` |
 | 車両の再配置、タイルをまたいだ空間的な再バインド、ODE に対して安全な変換権限はいずれもありません。位置フィールドは読み取り専用です | `UNAVAILABLE`（BI-008） | `road-vehicle.read` |
 | `camera.lock` / `camera.unlock` には PlayerVehicle が必要です。ヘッドレスの NEW_MAP 開始には PlayerVehicle がありません（保存済みシチュエーションでは提供されます） | 設計上の仕様（BI-007） | RV-004 |
 | ランタイムでの変更（`time.set`、`camera.set`、`camera.lock`、`vehicle.variable.set`、スポーン、ランダム配置、D3D テクスチャ）はジャーナルに記録されず、復元もされません | 設計上の仕様 | [ランタイム制御](runtime-control.md) |
-| ハンドルのフィンガープリントの死角: 2 回のリスト読み取りの間に、同じクラスと定義のオブジェクトが同じアドレスに再作成された場合、失効したハンドルとして検出されません。自然な削除によるライフタイム（RV-002）には安全なランタイムでの発生手段がなく、オフラインのままです | `PARTIAL` | [ランタイム制御](runtime-control.md) |
+| ハンドルの失効は、OMSI 自身の再利用されないインスタンス番号（`IDCode`）と、人物については消滅と再出現から判定され、オフラインで検証されています。自然な削除（RV-002: ロードされたパスネットワークから出る AI 車両）は、まだランタイムで観測されておらず、`entity.removed` イベントもまだ発行されません | `PARTIAL` | [ランタイム制御](runtime-control.md) |
 | 結果は 64 KiB のメールボックスによって上限が設けられます。長いリストは切り詰められます（`truncated=true`）。ピクセルペイロードは `d3d.texture.update` 1 回あたり 48 KiB に制限されます | 設計上の仕様 | [ケイパビリティ](capabilities.md) |
 | シングルフライトのチャネル: セッションごとに一度に 1 リクエストのみです。スロットがビジーの場合は `OL_E_RUNTIME_CHANNEL_BUSY` になります。リクエスト ID を再利用してはなりません | 設計上の仕様 | [ランタイム制御](runtime-control.md) |
-| テレメトリは最新値のみを保持するスロットです。ホストの 100 ms のサンプリングより速いバーストでは、途中のイベントが失われることがあります（シーケンス番号により同一の連続イベントは区別され、不完全なサンプルはスキップされます） | `PARTIAL` | [常駐プラグイン](../concepts/permanent-plugin.md) |
+| テレメトリは 64 イベントのリングです。64 イベントを超えて遅れたホストは最も古いものを失い、その件数が通知されます（`telemetry.lost`） | `EXPERIMENTAL` | [常駐プラグイン](../concepts/permanent-plugin.md) |
+| モジュールの Direct3D デバイスフックは vtable フックです。別のコンポーネントがデバイスの元のメソッドを書き戻すインストール環境（リグレッション用のインストール環境で、ゲームプレイの開始直後に観測されました）では、呼び出されなくなり、クリーンアップ時にも取り除けません（`OL_E_MODULE_CLEANUP_INCOMPLETE`。コンポーネントは読み込まれたままです） | `PARTIAL` | [ランタイムモジュール](../../../reference/runtime-modules.md#native-components-and-hooks) |
+| ランタイムモジュールの読み込みはオープンです。OmsiLaunch はモジュールを誰が作ったかを確認しません。保証するのは、モジュールが OmsiLaunch プロセス内で決して実行されないこと、およびセッションプログラムがそのジョブに閉じ込められること（2 つ目のプロセスなし、セッションとともに終了）だけです | 設計上の仕様（E21） | [ランタイムモジュール](../../../reference/runtime-modules.md#security-boundary) |
+| モジュールプロトコル 2（設定、既定のアクティベーション、設定ファイル、セッションプログラム、プラグインの競合、通知、`get_value`）は、オフラインでのみ検証されています | `EXPERIMENTAL` | [ランタイムモジュール](../../../reference/runtime-modules.md) |
 | D3D のデバイスリセットはランタイムで観測されました（`resetting`、`restored`、世代の無効化）。OMSI のデバイスが直接 `DEVICENOTRESET` に移行したため、独立した `lost` 遷移は発生しませんでした | `PARTIAL`（RV-007） | [ランタイム検証ステータス](../status/runtime-validation-status.md) |
-| 上限付きリストの結果（`timetable.*.list` 操作、`vehicle.variables.list`、`vehicle.string-variables.list`）は、64 KiB のランタイムスロットに収まる行までを返します。残りの行は省略され、`truncated=true` とより小さい `returned_count` が返されます（ドキュメント監査 BUG-05）。このリリースにはページングはありません | 設計上の仕様 | [ケイパビリティ](capabilities.md) |
-| `timetable.logs.read`、`road-vehicles.list`、`humans.list`、`vehicle.constants.list` および `vehicle.curves.list` は上限付きではありません。スロットより大きい結果は `OL_E_RUNTIME_RESPONSE_TOO_LARGE` で失敗します（テストしたマップでは、いずれについても観測されていません） | `PARTIAL` | [ケイパビリティ](capabilities.md) |
-| 自己申告のエビデンス文字列（`PublicCapabilityRegistry` の `RuntimeValidation`、`GetCapabilitiesAsync` の `EvidenceState`）は、ランタイムクロージャーラウンド後に更新されていません。`camera.lock` は依然として `STATICALLY_VALIDATED`、`runtime.d3d.lifecycle.reset` は `IMPLEMENTED_NOT_RUNTIME_VALIDATED` と表示されます。[ランタイム検証ステータス](../status/runtime-validation-status.md) ページが正式な情報です | ドキュメントの遅れであり、動作の違いではありません | [ケイパビリティ](capabilities.md) |
+| ランタイムのリストはページングされます（`cursor`、`limit`、`next_cursor`）。1 ページが保持するのは、リストの最大行数と、64 KiB のランタイムスロットに収まる分までです | `EXPERIMENTAL` | [ケイパビリティ](capabilities.md#pagination) |
+
 | 高度なマップ/タイル/パス/オブジェクトグラフのフィールドの一部は公開されていません。ランタイムリーダーはプロファイルで制限された型付きスナップショットであり、任意のメモリアクセスではありません | 設計上の仕様 | [ケイパビリティ](capabilities.md) |
 | プロセス内のメモリ読み取りは、稼働中の OMSI に対してチェックしてから使用する方式です。チェックと読み取りの間に OMSI が並行して変更を行うと、一貫性のないスナップショットになる可能性があります（`OL_E_RUNTIME_OPERATION_FAILED`） | 受容済みリスク（S-33） | |
 
@@ -99,6 +103,6 @@
 <a id="documentation"></a>
 ## ドキュメント
 
-`docs/` 配下の英語ページが、このリリースの規範となるドキュメントです。`docs/localized/<locale>/` には同じ `0.1.0-beta3` ページの翻訳が含まれています（[`LOCALIZATION-MANIFEST.md`](../../LOCALIZATION-MANIFEST.md) を参照）。翻訳と英語のテキストが異なる場合は、英語のテキストとコードが正となります。そこに記載されている履歴ページおよびレガシーページは英語でのみ提供されています。
+`docs/` 配下の英語ページが、このリリースの規範となるドキュメントです。`docs/localized/<locale>/` には同じ `0.1.0-beta4` ページの翻訳が含まれています（[`LOCALIZATION-MANIFEST.md`](../../LOCALIZATION-MANIFEST.md) を参照）。翻訳と英語のテキストが異なる場合は、英語のテキストとコードが正となります。そこに記載されている履歴ページおよびレガシーページは英語でのみ提供されています。
 
 関連項目: [ケイパビリティ](capabilities.md)、[ランタイム検証ステータス](../status/runtime-validation-status.md)、[エラー](errors.md)。

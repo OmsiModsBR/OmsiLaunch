@@ -55,13 +55,14 @@ try {
 
     $required = @(
         'OmsiLaunch.exe', 'OmsiLaunchW.exe', 'nethost.dll', 'OmsiLaunch.Controller.dll', 'OmsiLaunch.Controller.deps.json', 'OmsiLaunch.Controller.runtimeconfig.json',
-        'OmsiLaunch.Api.dll', 'OmsiLaunch.Configuration.dll', 'OmsiLaunch.Content.dll', 'OmsiLaunch.Core.dll', 'OmsiLaunch.Process.dll', 'OmsiLaunch.Builds.Omsi23004.dll', 'YamlDotNet.dll',
+        'OmsiLaunch.Api.dll', 'OmsiLaunch.Configuration.dll', 'OmsiLaunch.Content.dll', 'OmsiLaunch.Core.dll', 'OmsiLaunch.Process.dll', 'OmsiLaunch.Builds.Omsi23004.dll', 'OmsiLaunch.NativeResolution.dll', 'OmsiLaunch.Runtime.Modules.dll', 'YamlDotNet.dll',
         'plugins\OmsiLaunch.Plugin.opl', 'plugins\OmsiLaunch.PluginNE.dll', 'plugins\OmsiLaunch.Plugin.dll', 'plugins\OmsiLaunch.Plugin.deps.json', 'plugins\OmsiLaunch.Plugin.runtimeconfig.json',
-        'plugins\OmsiLaunch.Api.dll', 'plugins\OmsiLaunch.Builds.Omsi23004.dll', 'plugins\OmsiLaunch.Interop.dll', 'plugins\OmsiLaunch.Native.x86.dll'
+        'plugins\OmsiLaunch.Api.dll', 'plugins\OmsiLaunch.Builds.Omsi23004.dll', 'plugins\OmsiLaunch.NativeResolution.dll', 'plugins\OmsiLaunch.Runtime.Modules.dll', 'plugins\OmsiLaunch.Interop.dll', 'plugins\OmsiLaunch.Native.x86.dll'
     )
     foreach ($relative in $required) { if (-not $listed.ContainsKey($relative)) { $failures.Add("required closure file not in manifest: $relative") } }
-    $pluginEntries = @($listed.Keys | Where-Object { $_ -like 'plugins\*' })
-    if ($pluginEntries.Count -ne 9) { $failures.Add("permanent plugin closure has $($pluginEntries.Count) files, expected 9") }
+    # Runtime modules live in plugins\OmsiLaunch.Modules\<id>\ and are not part of the closure.
+    $pluginEntries = @($listed.Keys | Where-Object { $_ -like 'plugins\*' -and $_ -notlike 'plugins\*\*' })
+    if ($pluginEntries.Count -ne 11) { $failures.Add("permanent plugin closure has $($pluginEntries.Count) files, expected 11") }
 
     $installationReport = $null
     if (-not [string]::IsNullOrWhiteSpace($InstallationRoot)) {

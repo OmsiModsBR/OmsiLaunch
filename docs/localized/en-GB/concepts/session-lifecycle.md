@@ -1,7 +1,7 @@
 # Session lifecycle
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> British English edition of the [canonical page](../../../concepts/session-lifecycle.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> British English edition of the [canonical page](../../../concepts/session-lifecycle.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 This page describes how an OmsiLaunch session moves through `SessionState` from `Created` to `Completed` or `Failed`: which component sets each state, which plugin telemetry events drive the transitions, how the startup timeout works, what stopping means (forced termination), what `WaitForAsync` returns, which states are terminal, which states are never or barely observable, and which guarantees the CLI owner gives. Everything here is taken from `OmsiLaunchService.StartAsync`, `SuperviseAsync` and `ApplyTelemetry` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), `PluginRuntime` (`src/OmsiLaunch.Plugin/PluginRuntime.cs`) and `OwnerSession` (`tools/OmsiLaunch.Cli/Program.cs`).
 
@@ -41,7 +41,7 @@ Values in declaration order. "Set by" names the code that calls `Move`/`Fail`; "
 | 1 | `ValidatingPlatform` | nobody | No | Declared, never set by the current service (platform validation happens in `PlanSessionAsync`, which has no session state). |
 | 2 | `Planning` | nobody | No | Declared, never set (planning happens before a session exists; the re-plan in `StartSessionAsync` also precedes registration). |
 | 3 | `AcquiringInstallationLock` | `StartAsync` | Yes | The installation lease is being acquired. Failure: `OL_E_INSTALLATION_BUSY`. |
-| 4 | `RecoveringPreviousTransaction` | `StartAsync` | Yes | A pending `journal.json` is restored before the live installation is read; the permanent plugin closure is validated (`plugin.integrity.reference`), `Omsi.exe` is hashed, splash assets are seeded, a stale `closecheck` is removed. Failures: `OL_E_PERMANENT_PLUGIN_*`, `OL_E_SPLASH_*`, `OL_E_ITX_*`, `OL_E_CLOSECHECK_REMOVE_FAILED`, `OL_E_RECOVERY_*`, `OL_E_INSTALLATION_BUSY` (journaled process alive). |
+| 4 | `RecoveringPreviousTransaction` | `StartAsync` | Yes | A pending `journal.json` is restored before the live installation is read; the permanent plugin closure is validated (`plugin.integrity.reference`), `Omsi.exe` is hashed, splash assets are seeded, a stale `closecheck` is removed. Failures: `OL_E_PERMANENT_PLUGIN_*`, `OL_E_SPLASH_*`, `OL_E_ITX_*`, `OL_E_CLOSECHECK_REMOVE_FAILED`, `OL_E_RECOVERY_*`, `OL_E_INSTALLATION_BUSY` (journalled process alive). |
 | 5 | `Snapshotting` | `StartAsync` | Practically no | Set immediately before `ApplyingConfiguration` with no await in between; the snapshot itself is taken inside `ApplyAsync`. Transient and unobservable. |
 | 6 | `ApplyingConfiguration` | `StartAsync` | Yes | `journal.json` is written (`Prepared`), originals are backed up, overlays written, session deletions removed (`Applied`). Failures: `OL_E_UNKNOWN_SETTING`, `OL_E_SETTING_NOT_WRITABLE`, `OL_E_INVALID_SETTING_VALUE`, I/O errors. |
 | 7 | `DeployingRuntime` | `StartAsync` | Yes | Journal state `RuntimeDeployed`. No file is deployed: the plugin closure is permanent. |
@@ -76,7 +76,7 @@ The re-plan keeps the caller's `SessionId`, so the id in the handle equals `plan
 
 The supervisor runs on a thread-pool task and loops every 100 ms until OMSI has exited or a stop was requested:
 
-1. Read the latest telemetry sample (a latest-value slot with a producer sequence; torn samples are skipped; identical consecutive events are distinct because the sequence differs). Every new sample is appended to `RuntimeEvents` and mapped by `ApplyTelemetry`.
+1. Read every telemetry event the plugin committed since the last read, in order (an event ring; a reader that fell behind gets `telemetry.lost` with the count). Every event is appended to `RuntimeEvents` and mapped by `ApplyTelemetry`.
 2. If the session is `Failed`, leave the loop.
 3. If the session is not yet `Running` and the deadline (`StartupTimeoutSeconds` after supervisor entry) has passed: `Fail` with `OL_E_STARTUP_TIMEOUT` when `PluginBootstrap` was reached, otherwise `OL_E_PLUGIN_NOT_LOADED`; leave the loop.
 

@@ -1,9 +1,9 @@
 # Esempi CLI
 
-<!-- l10n: source=reference/cli-examples.md -->
-> Traduzione della [pagina originale in inglese](../../../reference/cli-examples.md) di OmsiLaunch 0.1.0-beta3. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> Traduzione della [pagina originale in inglese](../../../reference/cli-examples.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
-Invocazioni minime e corrette di `OmsiLaunch.exe` per OmsiLaunch `0.1.0-beta3`, ciascuna con il codice di uscita del processo atteso e una nota su ciò che viene modificato e ripristinato. Ogni esempio viene eseguito dalla radice dell'installazione di OMSI (`<OMSI_PATH>`), salvo indicazione contraria; la sintassi è definita nel [riferimento CLI](cli.md) e i codici di uscita in [codici di uscita](exit-codes.md). `--json` può essere aggiunto a qualsiasi comando per ottenere l'envelope strutturato.
+Invocazioni minime e corrette di `OmsiLaunch.exe` per OmsiLaunch `0.1.0-beta4`, ciascuna con il codice di uscita del processo atteso e una nota su ciò che viene modificato e ripristinato. Ogni esempio viene eseguito dalla radice dell'installazione di OMSI (`<OMSI_PATH>`), salvo indicazione contraria; la sintassi è definita nel [riferimento CLI](cli.md) e i codici di uscita in [codici di uscita](exit-codes.md). `--json` può essere aggiunto a qualsiasi comando per ottenere l'envelope strutturato.
 
 <a id="conventions"></a>
 ## Convenzioni
@@ -21,7 +21,7 @@ Invocazioni minime e corrette di `OmsiLaunch.exe` per OmsiLaunch `0.1.0-beta3`, 
 ```text
 OmsiLaunch.exe /version
 ```
-Uscita `0`. Stampa `product`, `version` (`0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family`. Non modifica nulla.
+Uscita `0`. Stampa `product`, `version` (`0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family`. Non modifica nulla.
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 Uscita `0` (`2` se manca `handle`, `name` o `value`). Modifica una variabile di script numerica di quel veicolo. Non annullato.
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-Uscita `7`. Sempre rifiutato con `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; non viene modificato nulla.
+Uscita `0`. Scrive il record meteo sorgente di OMSI e interrompe gli aggiornamenti METAR in tempo reale; OMSI ne deriva nebbia, luce, vento effettivo e umidità al successivo tick meteo non in pausa. Ogni valore viene controllato prima di scrivere qualsiasi cosa (`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, uscita `7`). Una chiave derivata come `relative_humidity` restituisce `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` e indica la chiave da impostare al suo posto. Non annullato. EXPERIMENTAL: validazione a runtime in sospeso.
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+Uscita `0`. Passa al meteo METAR in tempo reale per quella stazione; OMSI lo scarica al successivo aggiornamento meteo. EXPERIMENTAL: validazione a runtime in sospeso.
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+Uscita `0`. `scripts string set` passa per il `SetStringVariable` di OMSI e restituisce il valore riletto; un nome che lo script del veicolo non dichiara restituisce `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (uscita `7`). `scripts trigger` genera un trigger come fanno i gestori di input di OMSI (`1` pressione, `0` rilascio); lo script del veicolo lo esegue subito. I nomi dei trigger e delle variabili sono definiti da ciascun modello di veicolo; quelli sopra sono esempi. Non annullato. EXPERIMENTAL: validazione a runtime in sospeso.
 
 ## Spawn
 

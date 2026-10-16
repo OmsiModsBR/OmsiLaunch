@@ -1,10 +1,10 @@
-# OmsiLaunch Beta 3 documentation translation brief
+# OmsiLaunch Beta 4 documentation translation brief
 
-This is the brief every translation of the 0.1.0-beta3 round followed. The locale glossaries it refers to are kept in `tools/Localization/glossary/<locale>.md`.
+This is the brief every translation of the 0.1.0-beta4 round followed. The locale glossaries it refers to are kept in `tools/Localization/glossary/<locale>.md`.
 
 Run commands from the repository root.
 
-You translate canonical English documentation pages of OmsiLaunch `0.1.0-beta3` into ONE locale. The English page under `docs/<page>` is the only source of truth. Write the translation to `docs/localized/<locale>/<page>` (same relative path). Read the whole English page before you start and translate it completely: this is a full, faithful, professional translation, not a summary and not an adaptation.
+You translate canonical English documentation pages of OmsiLaunch `0.1.0-beta4` into ONE locale. The English page under `docs/<page>` is the only source of truth. Write the translation to `docs/localized/<locale>/<page>` (same relative path). Read the whole English page before you start and translate it completely: this is a full, faithful, professional translation, not a summary and not an adaptation.
 
 Old translations of an earlier beta (the `0.1.0-beta2` trees, available in the repository history) are outdated and technically wrong in places. They may be consulted ONLY for established terminology; never copy sentences or facts from them.
 

@@ -1,7 +1,7 @@
 # Windows 系統匣指示器
 
-<!-- l10n: source=reference/windows-tray.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/windows-tray.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/windows-tray.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 每個獨立的擁有者工作階段（以 `OmsiLaunch.exe` 或 `OmsiLaunchW.exe` 啟動）都會在通知區域顯示一個圖示，用來回報工作階段狀態，並讓使用者結束工作階段。本頁規範此指示器的實作，涵蓋 `tools\OmsiLaunch.Cli\WindowsHost.cs` 中的 `SessionTrayIndicator`、`StatusWindow` 與 `StopConfirmationWindow`、唯讀呈現器 `SessionStatusPresenter`（`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`）與字串登錄 `WindowsUiStrings`（`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`），以及 `WindowsHost` 的 `OmsiLaunchW.exe` 失敗對話方塊。系統匣只是一個呈現配接器：它既不擁有 OMSI，也不負責復原，其停止動作所觸發的是與 `session stop` 相同的擁有者標準停止路徑（請參閱 [CLI 參考](cli.md)與[本機控制](local-control.md)）。
 
@@ -60,7 +60,7 @@
 | `Presentation` | `Splash` | 一律顯示 | `Managed` 或 `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | 一律顯示 | `Original OMSI`（`Native`）、`Disabled`、`Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-`Environment` 與 `Vehicle` 區段絕不會出現在執行中的 Beta 3 工作階段：要求日期、時間、年份、天氣或任何玩家車輛欄位都會使計畫不可執行，因此不會啟動此類工作階段（請參閱[已知限制](known-limitations.md)）。它們是為未來組建而存在，並由離線呈現器測試涵蓋。
+`Environment` 區段會在要求了日期、時間、年份或天氣的執行中 Beta 4 工作階段出現（這些要求屬於實驗性，請參閱[已知限制](known-limitations.md)）。`Vehicle` 區段絕不會出現在執行中的工作階段：要求任何玩家車輛欄位都會使計畫不可執行，因此不會啟動此類工作階段。它是為未來組建而存在，並由離線呈現器測試涵蓋。
 
 執行階段證據（pt-BR UI，執行階段收尾 `T01`）：一個 NEW_MAP Grundorf 工作階段顯示 `Sessão em execução`；`Sessão`：`Modo: Nova sessão`、`Mapa: Grundorf`、`Ponto de entrada: 1`；`Apresentação`：`Splash: Gerenciado`、`Texturas da internet: OMSI original`。
 

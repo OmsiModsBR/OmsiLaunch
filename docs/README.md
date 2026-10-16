@@ -1,9 +1,9 @@
 # OmsiLaunch Documentation
 
-This is the normative English documentation for OmsiLaunch `0.1.0-beta3`, the
+This is the normative English documentation for OmsiLaunch `0.1.0-beta4`, the
 post-hardening baseline. OmsiLaunch provides programmable launch, session
-ownership and runtime control for exactly one OMSI 2 build, profile
-`Omsi23004_692EBFBF`. Every page under `docs/` describes what the current code
+ownership and runtime control for an installed OMSI 2; each native capability
+is resolved and verified per build (see [compatibility](reference/compatibility.md)). Every page under `docs/` describes what the current code
 does; when a page and the code disagree, the code wins and the page is a bug.
 
 Stability vocabulary used throughout: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`,
@@ -30,6 +30,8 @@ runtime-validated unless the
 | [CLI Reference](reference/cli.md) | Every flag, command word and hierarchical route of `OmsiLaunch.exe` / `OmsiLaunchW.exe`. |
 | [CLI Examples](reference/cli-examples.md) | Copy-and-paste command lines for common tasks. |
 | [LaunchSpec Reference](reference/launchspec.md) | Every `LaunchSpec` property and enum value, JSON loading rules for `/spec`. |
+| [HOF Management](reference/hof-management.md) | Session-scoped HOF copy and mirror into vehicle folders: sources, targets, conflicts, restore. |
+| [Runtime Modules](reference/runtime-modules.md) | Modules that run inside OMSI with a session: manifest, trust, lifecycle, failure policies, operations. |
 | [Session Profiles Reference](reference/session-profiles.md) | `profile.yaml` schema `omsilaunch.session-profile/v1`, keys, limits, precedence. |
 | [Public API Reference](reference/public-api.md) | `IOmsiLaunch`, public records and enums, stability per member. |
 | [Public API Inventory](reference/public-api-inventory.md) | Generated list of every public type and member with signature and stability. |
@@ -48,14 +50,15 @@ runtime-validated unless the
 | [Known Limitations](reference/known-limitations.md) | What is unsupported, partial or an accepted risk in this beta. |
 | [Runtime Validation Status](status/runtime-validation-status.md) | What ran under OMSI, what only ran offline, what still needs a real session. |
 
-Root-level pages that remain normative for maintainers:
-[`README.md`](../README.md), [`PUBLIC-API.md`](../PUBLIC-API.md),
-[`RUNTIME-CONTROL.md`](../RUNTIME-CONTROL.md),
-[`RUNTIME-CAPABILITIES.md`](../RUNTIME-CAPABILITIES.md),
-[`BUILD-PROFILES.md`](../BUILD-PROFILES.md),
-[`IMPLEMENTATION-STATUS.md`](../IMPLEMENTATION-STATUS.md),
-[`TESTING-AND-VALIDATION.md`](../TESTING-AND-VALIDATION.md),
-[`POST-RELEASE-BACKLOG.md`](../POST-RELEASE-BACKLOG.md). They summarise; the
+Pages that remain normative for maintainers: the repository
+[`README.md`](../README.md), the specifications under `docs/specs`
+([`PUBLIC-API.md`](specs/PUBLIC-API.md),
+[`RUNTIME-CONTROL.md`](specs/RUNTIME-CONTROL.md),
+[`RUNTIME-CAPABILITIES.md`](specs/RUNTIME-CAPABILITIES.md),
+[`BUILD-PROFILES.md`](specs/BUILD-PROFILES.md)) and the project pages under
+`docs/project` ([`IMPLEMENTATION-STATUS.md`](project/IMPLEMENTATION-STATUS.md),
+[`TESTING-AND-VALIDATION.md`](project/TESTING-AND-VALIDATION.md),
+[`POST-RELEASE-BACKLOG.md`](project/POST-RELEASE-BACKLOG.md)). They summarise; the
 pages above are the detailed reference. Historical pages are listed in the
 [documentation manifest](DOCUMENTATION-MANIFEST.md).
 
@@ -85,7 +88,7 @@ be wrong about behaviour; report that as a bug against the page.
 
 ## Translations
 
-`docs\localized\<locale>\` holds complete translations of this `0.1.0-beta3`
+`docs\localized\<locale>\` holds complete translations of this `0.1.0-beta4`
 documentation for `pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` and `ja-JP`. The page set, the locale roots and the
 pages that are intentionally not translated are listed in
 [`localized/LOCALIZATION-MANIFEST.md`](localized/LOCALIZATION-MANIFEST.md).

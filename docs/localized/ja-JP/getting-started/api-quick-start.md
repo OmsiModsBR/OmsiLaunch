@@ -1,6 +1,6 @@
 # 公開 API クイックスタート
 
-<!-- l10n: source=getting-started/api-quick-start.md -->
+<!-- l10n: source=getting-started/api-quick-start.md source-sha256=cd9b92efa4f35f7a4f8947145e72af4b066eb29e49c6f4435497e0001eadc69c -->
 > このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../getting-started/api-quick-start.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページでは、独自の .NET プログラムから OmsiLaunch セッションを 1 つ開始し、読み取り、終了します。パッケージが OMSI 2 のディレクトリにインストールされていること（[インストール](installation.md)を参照）、およびそこで `OmsiLaunch.exe /plan` が動作すること（[最初のセッション](first-session.md)を参照）を前提とします。完全な契約は[公開 API リファレンス](../reference/public-api.md)にあります。

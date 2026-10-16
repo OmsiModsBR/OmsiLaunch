@@ -1,9 +1,9 @@
 # Документация OmsiLaunch
 
-<!-- l10n: source=README.md -->
-> Перевод [исходной страницы на английском языке](../../README.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> Перевод [исходной страницы на английском языке](../../README.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-Это нормативная английская документация OmsiLaunch `0.1.0-beta3` — базовой версии после этапа укрепления (post-hardening). OmsiLaunch обеспечивает программируемый запуск, владение сеансом и runtime-управление ровно для одной сборки OMSI 2 — профиля `Omsi23004_692EBFBF`. Каждая страница в `docs/` описывает то, что делает текущий код; если страница и код расходятся, прав код, а страница содержит ошибку.
+Это нормативная английская документация OmsiLaunch `0.1.0-beta4` — базовой версии после этапа укрепления (post-hardening). OmsiLaunch обеспечивает программируемый запуск, владение сеансом и runtime-управление для установленной OMSI 2; каждая нативная возможность определяется и проверяется отдельно для каждой сборки (см. [совместимость](reference/compatibility.md)). Каждая страница в `docs/` описывает то, что делает текущий код; если страница и код расходятся, прав код, а страница содержит ошибку.
 
 Во всей документации используется следующая шкала стабильности: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL`, `UNAVAILABLE`. Флаги, которые разбираются, но ничего не делают, помечены как `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT` (принимается для совместимости, сейчас ни на что не влияет). Ничто не считается проверенным в runtime, если этого не подтверждает [статус проверки в runtime](status/runtime-validation-status.md).
 
@@ -27,6 +27,8 @@
 | [Справочник CLI](reference/cli.md) | Все флаги, командные слова и иерархические маршруты `OmsiLaunch.exe` / `OmsiLaunchW.exe`. |
 | [Примеры CLI](reference/cli-examples.md) | Готовые к копированию командные строки для типовых задач. |
 | [Справочник LaunchSpec](reference/launchspec.md) | Все свойства `LaunchSpec` и значения перечислений, правила загрузки JSON для `/spec`. |
+| [Управление HOF](reference/hof-management.md) | Копирование HOF на время сеанса и его зеркалирование в каталоги ТС: источники, цели, конфликты, восстановление. |
+| [Runtime-модули](../../reference/runtime-modules.md) | Модули, которые работают внутри OMSI вместе с сеансом: манифест, доверие, жизненный цикл, политики сбоев, операции. |
 | [Справочник профилей сеанса](reference/session-profiles.md) | Схема `profile.yaml` `omsilaunch.session-profile/v1`, ключи, ограничения, приоритет. |
 | [Справочник публичного API](reference/public-api.md) | `IOmsiLaunch`, публичные записи и перечисления, стабильность каждого члена. |
 | [Перечень публичного API](reference/public-api-inventory.md) | Сгенерированный список всех публичных типов и членов с сигнатурами и стабильностью. |
@@ -45,14 +47,15 @@
 | [Известные ограничения](reference/known-limitations.md) | Что в этой бета-версии не поддерживается, поддерживается частично или является принятым риском. |
 | [Статус проверки в runtime](status/runtime-validation-status.md) | Что выполнялось под OMSI, что выполнялось только офлайн и что ещё требует реального сеанса. |
 
-Страницы в корне репозитория, которые остаются нормативными для сопровождающих:
-[`README.md`](../../../README.md), [`PUBLIC-API.md`](../../../PUBLIC-API.md),
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md),
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md),
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md),
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md),
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md),
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md). Они дают сводку; подробным справочником служат перечисленные выше страницы. Исторические страницы перечислены в [манифесте документации](../../DOCUMENTATION-MANIFEST.md).
+Страницы, которые остаются нормативными для сопровождающих: `README.md` репозитория
+[`README.md`](../../../README.md), спецификации в `docs/specs`
+([`PUBLIC-API.md`](../../specs/PUBLIC-API.md),
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md),
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md),
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)) и страницы проекта в
+`docs/project` ([`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md),
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md),
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)). Они дают сводку; подробным справочником служат перечисленные выше страницы. Исторические страницы перечислены в [манифесте документации](../../DOCUMENTATION-MANIFEST.md).
 
 <a id="how-this-documentation-is-kept-in-sync"></a>
 ## Как документация поддерживается в актуальном состоянии
@@ -76,4 +79,4 @@
 <a id="translations"></a>
 ## Переводы
 
-`docs\localized\<locale>\` содержит полные переводы этой документации `0.1.0-beta3` для `pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` и `ja-JP`. Набор страниц, корневые каталоги локалей и страницы, которые намеренно не переводятся, перечислены в [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md). Переводы сохраняют без изменений все команды, флаги, идентификаторы, коды ошибок и примеры английских страниц, и гейт `docs.localization` это проверяет. Нормативным источником остаются английские страницы: если перевод расходится с ними, приоритет имеют английская страница и код, а перевод содержит ошибку.
+`docs\localized\<locale>\` содержит полные переводы этой документации `0.1.0-beta4` для `pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` и `ja-JP`. Набор страниц, корневые каталоги локалей и страницы, которые намеренно не переводятся, перечислены в [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md). Переводы сохраняют без изменений все команды, флаги, идентификаторы, коды ошибок и примеры английских страниц, и гейт `docs.localization` это проверяет. Нормативным источником остаются английские страницы: если перевод расходится с ними, приоритет имеют английская страница и код, а перевод содержит ошибку.

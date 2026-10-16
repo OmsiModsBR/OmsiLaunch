@@ -7,8 +7,9 @@
     <ProjectReference Include="..\OmsiLaunch.Builds.Omsi23004\OmsiLaunch.Builds.Omsi23004.csproj" />
     <ProjectReference Include="..\OmsiLaunch.Content\OmsiLaunch.Content.csproj" />
     <ProjectReference Include="..\OmsiLaunch.Configuration\OmsiLaunch.Configuration.csproj" />
+    <ProjectReference Include="..\OmsiLaunch.Runtime.Modules\OmsiLaunch.Runtime.Modules.csproj" />
   </ItemGroup>
-  <ItemGroup><InternalsVisibleTo Include="OmsiLaunch.TestHost" /></ItemGroup>
+  <ItemGroup><InternalsVisibleTo Include="OmsiLaunch.TestHost" /><InternalsVisibleTo Include="OmsiLaunch.ModuleTests" /></ItemGroup>
   <ItemGroup>
     <Content Include="assets\splash\*.bmp" CopyToOutputDirectory="PreserveNewest" Link="assets\splash\%(Filename)%(Extension)" />
   </ItemGroup>

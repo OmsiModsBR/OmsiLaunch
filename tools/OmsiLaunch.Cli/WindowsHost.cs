@@ -48,6 +48,8 @@ internal sealed class SessionTrayIndicator : IDisposable
     private StatusWindow? statusWindow;
     private StopConfirmationWindow? confirmation;
     private WindowsUiStrings? ui;
+    private System.Windows.Forms.Timer? notices;
+    private long lastNotice;
     private volatile bool disposed;
 
     private SessionTrayIndicator(string installationRoot, SessionPlan plan, Func<SessionStatus> status, Action requestCanonicalStop)
@@ -104,6 +106,9 @@ internal sealed class SessionTrayIndicator : IDisposable
             // the actual cursor position instead of trusting event coordinates.
             icon.MouseUp += (_, eventArgs) => { if (eventArgs.Button == MouseButtons.Right) ShowMenu(Cursor.Position); };
             window.RestoreRequested += (_, _) => RefreshIcon();
+            notices = new System.Windows.Forms.Timer { Interval = 1000 };
+            notices.Tick += (_, _) => ShowNewNotices();
+            notices.Start();
             WriteState("created");
             // Decide about the loop under the same lock Dispose uses: a Dispose
             // that races startup either posts its shutdown to the loop or, if
@@ -123,6 +128,7 @@ internal sealed class SessionTrayIndicator : IDisposable
         finally
         {
             try { statusWindow?.Close(); } catch (Exception error) { WriteFailure(error); }
+            notices?.Dispose();
             if (icon is not null) { icon.Visible = false; icon.Dispose(); }
             menu?.Dispose();
             marshal?.Dispose();
@@ -152,6 +158,28 @@ internal sealed class SessionTrayIndicator : IDisposable
     }
 
     private void RefreshIcon() { if (icon is not null) { icon.Visible = false; icon.Visible = true; } }
+
+    // A runtime module's notice (event module.<id>.notice) appears as a balloon
+    // naming the module. The text is the module's data, bounded and without
+    // control characters (the bridge sanitizes it); it is never opened or run.
+    private void ShowNewNotices()
+    {
+        if (disposed || icon is null) return;
+        try
+        {
+            var events = status().RuntimeEvents ?? Array.Empty<RuntimeEvent>();
+            foreach (var item in events.Where(x => x.Sequence > lastNotice).OrderBy(x => x.Sequence))
+            {
+                lastNotice = item.Sequence;
+                if (!item.Type.StartsWith("module.", StringComparison.Ordinal) || !item.Type.EndsWith(".notice", StringComparison.Ordinal) || item.Type.Length <= "module..notice".Length) continue;
+                var module = item.Type["module.".Length..^".notice".Length];
+                if (!item.Data.TryGetValue("text", out var text) || text.Length == 0) continue;
+                var title = item.Data.TryGetValue("title", out var given) && given.Length != 0 ? given + " (" + module + ")" : module;
+                icon.ShowBalloonTip(8000, title.Length <= 63 ? title : title[..63], text.Length <= 255 ? text : text[..255], ToolTipIcon.Info);
+            }
+        }
+        catch (Exception error) { WriteFailure(error); }
+    }
 
     private void ShowMenu(System.Drawing.Point requestedLocation)
     {

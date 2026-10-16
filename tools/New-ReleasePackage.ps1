@@ -13,6 +13,10 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 [xml] $identity = Get-Content -LiteralPath (Join-Path $root 'OmsiLaunch.Version.props') -Raw
 $identityProperties = $identity.Project.PropertyGroup | Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $root 'artifacts\release' }
+# Resolve a relative -OutputDirectory against the PowerShell location, not the
+# process working directory: manifest paths are computed from absolute file
+# names, and the published-location guard compares absolute paths.
+$OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
 $stage = Join-Path $OutputDirectory 'OmsiLaunch-current'
 $zip = Join-Path $OutputDirectory 'OmsiLaunch-current.zip'
 $publicZip = Join-Path $OutputDirectory ('OmsiLaunch-' + $identityProperties.OmsiLaunchProductVersion + '.zip')
@@ -91,17 +95,18 @@ Assert-Fresh $windowsHost @('tools\OmsiLaunch.Bootstrapper\OmsiLaunch.WindowsHos
 $managed = @{
     'OmsiLaunch.Controller.dll' = 'tools\OmsiLaunch.Cli'; 'OmsiLaunch.Api.dll' = 'src\OmsiLaunch.Api'; 'OmsiLaunch.Core.dll' = 'src\OmsiLaunch.Core'
     'OmsiLaunch.Configuration.dll' = 'src\OmsiLaunch.Configuration'; 'OmsiLaunch.Content.dll' = 'src\OmsiLaunch.Content'; 'OmsiLaunch.Process.dll' = 'src\OmsiLaunch.Process'
-    'OmsiLaunch.Builds.Omsi23004.dll' = 'src\OmsiLaunch.Builds.Omsi23004'
+    'OmsiLaunch.Builds.Omsi23004.dll' = 'src\OmsiLaunch.Builds.Omsi23004'; 'OmsiLaunch.NativeResolution.dll' = 'src\OmsiLaunch.NativeResolution'
+    'OmsiLaunch.Runtime.Modules.dll' = 'src\OmsiLaunch.Runtime.Modules'
 }
 foreach ($entry in $managed.GetEnumerator()) { Assert-Fresh (Join-Path $cli $entry.Key) @($entry.Value) @('*.cs', '*.csproj') }
-$pluginManaged = @{ 'OmsiLaunch.Plugin.dll' = 'src\OmsiLaunch.Plugin'; 'OmsiLaunch.Interop.dll' = 'src\OmsiLaunch.Interop'; 'OmsiLaunch.Api.dll' = 'src\OmsiLaunch.Api'; 'OmsiLaunch.Builds.Omsi23004.dll' = 'src\OmsiLaunch.Builds.Omsi23004' }
+$pluginManaged = @{ 'OmsiLaunch.Plugin.dll' = 'src\OmsiLaunch.Plugin'; 'OmsiLaunch.Interop.dll' = 'src\OmsiLaunch.Interop'; 'OmsiLaunch.Api.dll' = 'src\OmsiLaunch.Api'; 'OmsiLaunch.Builds.Omsi23004.dll' = 'src\OmsiLaunch.Builds.Omsi23004'; 'OmsiLaunch.NativeResolution.dll' = 'src\OmsiLaunch.NativeResolution'; 'OmsiLaunch.Runtime.Modules.dll' = 'src\OmsiLaunch.Runtime.Modules' }
 foreach ($entry in $pluginManaged.GetEnumerator()) { Assert-Fresh (Join-Path $plugin $entry.Key) @($entry.Value) @('*.cs', '*.csproj') }
 Assert-Fresh (Join-Path $plugin 'OmsiLaunch.PluginNE.dll') @('src\OmsiLaunch.Plugin\OmsiLaunch.PluginNE.rc', $versionProps) @('*')
 
 $cliFiles = @(
     'OmsiLaunch.Controller.dll', 'OmsiLaunch.Controller.deps.json', 'OmsiLaunch.Controller.runtimeconfig.json',
     'OmsiLaunch.Api.dll', 'OmsiLaunch.Configuration.dll', 'OmsiLaunch.Content.dll',
-    'OmsiLaunch.Core.dll', 'OmsiLaunch.Process.dll', 'OmsiLaunch.Builds.Omsi23004.dll', 'YamlDotNet.dll'
+    'OmsiLaunch.Core.dll', 'OmsiLaunch.Process.dll', 'OmsiLaunch.Builds.Omsi23004.dll', 'OmsiLaunch.NativeResolution.dll', 'OmsiLaunch.Runtime.Modules.dll', 'YamlDotNet.dll'
 )
 
 if (-not (Test-Path -LiteralPath $bootstrapper)) { throw "Required controller bootstrapper missing: $bootstrapper" }
@@ -113,7 +118,7 @@ Copy-Item -LiteralPath $netHost -Destination (Join-Path $stage 'nethost.dll')
 $pluginFiles = @(
     'OmsiLaunch.Plugin.opl', 'OmsiLaunch.PluginNE.dll', 'OmsiLaunch.Plugin.dll',
     'OmsiLaunch.Plugin.deps.json', 'OmsiLaunch.Plugin.runtimeconfig.json',
-    'OmsiLaunch.Api.dll', 'OmsiLaunch.Builds.Omsi23004.dll', 'OmsiLaunch.Interop.dll'
+    'OmsiLaunch.Api.dll', 'OmsiLaunch.Builds.Omsi23004.dll', 'OmsiLaunch.NativeResolution.dll', 'OmsiLaunch.Runtime.Modules.dll', 'OmsiLaunch.Interop.dll'
 )
 
 foreach ($file in $cliFiles) {
@@ -133,6 +138,8 @@ Copy-Item -LiteralPath (Join-Path $root 'examples\release-session.example.json')
 New-Item -ItemType Directory -Force -Path (Join-Path $stage '.omsilaunch\examples\session-profiles\rmg-leste') | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'docs\examples\session-profiles\rmg-leste\profile.yaml') -Destination (Join-Path $stage '.omsilaunch\examples\session-profiles\rmg-leste\profile.yaml')
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $stage 'LICENSE')
+# The LGPL-3.0 supplements the GPL-3.0: both texts go with the program (LGPL-3.0 section 4).
+Copy-Item -LiteralPath (Join-Path $root 'COPYING') -Destination (Join-Path $stage 'COPYING')
 Copy-Item -LiteralPath (Join-Path $root 'THIRD-PARTY-NOTICES.md') -Destination (Join-Path $stage 'THIRD-PARTY-NOTICES.md')
 
 # The English documentation ships as the same tree as docs\ so its relative
@@ -175,10 +182,11 @@ $manifest = [ordered]@{
     product_version = $identityProperties.OmsiLaunchProductVersion
     package_alias = $identityProperties.OmsiLaunchPackageAlias
     control_protocol = '0.1'
-    target_profile = 'Omsi23004_692EBFBF'
-    supported_executable_hashes = @(
-        '692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243',
-        '7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759'
+    # Compatibility is "OMSI 2 installed"; capabilities are resolved per
+    # target in process. Known layouts are only a fast path.
+    requirement = 'OMSI 2'
+    known_layouts = @(
+        [ordered]@{ build_id = 'Omsi23004'; code_sha256 = '13ec110abdccc09d6d85875a017d5e75e45514283d5a4558f49a7c282dfdc028' }
     )
     configuration = $Configuration
     generated_utc = [DateTimeOffset]::UtcNow.ToString('O')
@@ -191,8 +199,9 @@ $manifest = [ordered]@{
 # Self-check before archiving: the staged closure must equal the manifest
 # exactly (same file set, same hashes) and the plugin closure must equal the
 # build output it was copied from.
-& (Join-Path $PSScriptRoot 'Test-ReleasePackageIntegrity.ps1') -PackagePath $stage | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'The staged package failed its integrity self-check.' }
+# The checker's findings are printed when it fails, so a failure says why.
+$integrity = & (Join-Path $PSScriptRoot 'Test-ReleasePackageIntegrity.ps1') -PackagePath $stage 2>&1
+if ($LASTEXITCODE -ne 0) { $integrity | ForEach-Object { Write-Host $_ }; throw 'The staged package failed its integrity self-check.' }
 foreach ($file in $pluginFiles) {
     if ((Get-FileHash -LiteralPath (Join-Path $plugin $file)).Hash -ne (Get-FileHash -LiteralPath (Join-Path $stage "plugins\$file")).Hash) { throw "Staged plugin file differs from its build output: $file" }
 }
@@ -205,8 +214,8 @@ Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $candidateZip -Co
 $verifyDirectory = Join-Path ([IO.Path]::GetTempPath()) ('omsilaunch-verify-' + [Guid]::NewGuid().ToString('N'))
 Expand-Archive -LiteralPath $candidateZip -DestinationPath $verifyDirectory
 if ((Get-FileHash -LiteralPath (Join-Path $verifyDirectory 'release-manifest.json')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $stage 'release-manifest.json')).Hash) { throw 'The archived manifest differs from the validated staging manifest.' }
-& (Join-Path $PSScriptRoot 'Test-ReleasePackageIntegrity.ps1') -PackagePath $verifyDirectory | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'The extracted archive failed validation against its manifest.' }
+$integrity = & (Join-Path $PSScriptRoot 'Test-ReleasePackageIntegrity.ps1') -PackagePath $verifyDirectory 2>&1
+if ($LASTEXITCODE -ne 0) { $integrity | ForEach-Object { Write-Host $_ }; throw 'The extracted archive failed validation against its manifest.' }
 
 Remove-Item -LiteralPath $finalStage -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $zip, $publicZip, $publicChecksum -Force -ErrorAction SilentlyContinue

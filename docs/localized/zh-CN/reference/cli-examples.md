@@ -1,9 +1,9 @@
 # CLI 示例
 
-<!-- l10n: source=reference/cli-examples.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/cli-examples.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/cli-examples.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-以下是 OmsiLaunch `0.1.0-beta3` 中 `OmsiLaunch.exe` 的最简且正确的调用方式，每个示例都附有预期的进程退出码，并说明会修改和还原哪些内容。除非另有说明，每个示例都从 OMSI 安装根目录（`<OMSI_PATH>`）运行；语法定义见 [CLI 参考](cli.md)，退出码见[退出码](exit-codes.md)。任何命令都可以加上 `--json` 以获取结构化信封（envelope）。
+以下是 OmsiLaunch `0.1.0-beta4` 中 `OmsiLaunch.exe` 的最简且正确的调用方式，每个示例都附有预期的进程退出码，并说明会修改和还原哪些内容。除非另有说明，每个示例都从 OMSI 安装根目录（`<OMSI_PATH>`）运行；语法定义见 [CLI 参考](cli.md)，退出码见[退出码](exit-codes.md)。任何命令都可以加上 `--json` 以获取结构化信封（envelope）。
 
 <a id="conventions"></a>
 ## 约定
@@ -21,7 +21,7 @@
 ```text
 OmsiLaunch.exe /version
 ```
-退出码 `0`。打印 `product`、`version`（`0.1.0-beta3`）、`protocol_version`（`0.1`）、`supported_family`。不修改任何内容。
+退出码 `0`。打印 `product`、`version`（`0.1.0-beta4`）、`protocol_version`（`0.1`）、`supported_family`。不修改任何内容。
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 退出码 `0`（缺少 `handle`、`name` 或 `value` 时为 `2`）。修改该车辆的一个数值脚本变量。不撤销。
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-退出码 `7`。始终以 `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` 被拒绝；不做任何更改。
+退出码 `0`。写入 OMSI 的源天气记录并停止实时 METAR 更新；OMSI 会在下一次未暂停的天气刻中据此推导雾、光照、实际风和湿度。在写入任何内容之前会检查每个值（`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`，退出码 `7`）。诸如 `relative_humidity` 之类的派生键返回 `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`，并指明应改为设置的键。不撤销。EXPERIMENTAL：运行时验证待完成。
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+退出码 `0`。切换为该站点的实时 METAR 天气；OMSI 会在下一次天气更新时下载它。EXPERIMENTAL：运行时验证待完成。
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+退出码 `0`。`scripts string set` 通过 OMSI 自身的 `SetStringVariable` 执行并返回回读的值；车辆脚本未声明的名称返回 `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND`（退出码 `7`）。`scripts trigger` 像 OMSI 的输入处理程序一样触发一个触发器（`1` 按下，`0` 释放）；车辆脚本会立即运行它。触发器和变量的名称由各车型定义；上面的名称仅为示例。不撤销。EXPERIMENTAL：运行时验证待完成。
 
 <a id="spawn"></a>
 ## 生成

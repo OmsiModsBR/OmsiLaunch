@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net6.0-windows</TargetFramework><PlatformTarget>x64</PlatformTarget><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\OmsiLaunch.Api\OmsiLaunch.Api.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Runtime.Modules\OmsiLaunch.Runtime.Modules.csproj" /><ProjectReference Include="..\..\src\OmsiLaunch.Core\OmsiLaunch.Core.csproj" /><ProjectReference Include="..\OmsiLaunch.Module.SessionTest\OmsiLaunch.Module.SessionTest.csproj" ReferenceOutputAssembly="false" /></ItemGroup>
+</Project>

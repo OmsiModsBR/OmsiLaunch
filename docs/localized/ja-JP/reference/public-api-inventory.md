@@ -1,7 +1,7 @@
 # 公開 API インベントリ
 
-<!-- l10n: source=reference/public-api-inventory.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/public-api-inventory.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=3c373c0c630e07ca0b28dc908aae11d05b87f4e5716c1442a868f3980637e134 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/public-api-inventory.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、コンパイル済みアセンブリから `tests/OmsiLaunch.DocumentationTests` によって生成されます（`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`）。コードと一致しなくなると、ドキュメントのチェックが失敗します。`OmsiLaunch.Api`、`OmsiLaunch.Core`、`OmsiLaunch.Process` がエクスポートするすべての型について、その安定性とすべての public メンバーのシグネチャを記載しています。セマンティクス、前提条件、エラー、使用例は、各見出しに示したページに記載されています（既定: [公開 API](public-api.md)）。安定性の区分: `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`（技術的な理由で public になっているもので、統合用のインターフェイスではありません）、`UNAVAILABLE`（[公開 API](public-api.md#stability-vocabulary) を参照）。コンパイラが生成する record のメンバー（`Equals`、`GetHashCode`、`ToString`、`Deconstruct`、`<Clone>$`、`EqualityContract`）は省略しています。
 
@@ -45,6 +45,8 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | 値 | `Registrations = 6` |
 | 値 | `Addons = 7` |
 | 値 | `Entrypoints = 8` |
+| 値 | `SessionProfiles = 9` |
+| 値 | `RuntimeModules = 10` |
 
 ### `D3DDeviceState`
 
@@ -231,6 +233,48 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `IReadOnlyDictionary<string, OptionalValue<string>> Keyboard { get; init; }` |
 | プロパティ | `IReadOnlyDictionary<string, OptionalValue<string>> Controllers { get; init; }` |
 
+### `HofApplyMode`
+
+列挙型 (`byte`)（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 値 | `Add = 0` |
+| 値 | `Mirror = 1` |
+
+### `HofManagementSpec`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `HofManagementSpec(IReadOnlyList<HofOperationSpec> Operations)` |
+| プロパティ | `IReadOnlyList<HofOperationSpec> Operations { get; init; }` |
+
+### `HofOperationSpec`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `HofOperationSpec(HofSourceKind SourceKind, string Source, IReadOnlyList<string> TargetVehicles, HofApplyMode Mode = Add, IReadOnlyList<string> Files = null)` |
+| プロパティ | `HofSourceKind SourceKind { get; init; }` |
+| プロパティ | `string Source { get; init; }` |
+| プロパティ | `IReadOnlyList<string> TargetVehicles { get; init; }` |
+| プロパティ | `HofApplyMode Mode { get; init; }` |
+| プロパティ | `IReadOnlyList<string> Files { get; init; }` |
+
+### `HofSourceKind`
+
+列挙型 (`byte`)（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 値 | `Collection = 0` |
+| 値 | `Directory = 1` |
+| 値 | `Vehicle = 2` |
+| 値 | `File = 3` |
+
 ### `IOmsiLaunch`
 
 インターフェイス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
@@ -242,6 +286,8 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | メソッド | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| メソッド | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| メソッド | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -305,11 +351,12 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30)` |
+| コンストラクター | `LaunchBehaviorSpec(bool RestoreConfiguration = true, bool SuppressStaleClosecheckWarning = true, int StartupTimeoutSeconds = 180, int ShutdownTimeoutSeconds = 30, bool CooperativeShutdown = false)` |
 | プロパティ | `bool RestoreConfiguration { get; init; }` |
 | プロパティ | `bool SuppressStaleClosecheckWarning { get; init; }` |
 | プロパティ | `int StartupTimeoutSeconds { get; init; }` |
 | プロパティ | `int ShutdownTimeoutSeconds { get; init; }` |
+| プロパティ | `bool CooperativeShutdown { get; init; }` |
 
 ### `LaunchDiagnostic`
 
@@ -328,7 +375,7 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null)` |
+| コンストラクター | `LaunchSpec(InstallationSpec Installation, WorldSpec World, DateSpec Date, TimeSpec Time, OptionalValue<PlayerVehicleSpec> PlayerVehicle, EnvironmentSpec Environment, LaunchBehaviorSpec Behavior, YearSpec Year = null, WeatherSpec Weather = null, InputSpec Input = null, DiagnosticsSpec Diagnostics = null, SessionPresentationSpec Presentation = null, InternetTexturesSpec InternetTextures = null, SessionProfileMetadata SessionProfile = null, HofManagementSpec HofManagement = null, RuntimeModulesSpec Modules = null)` |
 | プロパティ | `InstallationSpec Installation { get; init; }` |
 | プロパティ | `WorldSpec World { get; init; }` |
 | プロパティ | `DateSpec Date { get; init; }` |
@@ -343,6 +390,10 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `SessionPresentationSpec Presentation { get; init; }` |
 | プロパティ | `InternetTexturesSpec InternetTextures { get; init; }` |
 | プロパティ | `SessionProfileMetadata SessionProfile { get; init; }` |
+| プロパティ | `HofManagementSpec HofManagement { get; init; }` |
+| プロパティ | `RuntimeModulesSpec Modules { get; init; }` |
+| プロパティ | `HofManagementSpec EffectiveHofManagement { get; }` |
+| プロパティ | `RuntimeModulesSpec EffectiveModules { get; }` |
 | プロパティ | `YearSpec EffectiveYear { get; }` |
 | プロパティ | `WeatherSpec EffectiveWeather { get; }` |
 | プロパティ | `InputSpec EffectiveInput { get; }` |
@@ -371,6 +422,44 @@ record struct（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `bool IsSet { get; }` |
 | static プロパティ | `OptionalValue<T> Unset { get; }` |
 | static メソッド | `OptionalValue<T> Set(T value)` |
+
+### `PlannedModule`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| 定数 | `string Eligible = "ELIGIBLE"` |
+| 定数 | `string Rejected = "REJECTED"` |
+| 定数 | `string ActivationRequested = "requested"` |
+| 定数 | `string ActivationSettingsFile = "settings-file"` |
+| 定数 | `string ActivationContent = "content"` |
+| 定数 | `string ActivationDefault = "default"` |
+| プロパティ | `string Id { get; init; }` |
+| プロパティ | `string Version { get; init; }` |
+| プロパティ | `string Status { get; init; }` |
+| プロパティ | `bool Requested { get; init; }` |
+| プロパティ | `string FailurePolicy { get; init; }` |
+| プロパティ | `IReadOnlyList<string> Operations { get; init; }` |
+| プロパティ | `string Code { get; init; }` |
+| プロパティ | `string Reason { get; init; }` |
+| プロパティ | `string ManifestSha256 { get; init; }` |
+| プロパティ | `string Activation { get; init; }` |
+| プロパティ | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| プロパティ | `bool IsEligible { get; }` |
+| プロパティ | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+
+### `PlannedModuleSetting`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `PlannedModuleSetting(string Key, string Value, string Source)` |
+| プロパティ | `string Key { get; init; }` |
+| プロパティ | `string Value { get; init; }` |
+| プロパティ | `string Source { get; init; }` |
 
 ### `PlannedMutation`
 
@@ -424,7 +513,7 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null)` |
+| コンストラクター | `PublicCapabilityDescriptor(string Id, string Family, PublicCapabilityClassification Classification, PublicCapabilityKind Kind, bool RequiresSession, bool RequiresExactProfile, string ApiRoute, string CliRoute, string RuntimeValidation, string Description, IReadOnlyList<string> HandleTypes = null, IReadOnlyList<PublicRuntimeOperation> Operations = null, string NativeCapability = null, string EvidenceNote = null)` |
 | プロパティ | `string Id { get; init; }` |
 | プロパティ | `string Family { get; init; }` |
 | プロパティ | `PublicCapabilityClassification Classification { get; init; }` |
@@ -436,6 +525,11 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `string RuntimeValidation { get; init; }` |
 | プロパティ | `string Description { get; init; }` |
 | プロパティ | `IReadOnlyList<string> HandleTypes { get; init; }` |
+| プロパティ | `IReadOnlyList<PublicRuntimeOperation> Operations { get; init; }` |
+| プロパティ | `string NativeCapability { get; init; }` |
+| プロパティ | `string EvidenceNote { get; init; }` |
+| プロパティ | `IReadOnlyList<PublicRuntimeOperation> EffectiveOperations { get; }` |
+| プロパティ | `IReadOnlyList<string> NativeCapabilities { get; }` |
 
 ### `PublicCapabilityKind`
 
@@ -457,9 +551,16 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string ProtocolVersion = "0.1"` |
 | static フィールド | `IReadOnlyList<PublicCapabilityDescriptor> All` |
 | static プロパティ | `IReadOnlyCollection<string> PublicRuntimeOperationIds { get; }` |
+| static プロパティ | `IReadOnlyList<PublicRuntimeOperation> RuntimeOperations { get; }` |
+| static プロパティ | `IReadOnlyDictionary<string, string> CliRoutes { get; }` |
+| static メソッド | `PublicCapabilityDescriptor Get(string id)` |
 | static メソッド | `IReadOnlyList<PublicRuntimeArgumentDescriptor> GetRuntimeArguments(string operation)` |
 | static メソッド | `bool IsInternalResultKey(string key)` |
+| static メソッド | `bool IsModuleOperation(string operation)` |
 | static メソッド | `bool IsPublicRuntimeOperation(string operation)` |
+| static メソッド | `string NativeCapabilityOf(string operation)` |
+| static メソッド | `bool TryGet(string id, out PublicCapabilityDescriptor descriptor)` |
+| static メソッド | `bool TryGetOperation(string operation, out PublicCapabilityDescriptor capability, out PublicRuntimeOperation descriptor)` |
 | static メソッド | `PublicRuntimeArgumentValidation ValidateRuntimeArguments(string operation, IReadOnlyDictionary<string, string> arguments)` |
 
 ### `PublicErrorCategory`
@@ -488,12 +589,19 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string WINDOWS_HOST_MISSING = "OL_E_WINDOWS_HOST_MISSING"` |
 | 定数 | `string WINDOWS_HOST_START_FAILED = "OL_E_WINDOWS_HOST_START_FAILED"` |
 | 定数 | `string BUILD_VALIDATION_FAILED = "OL_E_BUILD_VALIDATION_FAILED"` |
+| 定数 | `string CAPABILITY_UNRESOLVED = "OL_E_CAPABILITY_UNRESOLVED"` |
 | 定数 | `string UNSUPPORTED_BUILD = "OL_E_UNSUPPORTED_BUILD"` |
 | 定数 | `string UNSUPPORTED_OPERATING_SYSTEM = "OL_E_UNSUPPORTED_OPERATING_SYSTEM"` |
 | 定数 | `string UNSUPPORTED_OS_ARCHITECTURE = "OL_E_UNSUPPORTED_OS_ARCHITECTURE"` |
 | 定数 | `string ENTRYPOINT_NOT_FOUND = "OL_E_ENTRYPOINT_NOT_FOUND"` |
 | 定数 | `string ENTRYPOINT_REQUIRED = "OL_E_ENTRYPOINT_REQUIRED"` |
+| 定数 | `string ENTRYPOINT_NOT_PRESENTED = "OL_E_ENTRYPOINT_NOT_PRESENTED"` |
 | 定数 | `string HOF_NOT_FOUND = "OL_E_HOF_NOT_FOUND"` |
+| 定数 | `string HOF_CONFLICT = "OL_E_HOF_CONFLICT"` |
+| 定数 | `string HOF_INVALID = "OL_E_HOF_INVALID"` |
+| 定数 | `string HOF_PATH_ESCAPE = "OL_E_HOF_PATH_ESCAPE"` |
+| 定数 | `string HOF_SOURCE_NOT_FOUND = "OL_E_HOF_SOURCE_NOT_FOUND"` |
+| 定数 | `string HOF_TARGET_NOT_FOUND = "OL_E_HOF_TARGET_NOT_FOUND"` |
 | 定数 | `string MAP_NOT_FOUND = "OL_E_MAP_NOT_FOUND"` |
 | 定数 | `string NOT_FOUND = "OL_E_NOT_FOUND"` |
 | 定数 | `string REPAINT_NOT_FOUND = "OL_E_REPAINT_NOT_FOUND"` |
@@ -541,6 +649,8 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string PROCESS_WAIT_FAILED = "OL_E_PROCESS_WAIT_FAILED"` |
 | 定数 | `string CAMERA_PRESET_FAMILY_UNSUPPORTED = "OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED"` |
 | 定数 | `string DATE_TIME_APPLY_FAILED = "OL_E_DATE_TIME_APPLY_FAILED"` |
+| 定数 | `string WEATHER_INVALID = "OL_E_WEATHER_INVALID"` |
+| 定数 | `string WEATHER_APPLY_FAILED = "OL_E_WEATHER_APPLY_FAILED"` |
 | 定数 | `string MAKEVEHICLE_BUS_NOT_FOUND = "OL_E_MAKEVEHICLE_BUS_NOT_FOUND"` |
 | 定数 | `string MAKEVEHICLE_DELTA_MULTIPLE = "OL_E_MAKEVEHICLE_DELTA_MULTIPLE"` |
 | 定数 | `string MAKEVEHICLE_DELTA_ZERO = "OL_E_MAKEVEHICLE_DELTA_ZERO"` |
@@ -581,6 +691,7 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string RUNTIME_STRING_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND"` |
 | 定数 | `string RUNTIME_VALUE_INVALID = "OL_E_RUNTIME_VALUE_INVALID"` |
 | 定数 | `string RUNTIME_VALUE_OUT_OF_RANGE = "OL_E_RUNTIME_VALUE_OUT_OF_RANGE"` |
+| 定数 | `string RUNTIME_CURSOR_INVALID = "OL_E_RUNTIME_CURSOR_INVALID"` |
 | 定数 | `string RUNTIME_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_VARIABLE_NOT_FOUND"` |
 | 定数 | `string RUNTIME_VARIABLE_UNAVAILABLE = "OL_E_RUNTIME_VARIABLE_UNAVAILABLE"` |
 | 定数 | `string TIME_APPLY_FAILED = "OL_E_TIME_APPLY_FAILED"` |
@@ -606,6 +717,25 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string STARTUP_TIMEOUT = "OL_E_STARTUP_TIMEOUT"` |
 | 定数 | `string START_SESSION = "OL_E_START_SESSION"` |
 | 定数 | `string WORLD_START_FAILED = "OL_E_WORLD_START_FAILED"` |
+| 定数 | `string MODULE_MANIFEST_INVALID = "OL_E_MODULE_MANIFEST_INVALID"` |
+| 定数 | `string MODULE_NOT_FOUND = "OL_E_MODULE_NOT_FOUND"` |
+| 定数 | `string MODULE_INTEGRITY = "OL_E_MODULE_INTEGRITY"` |
+| 定数 | `string MODULE_PROTOCOL_UNSUPPORTED = "OL_E_MODULE_PROTOCOL_UNSUPPORTED"` |
+| 定数 | `string MODULE_CAPABILITY_UNRESOLVED = "OL_E_MODULE_CAPABILITY_UNRESOLVED"` |
+| 定数 | `string MODULE_CONTENT_BINDING = "OL_E_MODULE_CONTENT_BINDING"` |
+| 定数 | `string MODULE_COMPONENT_UNSUPPORTED = "OL_E_MODULE_COMPONENT_UNSUPPORTED"` |
+| 定数 | `string MODULE_LOAD_FAILED = "OL_E_MODULE_LOAD_FAILED"` |
+| 定数 | `string MODULE_PHASE_FAILED = "OL_E_MODULE_PHASE_FAILED"` |
+| 定数 | `string MODULE_PHASE_TIMEOUT = "OL_E_MODULE_PHASE_TIMEOUT"` |
+| 定数 | `string MODULE_DISABLED = "OL_E_MODULE_DISABLED"` |
+| 定数 | `string MODULE_NOT_LOADED = "OL_E_MODULE_NOT_LOADED"` |
+| 定数 | `string MODULE_OPERATION_UNKNOWN = "OL_E_MODULE_OPERATION_UNKNOWN"` |
+| 定数 | `string MODULE_OPERATION_FAILED = "OL_E_MODULE_OPERATION_FAILED"` |
+| 定数 | `string MODULE_CLEANUP_INCOMPLETE = "OL_E_MODULE_CLEANUP_INCOMPLETE"` |
+| 定数 | `string MODULE_SESSION_FAILED = "OL_E_MODULE_SESSION_FAILED"` |
+| 定数 | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
+| 定数 | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
+| 定数 | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
 | 定数 | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | 定数 | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | 定数 | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -625,7 +755,13 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string RESTORE_DEFERRED = "OL_E_RESTORE_DEFERRED"` |
 | 定数 | `string RESTORE_FAILED = "OL_E_RESTORE_FAILED"` |
 | 定数 | `string RESTORE_FOREIGN_FILE_RETAINED = "OL_W_RESTORE_FOREIGN_FILE_RETAINED"` |
+| 定数 | `string BUILD_UNRECOGNIZED = "OL_W_BUILD_UNRECOGNIZED"` |
+| 定数 | `string COOPERATIVE_SHUTDOWN_UNAVAILABLE = "OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE"` |
+| 定数 | `string CAPABILITY_PENDING = "OL_W_CAPABILITY_PENDING"` |
+| 定数 | `string MODULE_NOT_LOADED_WARNING = "OL_W_MODULE_NOT_LOADED"` |
+| 定数 | `string MODULE_SETTING_IGNORED = "OL_W_MODULE_SETTING_IGNORED"` |
 | static フィールド | `IReadOnlyList<PublicErrorDescriptor> All` |
+| static メソッド | `string FromMessage(string message)` |
 
 ### `PublicErrorDescriptor`
 
@@ -636,6 +772,19 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | コンストラクター | `PublicErrorDescriptor(string Code, string Category)` |
 | プロパティ | `string Code { get; init; }` |
 | プロパティ | `string Category { get; init; }` |
+
+### `PublicEvidence`
+
+static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 定数 | `string RuntimeValidated = "RUNTIME_VALIDATED"` |
+| 定数 | `string StaticallyValidated = "STATICALLY_VALIDATED"` |
+| 定数 | `string Partial = "PARTIAL"` |
+| 定数 | `string RuntimeValidationRequired = "RUNTIME_VALIDATION_REQUIRED"` |
+| 定数 | `string Unavailable = "UNAVAILABLE"` |
+| static フィールド | `IReadOnlyList<string> All` |
 
 ### `PublicExitCode`
 
@@ -653,6 +802,18 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | 値 | `OperationRejected = 7` |
 | 値 | `TransactionRecoveryFailed = 8` |
 | 値 | `InternalError = 10` |
+
+### `PublicMutationPolicy`
+
+static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 定数 | `string None = "none"` |
+| 定数 | `string OmsiState = "omsi-state"` |
+| 定数 | `string SessionResource = "session-resource"` |
+| 定数 | `string SessionPolicy = "session-policy"` |
+| static フィールド | `IReadOnlyList<string> All` |
 
 ### `PublicRuntimeArgumentDescriptor`
 
@@ -675,6 +836,20 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `bool Accepted { get; init; }` |
 | プロパティ | `string ErrorCode { get; init; }` |
 | プロパティ | `string Message { get; init; }` |
+
+### `PublicRuntimeOperation`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `PublicRuntimeOperation(string Id, string NativeCapability, IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments, IReadOnlyList<string> CliRoutes, bool Paged = false, string MutationPolicy = "none")` |
+| プロパティ | `string Id { get; init; }` |
+| プロパティ | `string NativeCapability { get; init; }` |
+| プロパティ | `IReadOnlyList<PublicRuntimeArgumentDescriptor> Arguments { get; init; }` |
+| プロパティ | `IReadOnlyList<string> CliRoutes { get; init; }` |
+| プロパティ | `bool Paged { get; init; }` |
+| プロパティ | `string MutationPolicy { get; init; }` |
 
 ### `RecoveryStatus`
 
@@ -733,11 +908,60 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data)` |
+| コンストラクター | `RuntimeEvent(string Type, DateTimeOffset TimestampUtc, long Sequence, IReadOnlyDictionary<string, string> Data, long? SessionTickMilliseconds = default)` |
 | プロパティ | `string Type { get; init; }` |
 | プロパティ | `DateTimeOffset TimestampUtc { get; init; }` |
 | プロパティ | `long Sequence { get; init; }` |
 | プロパティ | `IReadOnlyDictionary<string, string> Data { get; init; }` |
+| プロパティ | `long? SessionTickMilliseconds { get; init; }` |
+
+### `RuntimeModuleSettingSummary`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `RuntimeModuleSettingSummary(string Key, string Type, string Default, bool AllowsAuto = false, string Minimum = null, string Maximum = null, IReadOnlyList<string> Choices = null, string Flag = null, string Description = null)` |
+| プロパティ | `string Key { get; init; }` |
+| プロパティ | `string Type { get; init; }` |
+| プロパティ | `string Default { get; init; }` |
+| プロパティ | `bool AllowsAuto { get; init; }` |
+| プロパティ | `string Minimum { get; init; }` |
+| プロパティ | `string Maximum { get; init; }` |
+| プロパティ | `IReadOnlyList<string> Choices { get; init; }` |
+| プロパティ | `string Flag { get; init; }` |
+| プロパティ | `string Description { get; init; }` |
+
+### `RuntimeModuleSummary`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `RuntimeModuleSummary(string Id, string Version, string Name, string Activation, bool IsValid, IReadOnlyList<string> Operations, string ContentBindingMap = null, string ErrorCode = null, string ErrorMessage = null, IReadOnlyList<RuntimeModuleSettingSummary> Settings = null)` |
+| プロパティ | `string Id { get; init; }` |
+| プロパティ | `string Version { get; init; }` |
+| プロパティ | `string Name { get; init; }` |
+| プロパティ | `string Activation { get; init; }` |
+| プロパティ | `bool IsValid { get; init; }` |
+| プロパティ | `IReadOnlyList<string> Operations { get; init; }` |
+| プロパティ | `string ContentBindingMap { get; init; }` |
+| プロパティ | `string ErrorCode { get; init; }` |
+| プロパティ | `string ErrorMessage { get; init; }` |
+| プロパティ | `IReadOnlyList<RuntimeModuleSettingSummary> Settings { get; init; }` |
+
+### `RuntimeModulesSpec`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyList<string> Disable = null, IReadOnlyDictionary<string, string> Settings = null)` |
+| プロパティ | `IReadOnlyList<string> Enable { get; init; }` |
+| プロパティ | `IReadOnlyList<string> Disable { get; init; }` |
+| プロパティ | `IReadOnlyDictionary<string, string> Settings { get; init; }` |
+| プロパティ | `IReadOnlyList<string> EffectiveDisable { get; }` |
+| プロパティ | `IReadOnlyDictionary<string, string> EffectiveSettings { get; }` |
 
 ### `RuntimePlatformInfo`
 
@@ -799,7 +1023,7 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable)` |
+| コンストラクター | `SessionPlan(Guid SessionId, string BuildProfileId, LaunchSpec Spec, RuntimePlatformInfo Platform, IReadOnlyList<ContentIdentity> ResolvedContent, IReadOnlyList<string> TouchedFiles, IReadOnlyList<string> RuntimeArtifacts, IReadOnlyList<Capability> RequiredCapabilities, IReadOnlyList<Capability> UnsupportedRequestedFeatures, IReadOnlyList<PlannedMutation> PlannedMutations, IReadOnlyList<LaunchDiagnostic> Diagnostics, bool IsRunnable, IReadOnlyList<PlannedModule> PlannedModules = null)` |
 | プロパティ | `Guid SessionId { get; init; }` |
 | プロパティ | `string BuildProfileId { get; init; }` |
 | プロパティ | `LaunchSpec Spec { get; init; }` |
@@ -812,6 +1036,8 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `IReadOnlyList<PlannedMutation> PlannedMutations { get; init; }` |
 | プロパティ | `IReadOnlyList<LaunchDiagnostic> Diagnostics { get; init; }` |
 | プロパティ | `bool IsRunnable { get; init; }` |
+| プロパティ | `IReadOnlyList<PlannedModule> PlannedModules { get; init; }` |
+| プロパティ | `IReadOnlyList<PlannedModule> EffectivePlannedModules { get; }` |
 
 ### `SessionPresentationSpec`
 
@@ -840,6 +1066,35 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `int PresetIndex { get; init; }` |
 | プロパティ | `string PresetName { get; init; }` |
 | プロパティ | `string PackagePath { get; init; }` |
+
+### `SessionProfilePresetSummary`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `SessionProfilePresetSummary(int Index, string Id, string Name)` |
+| プロパティ | `int Index { get; init; }` |
+| プロパティ | `string Id { get; init; }` |
+| プロパティ | `string Name { get; init; }` |
+
+### `SessionProfileSummary`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `SessionProfileSummary(string Id, string Name, string Version, string Author, IReadOnlyList<string> CompatibleMaps, string MapIdentity, IReadOnlyList<SessionProfilePresetSummary> Presets, bool IsValid, string ErrorCode, string ErrorMessage)` |
+| プロパティ | `string Id { get; init; }` |
+| プロパティ | `string Name { get; init; }` |
+| プロパティ | `string Version { get; init; }` |
+| プロパティ | `string Author { get; init; }` |
+| プロパティ | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
+| プロパティ | `string MapIdentity { get; init; }` |
+| プロパティ | `IReadOnlyList<SessionProfilePresetSummary> Presets { get; init; }` |
+| プロパティ | `bool IsValid { get; init; }` |
+| プロパティ | `string ErrorCode { get; init; }` |
+| プロパティ | `string ErrorMessage { get; init; }` |
 
 ### `SessionState`
 
@@ -890,13 +1145,38 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | 値 | `Native = 0` |
 | 値 | `Managed = 1` |
 
+### `StartDateTime`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `StartDateTime(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)` |
+| プロパティ | `int? Year { get; init; }` |
+| プロパティ | `int? DayOfYear { get; init; }` |
+| プロパティ | `int? Hour { get; init; }` |
+| プロパティ | `int? Minute { get; init; }` |
+| プロパティ | `int? Second { get; init; }` |
+| プロパティ | `bool IsEmpty { get; }` |
+
+### `StartWeather`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `StartWeather(WeatherMode Mode, string Preset = "", string Icao = "")` |
+| プロパティ | `WeatherMode Mode { get; init; }` |
+| プロパティ | `string Preset { get; init; }` |
+| プロパティ | `string Icao { get; init; }` |
+
 ### `StartupHandoff`
 
 sealed record（`OmsiLaunch.Api`）。安定性: `INTERNAL`。セマンティクス: [public-api](public-api.md).
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "")` |
+| コンストラクター | `StartupHandoff(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity = "", string SituationIdentity = "", IReadOnlyList<StartupModule> Modules = null, bool PluginTrace = false, bool NativeTrace = false, StartDateTime Start = null, StartWeather Weather = null)` |
 | プロパティ | `Guid SessionId { get; init; }` |
 | プロパティ | `string BuildProfileId { get; init; }` |
 | プロパティ | `WorldMode WorldMode { get; init; }` |
@@ -908,6 +1188,11 @@ sealed record（`OmsiLaunch.Api`）。安定性: `INTERNAL`。セマンティク
 | プロパティ | `DateTimeMode TimeMode { get; init; }` |
 | プロパティ | `string EntrypointIdentity { get; init; }` |
 | プロパティ | `string SituationIdentity { get; init; }` |
+| プロパティ | `IReadOnlyList<StartupModule> Modules { get; init; }` |
+| プロパティ | `bool PluginTrace { get; init; }` |
+| プロパティ | `bool NativeTrace { get; init; }` |
+| プロパティ | `StartDateTime Start { get; init; }` |
+| プロパティ | `StartWeather Weather { get; init; }` |
 
 ### `StartupHandoffWire`
 
@@ -916,9 +1201,38 @@ static クラス（`OmsiLaunch.Api`）。安定性: `INTERNAL`。セマンティ
 | メンバー | シグネチャ |
 | --- | --- |
 | 定数 | `uint Magic = 1330402120` |
-| 定数 | `ushort Version = 4` |
+| 定数 | `ushort Version = 7` |
 | static メソッド | `byte[] Serialize(StartupHandoff value)` |
 | static メソッド | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
+
+### `StartupModule`
+
+sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| プロパティ | `string RelativeDirectory { get; init; }` |
+| プロパティ | `string ManifestSha256 { get; init; }` |
+| プロパティ | `string Settings { get; init; }` |
+
+### `TelemetryRingWire`
+
+static クラス（`OmsiLaunch.Api`）。安定性: `INTERNAL`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 定数 | `uint Magic = 1381256271` |
+| 定数 | `int Version = 1` |
+| 定数 | `int SlotCount = 64` |
+| 定数 | `int SlotSize = 2048` |
+| 定数 | `int HeaderSize = 64` |
+| 定数 | `int Capacity = 131136` |
+| 定数 | `int MaxPayload = 2036` |
+| static メソッド | `void Initialize(MemoryMappedViewAccessor view)` |
+| static メソッド | `bool IsRing(MemoryMappedViewAccessor view)` |
+| static メソッド | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long, long> ReadSince(MemoryMappedViewAccessor view, long after)` |
+| static メソッド | `bool Write(MemoryMappedViewAccessor view, byte[] payload)` |
 
 ### `TimeSpec`
 
@@ -989,6 +1303,15 @@ sealed record（`OmsiLaunch.Api`）。安定性: `PARTIAL`。セマンティク�
 
 ## `OmsiLaunch.Core`
 
+### `HofPlanningException`
+
+sealed クラス（`OmsiLaunch.Core`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| コンストラクター | `HofPlanningException(string code, string message)` |
+| プロパティ | `string Code { get; }` |
+
 ### `LaunchValidation`
 
 static クラス（`OmsiLaunch.Core`）。安定性: `INTERNAL`。セマンティクス: [public-api](public-api.md).
@@ -996,7 +1319,16 @@ static クラス（`OmsiLaunch.Core`）。安定性: `INTERNAL`。セマンテ�
 | メンバー | シグネチャ |
 | --- | --- |
 | static メソッド | `bool IsMapIdentity(string value)` |
+| static メソッド | `bool IsSha256(string value)` |
 | static メソッド | `IReadOnlyList<LaunchDiagnostic> Validate(LaunchSpec spec)` |
+
+### `ModuleDataStore`
+
+static クラス（`OmsiLaunch.Core`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| static メソッド | `bool Clear(string installationRoot, string moduleId)` |
 
 ### `OmsiLaunchRuntimePaths`
 
@@ -1021,6 +1353,8 @@ sealed クラス（`OmsiLaunch.Core`）。安定性: `STABLE_BETA`。セマン�
 | メソッド | `Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default)` |
+| メソッド | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| メソッド | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default)` |
 | メソッド | `Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default)` |
@@ -1048,7 +1382,7 @@ sealed record（`OmsiLaunch.Core`）。安定性: `EXPERIMENTAL`。セマンテ�
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior)` |
+| コンストラクター | `ProfilePreset(int Index, string Id, string Name, IReadOnlyDictionary<string, string> Settings, SessionPresentationSpec Presentation, InternetTexturesSpec InternetTextures, LaunchBehaviorSpec Behavior, IReadOnlyList<HofOperationSpec> Hofs, RuntimeModulesSpec Modules = null)` |
 | プロパティ | `int Index { get; init; }` |
 | プロパティ | `string Id { get; init; }` |
 | プロパティ | `string Name { get; init; }` |
@@ -1056,6 +1390,8 @@ sealed record（`OmsiLaunch.Core`）。安定性: `EXPERIMENTAL`。セマンテ�
 | プロパティ | `SessionPresentationSpec Presentation { get; init; }` |
 | プロパティ | `InternetTexturesSpec InternetTextures { get; init; }` |
 | プロパティ | `LaunchBehaviorSpec Behavior { get; init; }` |
+| プロパティ | `IReadOnlyList<HofOperationSpec> Hofs { get; init; }` |
+| プロパティ | `RuntimeModulesSpec Modules { get; init; }` |
 
 ### `SessionPlanner`
 
@@ -1074,8 +1410,11 @@ static クラス（`OmsiLaunch.Core`）。安定性: `EXPERIMENTAL`。セマン�
 | --- | --- |
 | 定数 | `string Schema = "omsilaunch.session-profile/v1"` |
 | 定数 | `long MaxBytes = 262144` |
+| 定数 | `int MinPresetIndex = 1` |
+| 定数 | `int MaxPresetIndex = 99` |
 | static フィールド | `IReadOnlyDictionary<string, IReadOnlyList<string>> SchemaKeys` |
 | static メソッド | `LaunchSpec Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` |
+| static メソッド | `IReadOnlyList<SessionProfileSummary> Discover(string installationRoot)` |
 | static メソッド | `SessionProfilePackage Load(string installationRoot, string id, int presetIndex)` |
 | static メソッド | `void ValidateCompatibility(SessionProfilePackage profile, string installationRoot, WorldSpec world, WorldMode mode)` |
 
@@ -1100,6 +1439,24 @@ sealed record（`OmsiLaunch.Core`）。安定性: `EXPERIMENTAL`。セマンテ�
 | プロパティ | `IReadOnlyList<string> CompatibleMaps { get; init; }` |
 | プロパティ | `ProfileNew New { get; init; }` |
 | プロパティ | `ProfilePreset Preset { get; init; }` |
+
+### `StartDateTimeResolver`
+
+static クラス（`OmsiLaunch.Core`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 定数 | `int MinimumYear = 1900` |
+| 定数 | `int MaximumYear = 2200` |
+| static メソッド | `StartDateTime Resolve(LaunchSpec spec, DateTime now, out string error)` |
+
+### `StartWeatherResolver`
+
+static クラス（`OmsiLaunch.Core`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| static メソッド | `StartWeather Resolve(LaunchSpec spec, out string error)` |
 
 ## `OmsiLaunch.Process`
 
@@ -1135,7 +1492,7 @@ sealed クラス（`OmsiLaunch.Process`）。安定性: `INTERNAL`。セマン�
 | プロパティ | `string Name { get; }` |
 | static メソッド | `CurrentTelemetryStore Create(Guid sessionId)` |
 | メソッド | `void Dispose()` |
-| メソッド | `ValueTuple<int, string>? ReadLatest()` |
+| メソッド | `ValueTuple<IReadOnlyList<ValueTuple<long, string>>, long> ReadNew()` |
 
 ### `CurrentWindowsX64Platform`
 
@@ -1196,6 +1553,22 @@ sealed クラス（`OmsiLaunch.Process`）。安定性: `INTERNAL`。セマン�
 | プロパティ | `int ThreadId { get; }` |
 | プロパティ | `ProcessIdentity Identity { get; }` |
 | メソッド | `void Dispose()` |
+
+### `ModuleSessionProcess`
+
+sealed クラス（`OmsiLaunch.Process`）。安定性: `STABLE_BETA`。セマンティクス: [public-api](public-api.md).
+
+| メンバー | シグネチャ |
+| --- | --- |
+| 定数 | `int MaxLineBytes = 65536` |
+| プロパティ | `int ProcessId { get; }` |
+| プロパティ | `bool HasExited { get; }` |
+| プロパティ | `int? ExitCode { get; }` |
+| メソッド | `void Dispose()` |
+| メソッド | `void Kill()` |
+| static メソッド | `ModuleSessionProcess Start(string executable, string workingDirectory, Guid sessionId, Action<string> onLine)` |
+| メソッド | `bool TryWriteLine(string line)` |
+| メソッド | `bool WaitForExit(TimeSpan timeout)` |
 
 ### `OmsiProcessState`
 

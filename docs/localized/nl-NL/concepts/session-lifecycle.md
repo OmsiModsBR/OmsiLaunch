@@ -1,7 +1,7 @@
 # Sessielevenscyclus
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../concepts/session-lifecycle.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../concepts/session-lifecycle.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina beschrijft hoe een OmsiLaunch-sessie via `SessionState` van `Created` naar `Completed` of `Failed` gaat: welk onderdeel elke toestand instelt, welke telemetrie-events van de plugin de overgangen aansturen, hoe de opstart-timeout werkt, wat stoppen betekent (geforceerde beëindiging), wat `WaitForAsync` retourneert, welke toestanden eindtoestanden zijn, welke toestanden nooit of nauwelijks waarneembaar zijn en welke garanties de CLI-eigenaar geeft. Alles hier is ontleend aan `OmsiLaunchService.StartAsync`, `SuperviseAsync` en `ApplyTelemetry` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), `PluginRuntime` (`src/OmsiLaunch.Plugin/PluginRuntime.cs`) en `OwnerSession` (`tools/OmsiLaunch.Cli/Program.cs`).
 
@@ -80,7 +80,7 @@ Bij het opnieuw plannen blijft de `SessionId` van de aanroeper behouden, zodat d
 
 De supervisor draait als taak in de threadpool en doorloopt elke 100 ms een lus totdat OMSI is afgesloten of een stop is aangevraagd:
 
-1. Het meest recente telemetriemonster lezen (een slot met alleen de laatste waarde en een producentvolgnummer; half geschreven monsters worden overgeslagen; identieke opeenvolgende events zijn verschillend omdat het volgnummer verschilt). Elk nieuw monster wordt aan `RuntimeEvents` toegevoegd en door `ApplyTelemetry` toegewezen.
+1. Elk telemetrie-event lezen dat de plugin sinds de laatste leesactie heeft vastgelegd, in volgorde (een eventring; een lezer die achterloopt krijgt `telemetry.lost` met het aantal). Elk event wordt aan `RuntimeEvents` toegevoegd en door `ApplyTelemetry` toegewezen.
 2. Als de sessie `Failed` is, wordt de lus verlaten.
 3. Als de sessie nog niet `Running` is en de deadline (`StartupTimeoutSeconds` na het binnengaan van de supervisor) is verstreken: `Fail` met `OL_E_STARTUP_TIMEOUT` als `PluginBootstrap` was bereikt, anders `OL_E_PLUGIN_NOT_LOADED`; de lus wordt verlaten.
 

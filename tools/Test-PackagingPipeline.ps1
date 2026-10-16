@@ -53,7 +53,15 @@ if ((Get-FileHash -LiteralPath (Join-Path $stage 'plugins\OmsiLaunch.Native.x86.
 if ($failures.Count -eq 0) { Pass 'candidate-coherent-from-clean-staging' }
 
 # 2. Integrity gate negative cases, each on a fresh copy of the staged closure.
+# An older Native.x86 build: the one of a previous release when this machine has one,
+# otherwise a stand-in (the candidate's own native with one byte changed), so the test
+# also runs on a clean clone and in CI.
 $oldNative = Join-Path $root 'artifacts\release\OmsiLaunch-current\plugins\OmsiLaunch.Native.x86.dll'
+if (-not (Test-Path -LiteralPath $oldNative)) {
+    $oldNative = Join-Path ([IO.Path]::GetTempPath()) ('omsilaunch-old-native-' + [Guid]::NewGuid().ToString('N') + '.dll')
+    $standIn = [IO.File]::ReadAllBytes((Join-Path $stage 'plugins\OmsiLaunch.Native.x86.dll')); $standIn[200] = $standIn[200] -bxor 1
+    [IO.File]::WriteAllBytes($oldNative, $standIn)
+}
 function Edit-Manifest([string] $Path, [scriptblock] $Change) {
     $manifestPath = Join-Path $Path 'release-manifest.json'
     $manifest = [IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json

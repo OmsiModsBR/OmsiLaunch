@@ -1,9 +1,9 @@
 # Referencia de la CLI
 
-<!-- l10n: source=reference/cli.md -->
-> Traducción de la [página original en inglés](../../../reference/cli.md) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
+<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+> Traducción de la [página original en inglés](../../../reference/cli.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si hay diferencias, prevalecen la página en inglés y el código.
 
-Esta página es la referencia completa y normativa de la línea de comandos de OmsiLaunch `0.1.0-beta3`: los tres archivos ejecutables, la gramática de argumentos, el orden de despacho, cada palabra de comando, cada ruta jerárquica, cada flag, los envoltorios de salida y el comportamiento ante errores de cada comando. Se genera a partir de `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` y los dos shims nativos de `tools\OmsiLaunch.Bootstrapper`. Los resultados del proceso se enumeran en [códigos de salida](exit-codes.md); los códigos de error, en [errores](errors.md); las invocaciones de ejemplo, en [ejemplos de la CLI](cli-examples.md).
+Esta página es la referencia completa y normativa de la línea de comandos de OmsiLaunch `0.1.0-beta4`: los tres archivos ejecutables, la gramática de argumentos, el orden de despacho, cada palabra de comando, cada ruta jerárquica, cada flag, los envoltorios de salida y el comportamiento ante errores de cada comando. Se genera a partir de `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` y los dos shims nativos de `tools\OmsiLaunch.Bootstrapper`. Los resultados del proceso se enumeran en [códigos de salida](exit-codes.md); los códigos de error, en [errores](errors.md); las invocaciones de ejemplo, en [ejemplos de la CLI](cli-examples.md).
 
 <a id="executables"></a>
 ## Archivos ejecutables
@@ -49,17 +49,17 @@ Consecuencias: una ruta jerárquica (`time get`) no se puede combinar con un arg
 ### Orden de despacho (`CliProgram.RunAsync`)
 
 1. `/silent` (cuando no se está ejecutando ya bajo `OmsiLaunchW.exe`): inicia `OmsiLaunchW.exe` desde el directorio del archivo ejecutable mediante `ShellExecute` (sin herencia de handles) con los mismos argumentos menos `/silent`/`--silent`, escribe el envoltorio `silent` (`delegated`, `host_process_id`) y devuelve `0`. El proceso de consola no espera a la sesión; consulte [OmsiLaunchW.exe](omsilaunchw.md#silent-delegation). `OL_E_WINDOWS_HOST_MISSING` / `OL_E_WINDOWS_HOST_START_FAILED` devuelven `7`.
-2. `/version`: envoltorio `version` con `product`, `version` (versión informativa del ensamblado, tomada de `OmsiLaunch.Version.props`, `0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family` (`OMSI_2_3_004_COMMON`); salida `0`.
-3. `capabilities`: envoltorio con cada descriptor `PublicStableBeta` o `PublicExperimental` de `PublicCapabilityRegistry`; salida `0`.
+2. `/version`: envoltorio `version` con `product`, `version` (versión informativa del ensamblado, tomada de `OmsiLaunch.Version.props`, `0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family` (`OMSI_2_3_004_COMMON`); salida `0`.
+3. `capabilities`: envoltorio con cada descriptor `PublicStableBeta` o `PublicExperimental` del catálogo canónico `PublicCapabilityRegistry` (con sus operaciones, capacidades nativas, evidencia y nota); salida `0`.
 4. `help [family]`: envoltorio `help` con `usage`, `product_version`, `protocol_version`, `family` y los `commands` públicos (`CliRoute`, `Description`, `Classification`, `RuntimeValidation`), opcionalmente filtrados por familia; salida `0`.
-5. `profiles`: envoltorio con `family` y las variantes de archivo ejecutable `supported` (`ALTERNATE_LAA` `692EBFBF...`, `runtime_validated=true`; el hash de Steam LAA `7DAB063D...` con `validation_status=pending_beta_field_validation`); salida `0`.
+5. `profiles`: envoltorio con `requirement` (`OMSI 2`), el informe `installation` de la raíz de destino (`is_omsi2`, `reason`, `build_id`, `identity` `known`/`unknown`, `file_sha256`, `file_version`, `code_sha256`, `file_variant`), los `known_layouts` y las `predicted_capabilities` resueltas a partir del archivo ejecutable (la resolución en el proceso al iniciar es la que prevalece); salida `0`.
 6. Operación de runtime del cliente (sin argumento de instalación y con una ruta o `/runtime:`): los argumentos se validan con `PublicCapabilityRegistry.ValidateRuntimeArguments` (`OL_E_RUNTIME_OPERATION_UNKNOWN`, `OL_E_RUNTIME_ARGUMENT_REQUIRED`, salida `2`), y luego se reenvía `runtime.execute` con un timeout de 8 s (30 s para `road-vehicles.spawn`).
 7. `session status` del cliente (750 ms), `session stop` (vinculado al id de la sesión activa, 750 ms), `events read` (750 ms), `events watch` (consulta cada 250 ms hasta Ctrl+C).
 8. `detect`, o **ningún argumento en absoluto** (sin instalación, sin comando, sin `/?`, sin `/spec`, sin flag de inicio, sin flag de recuperación, sin `/list`): enumera los procesos `Omsi` y sondea el endpoint de control (250 ms); envoltorio `detect`; salida `0`.
 9. `/?` o `/help`: imprime el texto de uso, salida `0`. Cualquier otra invocación que tenga una palabra de comando pero ninguna ruta despachable (por ejemplo, `d3d` sola o `session status D:\OMSI`) imprime el texto de uso y sale con `2`.
 10. Modo propietario. Precondiciones: `plugins\OmsiLaunch.Plugin.opl` y `plugins\OmsiLaunch.Native.x86.dll` deben existir junto al archivo ejecutable (`OL_E_RUNTIME_INSTALLATION_INCOMPLETE`, salida `7`). `release-manifest.json` junto al archivo ejecutable, cuando existe, proporciona los hashes esperados de los plugins.
 11. `/recovery-status` / `/recover`: `RecoverPendingAsync`; envoltorio `recover` con `pending`, `recovered`, `diagnostics`; salida `8` solo cuando se solicitó una restauración y no se completó; en caso contrario, `0`.
-12. `/list:<category>`: `DiscoverAsync`; envoltorio `content.list`; salida `0`.
+12. `/list:<category>`: `DiscoverAsync`; envoltorio `content.list`; salida `0`. `/list:SessionProfiles` usa en su lugar `ListSessionProfilesAsync`; envoltorio `session-profiles.list`.
 13. Construye el `LaunchSpec` (`BuildSpecAsync`), lo planifica (`PlanSessionAsync`) e imprime el plan. `/plan` o `/validate`: salida `0` si `IsRunnable`; si no, `1`. Un plan no ejecutable nunca inicia OMSI (salida `1`); bajo `OmsiLaunchW.exe`, un inicio con un plan no ejecutable muestra su último diagnóstico `OL_E_` en un cuadro de mensaje (auditoría de documentación BUG-06). La planificación también verifica el conjunto de plugins permanentes instalados contra `release-manifest.json`, de modo que un plugin faltante o alterado hace que el plan no sea ejecutable (`OL_E_PERMANENT_PLUGIN_*`).
 14. Sondea si ya existe un propietario (`OL_E_SESSION_ALREADY_ACTIVE`, salida `7`) y luego ejecuta `OwnerSession.RunAsync`.
 
@@ -91,14 +91,14 @@ Cada palabra aceptada en la primera posición (`CliInput.CommandWordsAccepted`):
 | `session` | `session status`, `session stop` | Cliente | Exactamente una palabra a continuación; cualquier otra cosa imprime el uso, salida `2`. `session plan`/`session start` son nombres de rutas de la API, no palabras de la CLI: use `/plan` y `/new`. |
 | `events` | `events read`, `events watch` | Cliente | `read` devuelve una vez la lista acotada de eventos; `watch` imprime cada evento nuevo (por `Sequence`) como un envoltorio `events.watch` cada 250 ms hasta Ctrl+C (salida `0`), `4` cuando ningún propietario responde, `7` ante un error de control. |
 | `time` | `time get`, `time set` | Ruta de cliente | |
-| `weather` | `weather get`, `weather set`, `weather actual get` | Ruta de cliente | |
+| `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Ruta de cliente | |
 | `map` | `map get` | Ruta de cliente | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Ruta de cliente | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Ruta de cliente | |
 | `player` | `player get` | Ruta de cliente | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Ruta de cliente | |
 | `timetable` | `timetable get`, `timetable <table> list`, `timetable logs list` | Ruta de cliente | |
-| `scripts` | `scripts variable list|get|set`, `scripts string list|get` | Ruta de cliente | |
+| `scripts` | `scripts variable list|get|set`, `scripts string list|get|set`, `scripts trigger`, `scripts sound-trigger` | Ruta de cliente | |
 | `constants` | `constants list`, `constants get` | Ruta de cliente | |
 | `curves` | `curves list`, `curves evaluate` | Ruta de cliente | |
 | `hof` | `hof get` | Ruta de cliente | |
@@ -116,7 +116,8 @@ Cada palabra aceptada en la primera posición (`CliInput.CommandWordsAccepted`):
 | `time get` | `time.read` | Read | Sí | No | Ninguna | STABLE_BETA | Campos de reloj y calendario. |
 | `time set` | `time.set` | Write | Sí | Sí (reloj en memoria) | Ninguna, no se revierte | EXPERIMENTAL | Por ejemplo, `--minute=<0..59>`; escritura, relectura y restauración validadas el 2026-09-20. |
 | `weather get` | `weather.read` | Read | Sí | No | Ninguna | STABLE_BETA | |
-| `weather set` | `weather.set` | Write | Sí | No (siempre se rechaza) | Ninguna | UNAVAILABLE | Devuelve `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; OMSI sobrescribe el valor en su siguiente ciclo de clima. |
+| `weather set` | `weather.set` | Write | Sí | Sí (clima en memoria) | Ninguna, no se revierte | EXPERIMENTAL | Por ejemplo `--wind_speed=5 --cloud_type="Cumulus 1"`. Clima manual: se detienen las actualizaciones de METAR en vivo. Validación en runtime pendiente. |
+| `weather metar set` | `weather.metar.set` | Write | Sí | Sí (clima en memoria; OMSI guarda el ICAO en `options.cfg`, que la sesión restaura) | Ninguna, no se revierte | EXPERIMENTAL | `--icao=<ICAO>`. Clima METAR en vivo, tal como lo establece el diálogo de clima de OMSI. Validación en runtime pendiente. |
 | `weather actual get` | `weather.actual.read` | Read | Sí | No | Ninguna | EXPERIMENTAL | Estado del controlador de clima real/ICAO. |
 | `map get` | `map.read` | Read | Sí | No | Ninguna | STABLE_BETA | Nombre del mapa, archivo, descripción, cantidad de tiles, rango de años y lado de circulación; revalidado en runtime con el slot de mapa corregido. |
 | `camera get` | `camera.read` | Read | Sí | No | Ninguna | STABLE_BETA | |
@@ -126,7 +127,7 @@ Cada palabra aceptada en la primera posición (`CliInput.CommandWordsAccepted`):
 | `vehicles list` | `road-vehicles.list` | Read | Sí | No | Ninguna | STABLE_BETA | Devuelve handles `rv-NNNNNN` con alcance de sesión. |
 | `vehicles get` | `road-vehicle.read` | Read | Sí | No | Ninguna | STABLE_BETA | Requiere `--handle=`. Handle obsoleto: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Sí | No | Ninguna | STABLE_BETA | Conteos y estado del jugador, sin handles. |
-| `vehicles spawn` | `road-vehicles.spawn` | Action | Sí | Sí (agrega un RoadVehicle) | Ninguna, no se elimina | EXPERIMENTAL | Requiere `--model=Vehicles\...\*.bus`. Timeout de 30 s en el cliente, 15 s en el propietario. No asigna el vehículo del jugador. RV-003 `RUNTIME_PASS`. |
+| `vehicles spawn` | `road-vehicles.spawn` | Action | Sí | Sí (agrega un RoadVehicle) | Ninguna, no se elimina | EXPERIMENTAL | Requiere `--model=Vehicles\...\*.bus`. Timeout de 30 s en el cliente, 15 s en el propietario. No asigna el vehículo del jugador. RV-003 `RUNTIME_VALIDATED`. |
 | `vehicles place-random` | `road-vehicles.place-random` | Action | Sí | Sí | Ninguna | EXPERIMENTAL | `PlaceRandomBus` perfilado. |
 | `player get` | `player-vehicle.read` | Read | Sí | No | Ninguna | STABLE_BETA | Null semántico cuando no hay vehículo del jugador. |
 | `humans list` | `humans.list` | Read | Sí | No | Ninguna | EXPERIMENTAL | Devuelve handles `hb-NNNNNN`. |
@@ -141,6 +142,8 @@ Cada palabra aceptada en la primera posición (`CliInput.CommandWordsAccepted`):
 | `timetable bus-stops list` | `timetable.bus-stops.list` | Read | Sí | No | Ninguna | STABLE_BETA | Igual que la anterior. |
 | `timetable station-links list` | `timetable.station-links.list` | Read | Sí | No | Ninguna | STABLE_BETA | Igual que la anterior. |
 | `timetable logs list` | `timetable.logs.read` | Read | Sí | No | Ninguna | STABLE_BETA | Igual que la anterior. |
+| `timetable no-rv-numbers list` | `timetable.no-rv-numbers.list` | Read | Sí | No | Ninguna | EXPERIMENTAL | Números de vehículo que OMSI mantiene fuera del uso libre de la IA (reservados por servicios de horario o por listas fijas de IA). Paginado (`cursor`, `limit`, como máximo 256 por página). |
+| `map tiles list` | `map.tiles.list` | Read | Sí | No | Ninguna | EXPERIMENTAL | Los tiles del mapa: posición en la cuadrícula, índice propio, archivo y estado de carga, y cantidad de objetos, rutas y splines. Paginado (`cursor`, `limit`, como máximo 256 por página). |
 | `drivers list` | `drivers.read` | Read | Sí | No | Ninguna | EXPERIMENTAL | Registros de conductores. |
 | `tickets get` | `tickets.read` | Read | Sí | No | Ninguna | EXPERIMENTAL | Registros de paquetes de boletos. |
 | `hof get` | `vehicle.hofs.read` | Read | Sí | No | Ninguna | STABLE_BETA | Requiere `--handle=`. |
@@ -153,6 +156,9 @@ Cada palabra aceptada en la primera posición (`CliInput.CommandWordsAccepted`):
 | `scripts variable set` | `vehicle.variable.set` | Write | Sí | Sí (variable de script) | Ninguna, no se revierte | EXPERIMENTAL | Requiere `--handle=`, `--name=`, `--value=` (número finito). |
 | `scripts string list` | `vehicle.string-variables.list` | Read | Sí | No | Ninguna | EXPERIMENTAL | Requiere `--handle=`. |
 | `scripts string get` | `vehicle.string-variable.get` | Read | Sí | No | Ninguna | EXPERIMENTAL | Requiere `--handle=`, `--name=`. |
+| `scripts string set` | `vehicle.string-variable.set` | Write | Sí | Sí (estado de script en memoria) | Ninguna, no se revierte | EXPERIMENTAL | Requiere `--handle=`, `--name=`, `--value=`. El `SetStringVariable` propio de OMSI. Validación en runtime pendiente. |
+| `scripts trigger` | `vehicle.trigger` | Action | Sí | Sí (ejecuta código de script del vehículo) | Ninguna, no se revierte | EXPERIMENTAL | Requiere `--handle=`, `--name=`, `--value=` (`1` presionar, `0` soltar, `2` arrastrar). Validación en runtime pendiente. |
+| `scripts sound-trigger` | `vehicle.sound-trigger` | Action | Sí | Sí (reproduce sonidos del vehículo) | Ninguna, no se revierte | EXPERIMENTAL | Requiere `--handle=`, `--trigger=`; opcional `--file=`. Validación en runtime pendiente. |
 
 <a id="operations-without-a-route"></a>
 ### Operaciones sin ruta
@@ -172,17 +178,17 @@ Cada flag de `CliInput.KnownFlags`. La "Fase" es *de inicio* (da forma al `Launc
 | `/help` | `/help` | desactivado | control | STABLE_BETA | Igual que `/?`. (La palabra suelta `help` devuelve en cambio el catálogo estructurado). |
 | `/version` | `/version` | desactivado | control | STABLE_BETA | Envoltorio `version`, salida `0`. Se evalúa antes que cualquier otro comando excepto `/silent`. |
 | `/json` | `/json` o `--json` | desactivado | control | STABLE_BETA | Emite envoltorios JSON; también fuerza la salida de consola incluso bajo `OmsiLaunchW.exe`. |
-| `/quiet` | `/quiet` | desactivado | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Establece `CliInput.Quiet`; nada lo lee. |
+| `/quiet` | `/quiet` | desactivado | control | STABLE_BETA | Suprime la salida de éxito legible para personas. La salida JSON (`/json`) y los errores se siguen escribiendo; el código de salida no cambia. |
 | `/silent` | `/silent` (también `--silent`) | desactivado | control | EXPERIMENTAL | Delega toda la línea de comandos a `OmsiLaunchW.exe` y devuelve `0` en cuanto se inició el proceso host. El resultado de la sesión lo informan `OmsiLaunchW.exe` (cuadros de mensaje, ícono de la bandeja), `.omsilaunch\diagnostics` y el endpoint de control local. La delegación y los diálogos de error están validados en runtime (cierre de runtime `T04`); consulte [OmsiLaunchW.exe](omsilaunchw.md). |
-| `/serve` | `/serve` | desactivado | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Establece `CliInput.Serve`; nada lo lee. Un propietario siempre inicia el endpoint de control. |
+| `/serve` | `/serve` | — | control | REMOVED | Eliminado en 0.1.0-beta4: se rechaza con `OL_E_INVALID_ARGUMENT` (código de salida `2`). El propietario de la sesión siempre sirve el endpoint de control local. |
 | `/verbose` | `/verbose` | desactivado | de inicio | PARTIAL | `DiagnosticsSpec.Verbose`. Los valores se transportan en el spec; su efecto se limita a la traza del host en `.omsilaunch\diagnostics`. |
 | `/log` | `/log` | activado (`DiagnosticsSpec.Log` es `true` por defecto) | de inicio | PARTIAL | `DiagnosticsSpec.Log`. En la práctica, siempre activado. |
 | `/logall` | `/logall` | desactivado | de inicio | PARTIAL | Establece `Verbose`, `ProcessTrace`, `PluginTrace` y `NativeTrace` a la vez. |
 | `/omsi-logall` | `/omsi-logall` | desactivado | de inicio | PARTIAL | `DiagnosticsSpec.OmsiLogAll`. |
 | `/trace` | `/trace` | desactivado | de inicio | PARTIAL | Alias de `/trace-process`. |
 | `/trace-process` | `/trace-process` | desactivado | de inicio | PARTIAL | `DiagnosticsSpec.ProcessTrace`. |
-| `/trace-plugin` | `/trace-plugin` | desactivado | de inicio | PARTIAL | `DiagnosticsSpec.PluginTrace`. |
-| `/trace-native` | `/trace-native` | desactivado | de inicio | PARTIAL | `DiagnosticsSpec.NativeTrace`. |
+| `/trace-plugin` | `/trace-plugin` | desactivado | de inicio | EXPERIMENTAL | `DiagnosticsSpec.PluginTrace`: el plugin informa cada operación de runtime (`plugin.trace.operation`: operación, resultado, código, duración) al trace del host de la sesión. |
+| `/trace-native` | `/trace-native` | desactivado | de inicio | EXPERIMENTAL | `DiagnosticsSpec.NativeTrace`: la capa nativa informa cada instalación y cada retiro de hook (`native.trace`) al trace del host de la sesión. |
 
 <a id="planning-validation-and-harnesses"></a>
 ### Planificación, validación y harnesses
@@ -204,35 +210,43 @@ Cada flag de `CliInput.KnownFlags`. La "Fase" es *de inicio* (da forma al `Launc
 |---|---|---|---|---|---|
 | `/new` | `/new` | `WorldMode.NewMap` es el modo por defecto, pero solo se solicita un inicio cuando está presente uno de `/new`, `/saved`, `/last`, `/spec` | de inicio | STABLE_BETA | NEW_MAP. Requiere `/map` y `/entrypoint-index` (un plan sin índice de punto de entrada presentado informa `OL_E_ENTRYPOINT_REQUIRED`; sin `/map` no se resuelve ningún mapa). `/new` nunca selecciona un mapa de forma implícita. |
 | `/saved` | `/saved:<file.osn>` | ninguno | de inicio | STABLE_BETA | SAVED_SITUATION. El mapa y la posición provienen del `.osn`; `/map`, `/entrypoint`, `/entrypoint-index` se rechazan con `/saved` (salida `2`). Situación inexistente: `OL_E_SITUATION_NOT_FOUND`; si falta su mapa: `OL_E_SITUATION_MAP_NOT_FOUND`. |
-| `/last` | `/last` | ninguno | de inicio | UNAVAILABLE | LAST_MAP_STATE. Siempre produce `OL_E_CAPABILITY_UNAVAILABLE` (no ejecutable, salida `1`) en este perfil; no se realiza ningún respaldo basado en la marca de tiempo de un `.osn`. |
+| `/last` | `/last /map:<identity>` | ninguno | de inicio | EXPERIMENTAL | LAST_MAP_STATE: carga el `laststn.osn` propio del mapa (escrito por OMSI cuando se cerró el mapa) a través de la rama de último estado del formulario Start. Requiere `/map`; un mapa sin `laststn.osn` produce `OL_E_SITUATION_NOT_FOUND`. Nunca una heurística del `.osn` más reciente. Validación en runtime pendiente. |
 | `/map` | `/map:<identity>` (por ejemplo, `maps\Grundorf\global.cfg`) | ninguno | de inicio | STABLE_BETA | Identidad del mapa para `/new`, o el alcance de `/list:Entrypoints`. Desconocido: `OL_E_MAP_NOT_FOUND`. |
-| `/entrypoint` | `/entrypoint:<identity>` | ninguno | de inicio | UNAVAILABLE | Punto de entrada por etiqueta. Bloqueado por gate: el plan registra `world.entrypoint-identity` como `RUNTIME_PARTIAL` y pasa a no ser ejecutable (`OL_E_CAPABILITY_UNAVAILABLE`). Mutuamente excluyente con `/entrypoint-index` (la identidad prevalece y borra el índice). |
+| `/entrypoint` | `/entrypoint:<identity>` | ninguno | de inicio | EXPERIMENTAL | Punto de entrada por su etiqueta exacta (distingue mayúsculas de minúsculas) o por una identidad de `/list:entrypoints`. OMSI presenta solo el primer registro de cada etiqueta; un registro posterior que la comparta se rechaza (`OL_E_ENTRYPOINT_NOT_PRESENTED`), igual que uno desconocido (`OL_E_ENTRYPOINT_NOT_FOUND`). Validación en runtime pendiente. Mutuamente excluyente con `/entrypoint-index` (la identidad prevalece y borra el índice). |
 | `/entrypoint-index` | `/entrypoint-index:<n>`, `0..2147483647` | ninguno | de inicio | STABLE_BETA | Índice del punto de entrada en la lista presentada (basado en 1, tal como lo presenta OMSI). Obligatorio para un plan NEW_MAP ejecutable. |
 
 <a id="date-time-and-weather"></a>
 ### Fecha, hora y clima
 
-Los cuatro se aceptan y se transportan al `LaunchSpec`, pero la ruta de inicio nativa no los aplica: el planificador los registra como `STATICALLY_PARTIAL` **y agrega `OL_E_CAPABILITY_UNAVAILABLE`, por lo que el plan NO ES EJECUTABLE (salida `1`)**. Un archivo `/spec` o un perfil de sesión que los establezca tiene el mismo efecto.
+Estos flags se aceptan y se transportan al `LaunchSpec`. La fecha, la hora y el año de inicio se aplican solo a las sesiones NEW_MAP: con `/saved` o `/last` el planificador los registra como `UNAVAILABLE` **y agrega `OL_E_CAPABILITY_UNAVAILABLE`, por lo que el plan NO ES EJECUTABLE (salida `1`)**, porque una situación guardada conserva su propio reloj. El clima se aplica en todos los modos de mundo. Todos son `EXPERIMENTAL`: la ruta de inicio nativa está cerrada estáticamente y la validación en runtime está pendiente. Un archivo `/spec` o un perfil de sesión que los establezca tiene el mismo efecto.
 
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
-| `/date` | `/date:<yyyy-mm-dd>` o `/date:system` | sin establecer | de inicio | UNAVAILABLE | `DateSpec` explícito/del sistema. Valor no analizable: `OL_E_INVALID_ARGUMENT`, salida `2`. |
-| `/time` | `/time:<hh:mm[:ss]>` o `/time:system` | sin establecer | de inicio | UNAVAILABLE | `TimeSpec` explícito/del sistema. |
-| `/year` | `/year:<n>` o `/year:system` | sin establecer | de inicio | UNAVAILABLE | `YearSpec`. |
-| `/weather` | `/weather:<preset>` | sin establecer | de inicio | UNAVAILABLE | `WeatherMode.Preset`. |
-| `/weather-icao` | `/weather-icao:<code>` | sin establecer | de inicio | UNAVAILABLE | `WeatherMode.Icao`. |
-| `/weather-real` | `/weather-real` | sin establecer | de inicio | UNAVAILABLE | `WeatherMode.RealCurrent`. Prevalece el último de `/weather`, `/weather-icao`, `/weather-real`. |
+| `/date` | `/date:<yyyy-mm-dd>` o `/date:system` | sin establecer | de inicio | EXPERIMENTAL | `DateSpec` explícito/del sistema: la fecha de inicio de una sesión NEW_MAP (consulte [launchspec](launchspec.md#datespec-timespec-yearspec)). Valor no analizable: `OL_E_INVALID_ARGUMENT`, salida `2`; una fecha imposible: `OL_E_DATE_TIME_APPLY_FAILED`. |
+| `/time` | `/time:<hh:mm[:ss]>` o `/time:system` | sin establecer | de inicio | EXPERIMENTAL | `TimeSpec` explícito/del sistema: la hora de inicio de una sesión NEW_MAP. |
+| `/year` | `/year:<n>` o `/year:system` | sin establecer | de inicio | EXPERIMENTAL | `YearSpec`: el año de inicio de una sesión NEW_MAP (1900..2200). |
+| `/weather` | `/weather:<preset>` | sin establecer | de inicio | EXPERIMENTAL | `WeatherMode.Preset`: un archivo de la carpeta `weather` de la instalación, por nombre (`Regen`) o ruta (`weather\Regen.owt`); uno inexistente produce `OL_E_WEATHER_INVALID` al planificar. Se carga con el `loadWeather` propio de OMSI justo después de que el mundo inicia; el METAR en vivo queda desactivado. Validación en runtime pendiente. |
+| `/weather-icao` | `/weather-icao:<code>` | sin establecer | de inicio | EXPERIMENTAL | `WeatherMode.Icao`: clima METAR en vivo para una estación ICAO de cuatro caracteres (de lo contrario, `OL_E_WEATHER_INVALID`). OMSI guarda la estación en `options.cfg`, que la sesión restaura. Validación en runtime pendiente. |
+| `/weather-real` | `/weather-real` | sin establecer | de inicio | EXPERIMENTAL | `WeatherMode.RealCurrent`: clima METAR en vivo para la estación que OMSI ya tiene configurada; sin una, el inicio falla con `OL_E_WEATHER_APPLY_FAILED`. Prevalece el último de `/weather`, `/weather-icao`, `/weather-real`. Cualquier clima de inicio sobrescribe el clima de una situación guardada. |
 
 <a id="player-vehicle"></a>
 ### Vehículo del jugador
 
-Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica: cada campo establecido es `STATICALLY_PARTIAL` y agrega `OL_E_CAPABILITY_UNAVAILABLE` (plan NO EJECUTABLE, salida `1`).
+Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica: cada campo establecido es `UNAVAILABLE` y agrega `OL_E_CAPABILITY_UNAVAILABLE` (plan NO EJECUTABLE, salida `1`).
 
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
 | `/vehicle` | `/vehicle:<identity>` (`Vehicles\...\*.bus`) | sin establecer | de inicio | UNAVAILABLE | Se resuelve primero (`OL_E_VEHICLE_NOT_FOUND` si es desconocido). |
 | `/repaint` | `/repaint:<id>` | sin establecer | de inicio | UNAVAILABLE | Solo se resuelve junto con `/vehicle` (`OL_E_REPAINT_NOT_FOUND`). |
 | `/hof` | `/hof:<id>` | sin establecer | de inicio | UNAVAILABLE | `OL_E_HOF_NOT_FOUND` si es desconocido. |
+| `/hof-source` | `/hof-source:<collection\|directory\|vehicle\|file>:<value>` | ninguno | de inicio | STABLE_BETA | Una operación de [gestión de HOF](hof-management.md) de la sesión: `HofSourceKind` y `Source`. Requiere al menos un `/hof-target`. Reemplaza el `HofManagement` de un `/spec`; con un preset de perfil de sesión que tenga `hofs`: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Mal formado: salida `2`. |
+| `/hof-target` | `/hof-target:<vehicle identity or folder>` (repetible) | ninguno | de inicio | STABLE_BETA | Un vehículo de destino bajo `Vehicles\`. Sin `/hof-source`: salida `2`. |
+| `/hof-file` | `/hof-file:<name.hof>` (repetible) | todos los archivos | de inicio | STABLE_BETA | Restringe el origen a estos nombres de archivo. Sin `/hof-source`: salida `2`. |
+| `/hof-mode` | `/hof-mode:add\|mirror` | `add` | de inicio | STABLE_BETA | `HofApplyMode`. Sin `/hof-source`: salida `2`. |
+| `/module` | `/module:<id>` (repetible) | ninguno | de inicio | EXPERIMENTAL | Solicita un [módulo de runtime](../../../reference/runtime-modules.md) para la sesión (`LaunchSpec.Modules.Enable`, se suma a los módulos de un archivo `/spec`). Un módulo solicitado que no puede cargarse hace que el plan no sea ejecutable con su código `OL_E_MODULE_*` (salida `1`). Sus operaciones se alcanzan con `/runtime:module.<id>.<operation>` y `/runtime-arg`. Con un preset de perfil de sesión que establece `enabled: false` para él: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
+| `/no-module` | `/no-module:<id>` (repetible) | ninguno | de inicio | EXPERIMENTAL | Mantiene un módulo fuera de la sesión, incluido uno cargado por defecto, por su mapa o por el archivo de ajustes (`LaunchSpec.Modules.Disable`). Con un preset que establece `enabled: true` para él: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Sin valor: salida `2`. |
+| `/module-setting` | `/module-setting:<module id>.<key>=<value>` (repetible) | ninguno | de inicio | EXPERIMENTAL | Establece un ajuste de módulo (`LaunchSpec.Modules.Settings`); prevalece sobre el archivo `/spec`, el archivo de ajustes y el valor por defecto. Una clave que el preset seleccionado también establece: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Que no sea `<id>.<key>=<value>`: salida `2`. Valor inválido o clave no declarada: diagnóstico del plan `OL_E_MODULE_SETTING_INVALID` (salida `1`). |
+| `/<module flag>` | `/<flag>:<value>`; `/<flag>` solo significa `true` para un ajuste booleano | ninguno | de inicio | EXPERIMENTAL | Un flag que un módulo instalado declara para uno de sus ajustes (`flag` en su manifiesto; se enumeran con `/list:RuntimeModules`). Se resuelve al planificar una sesión y equivale a `/module-setting:<id>.<key>=<value>`. Un flag que ningún módulo instalado declara, o uno usado fuera de un inicio: `Unknown argument`, salida `2`. Un flag declarado por dos módulos: `OL_E_MODULE_SETTING_INVALID`, salida `2`. Un flag de módulo nunca reemplaza un flag integrado. |
 | `/fleet` | `/fleet:<n>` | sin establecer | de inicio | UNAVAILABLE | Número de flota. |
 | `/registration` | `/registration:<text>` | sin establecer | de inicio | UNAVAILABLE | Placa (matrícula). |
 | `/no-vehicle` | `/no-vehicle` | desactivado | de inicio | STABLE_BETA | Borra cualquier vehículo del jugador de la base (`/spec` o perfil). Inofensivo. |
@@ -242,14 +256,14 @@ Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica:
 
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
-| `/set` | `/set:<key>=<value>` (repetible; las claves no distinguen mayúsculas de minúsculas) | ninguno | de inicio | STABLE_BETA | Overlay semántico de `options.cfg` a partir de `ConfigurationCatalog` (por ejemplo, `graphics.maxFPS=60`, `traffic.randomVehicles=150`). Clave desconocida: `OL_E_UNKNOWN_SETTING` (salida `2`); clave de solo lectura (`advanced.multithreadingCalculate`, `advanced.multithreadingTextureLoad`, `graphics.texture`, `graphics.textureFilter`): `OL_E_SETTING_NOT_WRITABLE` (salida `2`); valor fuera de rango o mal formado: `OL_E_INVALID_SETTING_VALUE` al construir el overlay. El overlay es una mutación de la sesión: se toma un snapshot, se aplica antes de que OMSI inicie y se restaura byte por byte en la detención (RV-005 `RUNTIME_PASS`). Conflicto con una clave de un preset del perfil seleccionado: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
+| `/set` | `/set:<key>=<value>` (repetible; las claves no distinguen mayúsculas de minúsculas) | ninguno | de inicio | STABLE_BETA | Overlay semántico de `options.cfg` a partir de `ConfigurationCatalog` (por ejemplo, `graphics.maxFPS=60`, `traffic.randomVehicles=150`). Clave desconocida: `OL_E_UNKNOWN_SETTING` (salida `2`); clave de solo lectura (`advanced.multithreadingCalculate`, `advanced.multithreadingTextureLoad`, `graphics.texture`, `graphics.textureFilter`): `OL_E_SETTING_NOT_WRITABLE` (salida `2`); valor fuera de rango o mal formado: `OL_E_INVALID_SETTING_VALUE` al construir el overlay. El overlay es una mutación de la sesión: se toma un snapshot, se aplica antes de que OMSI inicie y se restaura byte por byte en la detención (RV-005 `RUNTIME_VALIDATED`). Conflicto con una clave de un preset del perfil seleccionado: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
 
 <a id="splash-presentation"></a>
 ### Presentación del splash (pantalla de presentación)
 
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
-| `/splash` | `/splash:Managed`, `/splash:Native`, `/splash:Unset` (no distingue mayúsculas de minúsculas) | `Managed` | de inicio | STABLE_BETA | `Managed`: los BMP empaquetados de 640x480 y 24 bits se copian una vez a `<root>\.omsilaunch\assets\splash`, y `GUI\NewSplashscreen_ENG.bmp` más `GUI\NewSplashscreen_<lang>.bmp` se superponen de forma transaccional y se restauran exactamente (RV-006 `RUNTIME_PASS`). `Native`/`Unset` (alias): los archivos de OMSI no se modifican. Valor faltante: `/splash requires Unset, Native, or Managed`, salida `2`. |
+| `/splash` | `/splash:Managed`, `/splash:Native`, `/splash:Unset` (no distingue mayúsculas de minúsculas) | `Managed` | de inicio | STABLE_BETA | `Managed`: los BMP empaquetados de 640x480 y 24 bits se copian una vez a `<root>\.omsilaunch\assets\splash`, y `GUI\NewSplashscreen_ENG.bmp` más `GUI\NewSplashscreen_<lang>.bmp` se superponen de forma transaccional y se restauran exactamente (RV-006 `RUNTIME_VALIDATED`). `Native`/`Unset` (alias): los archivos de OMSI no se modifican. Valor faltante: `/splash requires Unset, Native, or Managed`, salida `2`. |
 | `/splash-language` | `/splash-language:PTB|ENG|DEU|FRA` (también `pt-BR`, `de`, `fr`, `en`; cualquier otro valor recurre a `ENG`) | `[language]` de `options.cfg`; si no, `ENG` | de inicio | STABLE_BETA | Selecciona el archivo de destino localizado. |
 | `/splash-assets` | `/splash-assets:<directory>` (las rutas relativas se resuelven dentro de la raíz de la instalación) | `<root>\.omsilaunch\assets\splash`; si no, el conjunto empaquetado | de inicio | STABLE_BETA | Directorio de assets personalizado; debe contener `ENG.bmp` y, para un idioma distinto del inglés, `<lang>.bmp`. Errores: `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`, `OL_E_SPLASH_ASSET_MISSING`, `OL_E_SPLASH_FORMAT_UNSUPPORTED` (se presentan como `OL_E_SESSION_PRESENTATION_INVALID` en el plan; no ejecutable). |
 
@@ -266,7 +280,7 @@ Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica:
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
 | `/predefined-profile` | `/predefined-profile:<id>` | ninguno | de inicio | STABLE_BETA (compilación; `OmsiLaunch.ProfileTests` offline) | Carga `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` (consulte [perfiles de sesión](session-profiles.md)). Requiere `/predefined-profile-index` (`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`, salida `2`). El bloque `new:` solo se aplica con `/new`; `compatibility.maps` se exige para `/new` y `/saved` (`OL_E_SESSION_PROFILE_MAP_MISMATCH`). Los flags explícitos que chocan con un campo propiedad del perfil se rechazan con `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (`CliInput.RejectProfileConflicts`): mapa/punto de entrada/fecha/hora/año/clima cuando el bloque `new:` los define, claves de `/set` definidas por el preset, flags de splash cuando el preset tiene `presentation`, flags de Internet Textures cuando tiene `internet-textures`, timeouts cuando tiene `behavior`. |
-| `/predefined-profile-index` | `/predefined-profile-index:<1..5>` | ninguno | de inicio | STABLE_BETA | Selecciona el preset por `index`. Fuera de rango: salida `2`. |
+| `/predefined-profile-index` | `/predefined-profile-index:<1..99>` | ninguno | de inicio | STABLE_BETA | Selecciona el preset por `index`. Fuera de rango: salida `2`. |
 
 <a id="launchspec-file"></a>
 ### Archivo LaunchSpec
@@ -282,7 +296,7 @@ Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica:
 
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
-| `/list` | `/list:<category>`; las categorías son los valores de `ContentQueryKind` `Maps`, `Situations`, `Vehicles`, `Repaints`, `Hofs`, `FleetNumbers`, `Registrations`, `Addons`, `Entrypoints` (no distinguen mayúsculas de minúsculas) | ninguno | local, sin sesión | STABLE_BETA | `DiscoverAsync` sobre la instalación; envoltorio `content.list` con entradas `Identity`, `Kind`, `DisplayName`; salida `0`. Categoría desconocida: `Unknown discovery category`, salida `2`. Los puntos de reanálisis (junctions/symlinks) se omiten; los archivos de OMSI se leen como Windows-1252. |
+| `/list` | `/list:<category>`; las categorías son los valores de `ContentQueryKind` `Maps`, `Situations`, `Vehicles`, `Repaints`, `Hofs`, `FleetNumbers`, `Registrations`, `Addons`, `Entrypoints`, `SessionProfiles`, `RuntimeModules` (no distinguen mayúsculas de minúsculas) | ninguno | local, sin sesión | STABLE_BETA | `DiscoverAsync` sobre la instalación; envoltorio `content.list` con entradas `Identity`, `Kind`, `DisplayName`; salida `0`. `SessionProfiles` responde con `ListSessionProfilesAsync` (envoltorio `session-profiles.list`) y `RuntimeModules` con `ListRuntimeModulesAsync` (envoltorio `runtime-modules.list`: id, versión, activación, operaciones y validez de cada módulo, y sus ajustes con tipo, valor por defecto y flag). Categoría desconocida: `Unknown discovery category`, salida `2`. Los puntos de reanálisis (junctions/symlinks) se omiten; los archivos de OMSI se leen como Windows-1252. |
 | `/vehicle-scope` | `/vehicle-scope:<vehicle identity>` | ninguno | local | STABLE_BETA | Alcance que se reenvía para todas las categorías excepto `Entrypoints`, que usa `/map` como alcance. |
 
 <a id="timeouts-and-observation"></a>
@@ -291,7 +305,8 @@ Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica:
 | Flag | Sintaxis y valores | Valor por defecto | Fase | Estabilidad | Comportamiento |
 |---|---|---|---|---|---|
 | `/startup-timeout` | `/startup-timeout:<1..600>` segundos | valor del spec/perfil; si no, `180` | de inicio | STABLE_BETA | `Behavior.StartupTimeoutSeconds`. El propietario espera `Running` durante este valor más 5 s; `OL_E_STARTUP_TIMEOUT` termina la sesión con salida `1`. |
-| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` segundos | valor del spec/perfil; si no, `30` | de inicio | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Se transporta a `Behavior.ShutdownTimeoutSeconds`; el supervisor no lo usa en este build (OMSI se termina, no se le pide que se cierre). |
+| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` segundos | valor del spec/perfil; si no, `30` | de inicio | EXPERIMENTAL | `Behavior.ShutdownTimeoutSeconds`: con `/cooperative-shutdown`, cuánto espera el supervisor a que OMSI se cierre antes de terminarlo; sin él, OMSI se termina de inmediato y el valor no tiene efecto. |
+| `/cooperative-shutdown` | `/cooperative-shutdown` | desactivado | de inicio | EXPERIMENTAL | `Behavior.CooperativeShutdown`: al finalizar una sesión en ejecución se le pide a OMSI que se cierre mediante su propia rutina de salida (la que se ejecuta después de que un usuario confirma que quiere salir: guarda `options.cfg` y el `laststn.osn` del mapa, y luego se cierra) y se esperan `ShutdownTimeoutSeconds` antes de terminarlo. Opcional (opt-in) hasta que se valide en runtime; `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE` cuando hubo que terminar OMSI. Los archivos de la sesión se restauran de todos modos después de la salida. |
 | `/observe-seconds` | `/observe-seconds:<0..2147483647>` | ninguno (se ejecuta hasta que OMSI termina o se solicita una detención) | de runtime (propietario) | STABLE_BETA | Límite superior de la fase de ejecución: después de `n` segundos en `Running` se solicita la detención canónica. Una detención desde la bandeja o por pipe, o la terminación de OMSI, la finaliza antes. `0` detiene inmediatamente después de `Running`. |
 
 <a id="recovery"></a>
@@ -301,6 +316,7 @@ Se aceptan y se resuelven contra la instalación, pero el runtime no los aplica:
 |---|---|---|---|---|---|
 | `/recovery-status` | `/recovery-status` | desactivado | local | STABLE_BETA | Informa si `<root>\.omsilaunch\journal.json` está pendiente (`pending`); nunca restaura; salida `0`. Toma el lease de la instalación: `OL_E_INSTALLATION_BUSY` (salida `7`) mientras un propietario lo mantiene. |
 | `/recover` | `/recover` | desactivado | local | STABLE_BETA | Restaura un journal pendiente (antes se verifican las copias de seguridad contra el SHA-256 del snapshot; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` se informan en `diagnostics`). Salida `0` cuando no había nada pendiente o la restauración se completó; `8` cuando había un journal pendiente y sigue pendiente. Se rechaza con `OL_E_INSTALLATION_BUSY` mientras siga activo el proceso de OMSI registrado en el journal (PID, hora de creación, ruta del archivo ejecutable) o, para un journal posterior a `HandoffCreated` sin PID, cualquier `Omsi.exe` de esa raíz. Cada inicio de sesión realiza automáticamente la misma recuperación antes de leer la instalación. |
+| `/clear-module-data` | `/clear-module-data:<module id>` | ninguno | local, sin sesión | EXPERIMENTAL | Elimina el directorio de datos del módulo `<root>\.omsilaunch\module-data\<id>` y nada más; envoltorio `module-data.clear` con `module` y `cleared` (`false` cuando no había nada que eliminar); salida `0`. Toma el lease de la instalación: `OL_E_INSTALLATION_BUSY` (salida `7`) mientras una sesión posea la instalación. Una carpeta de datos de módulo alcanzada a través de un enlace se rechaza (`OL_E_MODULE_INTEGRITY`); un enlace dentro de ella se elimina como enlace. |
 
 <a id="output-formats"></a>
 ## Formatos de salida

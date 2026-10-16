@@ -1,7 +1,7 @@
 # Ciclo de vida de la sesión
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> Traducción de la [página original en inglés](../../../concepts/session-lifecycle.md) de OmsiLaunch 0.1.0-beta3. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> Traducción de la [página original en inglés](../../../concepts/session-lifecycle.md) de OmsiLaunch 0.1.0-beta4. La página en inglés es la referencia normativa: si difieren, prevalecen la página en inglés y el código.
 
 Esta página describe cómo avanza una sesión de OmsiLaunch por `SessionState` desde `Created` hasta `Completed` o `Failed`: qué componente establece cada estado, qué eventos de telemetría del plugin impulsan las transiciones, cómo funciona el timeout de arranque, qué significa detener (terminación forzada), qué devuelve `WaitForAsync`, qué estados son terminales, qué estados no son observables nunca o casi nunca, y qué garantías ofrece el propietario de la CLI. Todo lo que aquí figura procede de `OmsiLaunchService.StartAsync`, `SuperviseAsync` y `ApplyTelemetry` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), `PluginRuntime` (`src/OmsiLaunch.Plugin/PluginRuntime.cs`) y `OwnerSession` (`tools/OmsiLaunch.Cli/Program.cs`).
 
@@ -80,7 +80,7 @@ La nueva planificación conserva el `SessionId` del llamador, por lo que el id d
 
 El supervisor se ejecuta en una tarea del grupo de threads y repite un bucle cada 100 ms hasta que OMSI ha terminado o se ha solicitado una detención:
 
-1. Se lee la última muestra de telemetría (un slot de último valor con una secuencia del productor; las muestras incoherentes se omiten; los eventos consecutivos idénticos son distintos porque la secuencia difiere). Cada muestra nueva se añade a `RuntimeEvents` y se mapea mediante `ApplyTelemetry`.
+1. Se lee cada evento de telemetría que el plugin ha confirmado desde la última lectura, en orden (un anillo de eventos; un lector que se ha quedado atrás recibe `telemetry.lost` con el recuento). Cada evento se añade a `RuntimeEvents` y se mapea mediante `ApplyTelemetry`.
 2. Si la sesión está en `Failed`, se sale del bucle.
 3. Si la sesión todavía no está en `Running` y ha vencido el plazo (`StartupTimeoutSeconds` desde la entrada en el supervisor): `Fail` con `OL_E_STARTUP_TIMEOUT` si se llegó a `PluginBootstrap`; en caso contrario, `OL_E_PLUGIN_NOT_LOADED`; se sale del bucle.
 

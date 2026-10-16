@@ -1,9 +1,9 @@
 # Установка
 
-<!-- l10n: source=getting-started/installation.md -->
-> Перевод [исходной страницы на английском языке](../../../getting-started/installation.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=getting-started/installation.md source-sha256=a547bd23c9342584c75eb8f54ddbc7a43478458dd0863949b72893826df2e136 -->
+> Перевод [исходной страницы на английском языке](../../../getting-started/installation.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-На этой странице описано, что требуется для OmsiLaunch `0.1.0-beta3`, какую сборку OMSI он поддерживает, как релизный пакет устанавливается в корневой каталог установки OMSI и как проверить установку с помощью `/version` и `/plan` перед запуском сеанса. Состав пакета описан в разделе [упаковка](../reference/packaging.md); первый запуск описан на странице [первый сеанс](first-session.md).
+На этой странице описано, что требуется для OmsiLaunch `0.1.0-beta4`, какую сборку OMSI он поддерживает, как релизный пакет устанавливается в корневой каталог установки OMSI и как проверить установку с помощью `/version` и `/plan` перед запуском сеанса. Состав пакета описан в разделе [упаковка](../reference/packaging.md); первый запуск описан на странице [первый сеанс](first-session.md).
 
 <a id="requirements"></a>
 ## Требования
@@ -13,7 +13,7 @@
 | Windows 10 или новее, 64-разрядная | Контроллер проверяет `Environment.OSVersion.Version.Major >= 10`, 64-разрядную (x64) операционную систему и x64-процесс. | План неисполним с `OL_E_UNSUPPORTED_OPERATING_SYSTEM` (или `OL_E_UNSUPPORTED_OS_ARCHITECTURE`), код выхода `1`/`3`. |
 | .NET 6 Desktop Runtime, **x64** | `OmsiLaunch.Controller.runtimeconfig.json` требует `Microsoft.NETCore.App` 6.0 и `Microsoft.WindowsDesktop.App` 6.0 (индикатор в трее использует Windows Forms). Shim-загрузчики находят среду выполнения с помощью `nethost.dll`. | `OmsiLaunch.exe` завершается с кодом shim-загрузчика `102`..`106` до какого-либо вывода; `OmsiLaunchW.exe` показывает `OmsiLaunch could not start the .NET host (code N).` |
 | .NET 6 Runtime, **x86** | `plugins\OmsiLaunch.Plugin.runtimeconfig.json` требует `Microsoft.NETCore.App` 6.0 для x86, потому что плагин работает внутри 32-разрядного `Omsi.exe`. Это требование также удовлетворяет пакет x86 .NET 6 Desktop Runtime. | Плагин не запускается внутри OMSI; сеанс не достигает состояния `Running` (`OL_E_PLUGIN_NOT_LOADED` / `OL_E_STARTUP_TIMEOUT`), код выхода `1`, файлы восстановлены. |
-| Поддерживаемая сборка OMSI 2 | `Omsi.exe` с SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (8 503 440 байт), профиль `Omsi23004_692EBFBF`, проверено в runtime. Исполняемый файл Steam LAA `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` принимается, но его статус проверки — `pending_beta_field_validation`. Хеш повторно проверяется при каждом планировании и при каждом запуске. | `OL_E_UNSUPPORTED_BUILD`; план неисполним, код выхода `1`. См. [совместимость](../reference/compatibility.md). |
+| Установленная OMSI 2 | 32-разрядный `Omsi.exe` с версией OMSI 2 (2.x), а также `maps\` и `Vehicles\` в корневом каталоге. Конкретный хеш исполняемого файла не требуется; OMSI 2.3.004 — известная раскладка, проверенная в runtime, а на других сборках каждая возможность определяется и проверяется в процессе. | `OL_E_UNSUPPORTED_BUILD`; план неисполним, код выхода `1`. Возможность, недоступная на сборке, завершается с `OL_E_CAPABILITY_UNRESOLVED`. См. [совместимость](../reference/compatibility.md). |
 | Корневой каталог установки доступен для записи | Транзакция записывает `.omsilaunch\`, overlay (временная замена файла на время сеанса) в `GUI\`, `Texture\` и `options.cfg` и затем восстанавливает их; корневой каталог должен быть доступен для записи текущему пользователю (избегайте `Program Files` без соответствующих прав). | `OL_E_INSTALLATION_NOT_WRITABLE`, код выхода `1`. |
 | Один пользователь, один владелец на установку | Аренда установки (lease) `Local\OmsiLaunch.Installation.<sha256(root)>` и управляющий канал (pipe) действуют в пределах сеанса входа в систему. | `OL_E_INSTALLATION_BUSY` / `OL_E_SESSION_ALREADY_ACTIVE`, код выхода `7`. |
 
@@ -34,7 +34,7 @@ Get-FileHash '<OMSI_PATH>\Omsi.exe' -Algorithm SHA256
 <a id="install-the-package"></a>
 ## Установка пакета
 
-1. Загрузите `OmsiLaunch-0.1.0-beta3.zip` и `OmsiLaunch-0.1.0-beta3.zip.sha256`; проверьте контрольную сумму (результат `Get-FileHash` должен совпадать со значением в файле `.sha256`).
+1. Загрузите `OmsiLaunch-0.1.0-beta4.zip` и `OmsiLaunch-0.1.0-beta4.zip.sha256`; проверьте контрольную сумму (результат `Get-FileHash` должен совпадать со значением в файле `.sha256`).
 2. Распакуйте архив **непосредственно в корневой каталог установки OMSI** (каталог, в котором находится `Omsi.exe`). Структура архива рассчитана на этот корневой каталог:
    - `OmsiLaunch.exe`, `OmsiLaunchW.exe`, `nethost.dll`, `OmsiLaunch.Controller.dll` и остальные сборки контроллера `OmsiLaunch.*.dll`, `YamlDotNet.dll`, `release-manifest.json`, `LICENSE`, `THIRD-PARTY-NOTICES.md` — в корне;
    - замыкание постоянного плагина (набор его файлов) `plugins\OmsiLaunch.*` (9 файлов) — рядом с уже установленными плагинами, которые никогда не затрагиваются;
@@ -52,7 +52,7 @@ Get-FileHash '<OMSI_PATH>\Omsi.exe' -Algorithm SHA256
 ```text
 OmsiLaunch.exe /version
 ```
-Ожидаемый результат: `"version": "0.1.0-beta3"`, `"protocol_version": "0.1"`, `"supported_family": "OMSI_2_3_004_COMMON"`; код выхода `0`. Код выхода `102`..`106` означает, что отсутствует x64-среда выполнения .NET 6 или пакет неполон.
+Ожидаемый результат: `"version": "0.1.0-beta4"`, `"protocol_version": "0.1"`, `"supported_family": "OMSI_2"`; код выхода `0`. Код выхода `102`..`106` означает, что отсутствует x64-среда выполнения .NET 6 или пакет неполон.
 
 ```text
 OmsiLaunch.exe profiles
@@ -63,7 +63,7 @@ OmsiLaunch.exe /list:Maps
 ```text
 OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /plan
 ```
-Ожидаемый результат: `Plan: READY profile=Omsi23004_692EBFBF` и код выхода `0` (можно использовать любой идентификатор карты из `/list:Maps`; индекс точки входа должен быть одним из индексов, которые предоставляет эта карта, см. `/list:Entrypoints /map:<identity>`). С `--json` план содержит `TouchedFiles` (overlay заставки), `PlannedMutations`, `RequiredCapabilities` (все со статусом `STATICALLY_VALIDATED`), `Diagnostics` (включая `plugin.integrity.reference`) и `IsRunnable`. При `Plan: NOT RUNNABLE` с кодом выхода `1` причина указана в `Diagnostics` (`OL_E_UNSUPPORTED_BUILD`, `OL_E_MAP_NOT_FOUND`, `OL_E_ENTRYPOINT_REQUIRED`, `OL_E_RUNTIME_ARTIFACT_MISSING`, ...). Планирование никогда не запускает OMSI и никогда не записывает в установку.
+Ожидаемый результат: `Plan: READY profile=Omsi23004` (на известной раскладке; в остальных случаях `unrecognized`) и код выхода `0` (можно использовать любой идентификатор карты из `/list:Maps`; индекс точки входа должен быть одним из индексов, которые предоставляет эта карта, см. `/list:Entrypoints /map:<identity>`). С `--json` план содержит `TouchedFiles` (overlay заставки), `PlannedMutations`, `RequiredCapabilities` (`STATICALLY_VALIDATED`, а для нативных возможностей запуска на известной раскладке — `RESOLVED_KNOWN_LAYOUT`), `Diagnostics` (включая `plugin.integrity.reference`) и `IsRunnable`. При `Plan: NOT RUNNABLE` с кодом выхода `1` причина указана в `Diagnostics` (`OL_E_UNSUPPORTED_BUILD`, `OL_E_MAP_NOT_FOUND`, `OL_E_ENTRYPOINT_REQUIRED`, `OL_E_RUNTIME_ARTIFACT_MISSING`, ...). Планирование никогда не запускает OMSI и никогда не записывает в установку.
 
 <a id="where-things-live-afterwards"></a>
 ## Что где находится после установки

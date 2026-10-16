@@ -1,9 +1,9 @@
 # Dokumentacja OmsiLaunch
 
-<!-- l10n: source=README.md -->
-> Tłumaczenie [oryginalnej strony w języku angielskim](../../README.md) dla OmsiLaunch 0.1.0-beta3. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> Tłumaczenie [oryginalnej strony w języku angielskim](../../README.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
-To jest normatywna angielska dokumentacja OmsiLaunch `0.1.0-beta3`, stanu bazowego po etapie utwardzania (post-hardening). OmsiLaunch zapewnia programowalne uruchamianie, własność sesji i sterowanie w czasie działania (runtime) dla dokładnie jednego buildu OMSI 2, profilu `Omsi23004_692EBFBF`. Każda strona w `docs/` opisuje, co robi bieżący kod; gdy strona i kod są niezgodne, rozstrzyga kod, a strona zawiera błąd.
+To jest normatywna angielska dokumentacja OmsiLaunch `0.1.0-beta4`, stanu bazowego po etapie utwardzania (post-hardening). OmsiLaunch zapewnia programowalne uruchamianie, własność sesji i sterowanie w czasie działania (runtime) dla zainstalowanego OMSI 2; każda możliwość natywna jest rozwiązywana i weryfikowana osobno dla danego buildu (zob. [zgodność](reference/compatibility.md)). Każda strona w `docs/` opisuje, co robi bieżący kod; gdy strona i kod są niezgodne, rozstrzyga kod, a strona zawiera błąd.
 
 Słownictwo stabilności używane w całej dokumentacji: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`,
 `INTERNAL`, `UNAVAILABLE`. Flagi, które są parsowane, ale niczego nie robią, są oznaczone jako
@@ -30,6 +30,8 @@ Słownictwo stabilności używane w całej dokumentacji: `STABLE_BETA`, `EXPERIM
 | [Dokumentacja CLI](reference/cli.md) | Każda flaga, słowo polecenia i hierarchiczna ścieżka polecenia `OmsiLaunch.exe` / `OmsiLaunchW.exe`. |
 | [Przykłady CLI](reference/cli-examples.md) | Wiersze poleceń do skopiowania dla typowych zadań. |
 | [Dokumentacja LaunchSpec](reference/launchspec.md) | Każda właściwość `LaunchSpec` i wartość wyliczenia, reguły wczytywania JSON dla `/spec`. |
+| [Zarządzanie HOF](reference/hof-management.md) | Kopiowanie HOF w zakresie sesji i jego powielanie do katalogów pojazdów: źródła, cele, konflikty, przywracanie. |
+| [Moduły runtime](../../reference/runtime-modules.md) | Moduły działające wewnątrz OMSI razem z sesją: manifest, zaufanie, cykl życia, polityki awarii, operacje. |
 | [Dokumentacja profili sesji](reference/session-profiles.md) | Schemat `profile.yaml` `omsilaunch.session-profile/v1`, klucze, limity, pierwszeństwo. |
 | [Dokumentacja publicznego API](reference/public-api.md) | `IOmsiLaunch`, publiczne rekordy i wyliczenia, stabilność każdej składowej. |
 | [Inwentarz publicznego API](reference/public-api-inventory.md) | Wygenerowana lista każdego publicznego typu i składowej wraz z sygnaturą i stabilnością. |
@@ -48,14 +50,15 @@ Słownictwo stabilności używane w całej dokumentacji: `STABLE_BETA`, `EXPERIM
 | [Znane ograniczenia](reference/known-limitations.md) | Co w tej becie jest nieobsługiwane, częściowe lub stanowi zaakceptowane ryzyko. |
 | [Stan weryfikacji runtime](status/runtime-validation-status.md) | Co zostało uruchomione pod OMSI, co działało tylko offline, co nadal wymaga prawdziwej sesji. |
 
-Strony w katalogu głównym repozytorium, które pozostają normatywne dla opiekunów:
-[`README.md`](../../../README.md), [`PUBLIC-API.md`](../../../PUBLIC-API.md),
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md),
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md),
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md),
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md),
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md),
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md). Stanowią one podsumowanie; szczegółową dokumentacją są
+Strony, które pozostają normatywne dla opiekunów: [`README.md`](../../../README.md) repozytorium,
+specyfikacje w `docs/specs`
+([`PUBLIC-API.md`](../../specs/PUBLIC-API.md),
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md),
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md),
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)) oraz strony projektu w
+`docs/project` ([`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md),
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md),
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)). Stanowią one podsumowanie; szczegółową dokumentacją są
 powyższe strony. Strony historyczne są wymienione w
 [manifeście dokumentacji](../../DOCUMENTATION-MANIFEST.md).
 
@@ -87,7 +90,7 @@ błędnie opisywać zachowanie; należy to zgłosić jako błąd strony.
 <a id="translations"></a>
 ## Tłumaczenia
 
-`docs\localized\<locale>\` zawiera kompletne tłumaczenia tej dokumentacji `0.1.0-beta3`
+`docs\localized\<locale>\` zawiera kompletne tłumaczenia tej dokumentacji `0.1.0-beta4`
 dla `pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` i `ja-JP`. Zestaw stron, katalogi główne lokalizacji oraz
 strony celowo nietłumaczone są wymienione w
 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md).

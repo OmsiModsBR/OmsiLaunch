@@ -14,13 +14,20 @@ public static class PublicErrorCodes
     public const string WINDOWS_HOST_START_FAILED = "OL_E_WINDOWS_HOST_START_FAILED";
     // Compatibility
     public const string BUILD_VALIDATION_FAILED = "OL_E_BUILD_VALIDATION_FAILED";
+    public const string CAPABILITY_UNRESOLVED = "OL_E_CAPABILITY_UNRESOLVED";
     public const string UNSUPPORTED_BUILD = "OL_E_UNSUPPORTED_BUILD";
     public const string UNSUPPORTED_OPERATING_SYSTEM = "OL_E_UNSUPPORTED_OPERATING_SYSTEM";
     public const string UNSUPPORTED_OS_ARCHITECTURE = "OL_E_UNSUPPORTED_OS_ARCHITECTURE";
     // Content
     public const string ENTRYPOINT_NOT_FOUND = "OL_E_ENTRYPOINT_NOT_FOUND";
     public const string ENTRYPOINT_REQUIRED = "OL_E_ENTRYPOINT_REQUIRED";
+    public const string ENTRYPOINT_NOT_PRESENTED = "OL_E_ENTRYPOINT_NOT_PRESENTED";
     public const string HOF_NOT_FOUND = "OL_E_HOF_NOT_FOUND";
+    public const string HOF_CONFLICT = "OL_E_HOF_CONFLICT";
+    public const string HOF_INVALID = "OL_E_HOF_INVALID";
+    public const string HOF_PATH_ESCAPE = "OL_E_HOF_PATH_ESCAPE";
+    public const string HOF_SOURCE_NOT_FOUND = "OL_E_HOF_SOURCE_NOT_FOUND";
+    public const string HOF_TARGET_NOT_FOUND = "OL_E_HOF_TARGET_NOT_FOUND";
     public const string MAP_NOT_FOUND = "OL_E_MAP_NOT_FOUND";
     public const string NOT_FOUND = "OL_E_NOT_FOUND";
     public const string REPAINT_NOT_FOUND = "OL_E_REPAINT_NOT_FOUND";
@@ -76,6 +83,8 @@ public static class PublicErrorCodes
     // Runtime
     public const string CAMERA_PRESET_FAMILY_UNSUPPORTED = "OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED";
     public const string DATE_TIME_APPLY_FAILED = "OL_E_DATE_TIME_APPLY_FAILED";
+    public const string WEATHER_INVALID = "OL_E_WEATHER_INVALID";
+    public const string WEATHER_APPLY_FAILED = "OL_E_WEATHER_APPLY_FAILED";
     public const string MAKEVEHICLE_BUS_NOT_FOUND = "OL_E_MAKEVEHICLE_BUS_NOT_FOUND";
     public const string MAKEVEHICLE_DELTA_MULTIPLE = "OL_E_MAKEVEHICLE_DELTA_MULTIPLE";
     public const string MAKEVEHICLE_DELTA_ZERO = "OL_E_MAKEVEHICLE_DELTA_ZERO";
@@ -116,6 +125,7 @@ public static class PublicErrorCodes
     public const string RUNTIME_STRING_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND";
     public const string RUNTIME_VALUE_INVALID = "OL_E_RUNTIME_VALUE_INVALID";
     public const string RUNTIME_VALUE_OUT_OF_RANGE = "OL_E_RUNTIME_VALUE_OUT_OF_RANGE";
+    public const string RUNTIME_CURSOR_INVALID = "OL_E_RUNTIME_CURSOR_INVALID";
     public const string RUNTIME_VARIABLE_NOT_FOUND = "OL_E_RUNTIME_VARIABLE_NOT_FOUND";
     public const string RUNTIME_VARIABLE_UNAVAILABLE = "OL_E_RUNTIME_VARIABLE_UNAVAILABLE";
     public const string TIME_APPLY_FAILED = "OL_E_TIME_APPLY_FAILED";
@@ -143,6 +153,26 @@ public static class PublicErrorCodes
     public const string STARTUP_TIMEOUT = "OL_E_STARTUP_TIMEOUT";
     public const string START_SESSION = "OL_E_START_SESSION";
     public const string WORLD_START_FAILED = "OL_E_WORLD_START_FAILED";
+    // Module
+    public const string MODULE_MANIFEST_INVALID = "OL_E_MODULE_MANIFEST_INVALID";
+    public const string MODULE_NOT_FOUND = "OL_E_MODULE_NOT_FOUND";
+    public const string MODULE_INTEGRITY = "OL_E_MODULE_INTEGRITY";
+    public const string MODULE_PROTOCOL_UNSUPPORTED = "OL_E_MODULE_PROTOCOL_UNSUPPORTED";
+    public const string MODULE_CAPABILITY_UNRESOLVED = "OL_E_MODULE_CAPABILITY_UNRESOLVED";
+    public const string MODULE_CONTENT_BINDING = "OL_E_MODULE_CONTENT_BINDING";
+    public const string MODULE_COMPONENT_UNSUPPORTED = "OL_E_MODULE_COMPONENT_UNSUPPORTED";
+    public const string MODULE_LOAD_FAILED = "OL_E_MODULE_LOAD_FAILED";
+    public const string MODULE_PHASE_FAILED = "OL_E_MODULE_PHASE_FAILED";
+    public const string MODULE_PHASE_TIMEOUT = "OL_E_MODULE_PHASE_TIMEOUT";
+    public const string MODULE_DISABLED = "OL_E_MODULE_DISABLED";
+    public const string MODULE_NOT_LOADED = "OL_E_MODULE_NOT_LOADED";
+    public const string MODULE_OPERATION_UNKNOWN = "OL_E_MODULE_OPERATION_UNKNOWN";
+    public const string MODULE_OPERATION_FAILED = "OL_E_MODULE_OPERATION_FAILED";
+    public const string MODULE_CLEANUP_INCOMPLETE = "OL_E_MODULE_CLEANUP_INCOMPLETE";
+    public const string MODULE_SESSION_FAILED = "OL_E_MODULE_SESSION_FAILED";
+    public const string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE";
+    public const string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID";
+    public const string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT";
     // SessionProfile
     public const string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING";
     public const string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID";
@@ -165,6 +195,11 @@ public static class PublicErrorCodes
     public const string RESTORE_FAILED = "OL_E_RESTORE_FAILED";
     // Warning
     public const string RESTORE_FOREIGN_FILE_RETAINED = "OL_W_RESTORE_FOREIGN_FILE_RETAINED";
+    public const string BUILD_UNRECOGNIZED = "OL_W_BUILD_UNRECOGNIZED";
+    public const string COOPERATIVE_SHUTDOWN_UNAVAILABLE = "OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE";
+    public const string CAPABILITY_PENDING = "OL_W_CAPABILITY_PENDING";
+    public const string MODULE_NOT_LOADED_WARNING = "OL_W_MODULE_NOT_LOADED";
+    public const string MODULE_SETTING_IGNORED = "OL_W_MODULE_SETTING_IGNORED";
 
     public static readonly IReadOnlyList<PublicErrorDescriptor> All = new PublicErrorDescriptor[]
     {
@@ -175,11 +210,18 @@ public static class PublicErrorCodes
         new("OL_E_WINDOWS_HOST_START_FAILED", "Cli"),
         new("OL_E_BUILD_VALIDATION_FAILED", "Compatibility"),
         new("OL_E_UNSUPPORTED_BUILD", "Compatibility"),
+        new("OL_E_CAPABILITY_UNRESOLVED", "Compatibility"),
         new("OL_E_UNSUPPORTED_OPERATING_SYSTEM", "Compatibility"),
         new("OL_E_UNSUPPORTED_OS_ARCHITECTURE", "Compatibility"),
         new("OL_E_ENTRYPOINT_NOT_FOUND", "Content"),
         new("OL_E_ENTRYPOINT_REQUIRED", "Content"),
+        new("OL_E_ENTRYPOINT_NOT_PRESENTED", "Content"),
         new("OL_E_HOF_NOT_FOUND", "Content"),
+        new("OL_E_HOF_CONFLICT", "Content"),
+        new("OL_E_HOF_INVALID", "Content"),
+        new("OL_E_HOF_PATH_ESCAPE", "Content"),
+        new("OL_E_HOF_SOURCE_NOT_FOUND", "Content"),
+        new("OL_E_HOF_TARGET_NOT_FOUND", "Content"),
         new("OL_E_MAP_NOT_FOUND", "Content"),
         new("OL_E_NOT_FOUND", "Content"),
         new("OL_E_REPAINT_NOT_FOUND", "Content"),
@@ -227,12 +269,15 @@ public static class PublicErrorCodes
         new("OL_E_PROCESS_WAIT_FAILED", "Process"),
         new("OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED", "Runtime"),
         new("OL_E_DATE_TIME_APPLY_FAILED", "Runtime"),
+        new("OL_E_WEATHER_INVALID", "Content"),
+        new("OL_E_WEATHER_APPLY_FAILED", "Runtime"),
         new("OL_E_MAKEVEHICLE_BUS_NOT_FOUND", "Runtime"),
         new("OL_E_MAKEVEHICLE_DELTA_MULTIPLE", "Runtime"),
         new("OL_E_MAKEVEHICLE_DELTA_ZERO", "Runtime"),
         new("OL_E_MAKEVEHICLE_NATIVE_FAILED", "Runtime"),
         new("OL_E_PLACE_RANDOM_BUS_FAILED", "Runtime"),
         new("OL_E_RUNTIME_ARGUMENT_REQUIRED", "Runtime"),
+        new("OL_E_RUNTIME_CURSOR_INVALID", "Runtime"),
         new("OL_E_RUNTIME_ARTIFACT_MISSING", "Runtime"),
         new("OL_E_RUNTIME_BASELINE_UNAVAILABLE", "Runtime"),
         new("OL_E_RUNTIME_BUS_IDENTITY_INVALID", "Runtime"),
@@ -311,7 +356,43 @@ public static class PublicErrorCodes
         new("OL_E_RESTORE_DEFERRED", "Transaction"),
         new("OL_E_RESTORE_FAILED", "Transaction"),
         new("OL_W_RESTORE_FOREIGN_FILE_RETAINED", "Warning"),
+        new("OL_W_BUILD_UNRECOGNIZED", "Warning"),
+        new("OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE", "Warning"),
+        new("OL_W_CAPABILITY_PENDING", "Warning"),
+        new("OL_W_MODULE_NOT_LOADED", "Warning"),
+        new("OL_W_MODULE_SETTING_IGNORED", "Warning"),
+        new("OL_E_MODULE_MANIFEST_INVALID", "Module"),
+        new("OL_E_MODULE_NOT_FOUND", "Module"),
+        new("OL_E_MODULE_INTEGRITY", "Module"),
+        new("OL_E_MODULE_PROTOCOL_UNSUPPORTED", "Module"),
+        new("OL_E_MODULE_CAPABILITY_UNRESOLVED", "Module"),
+        new("OL_E_MODULE_CONTENT_BINDING", "Module"),
+        new("OL_E_MODULE_COMPONENT_UNSUPPORTED", "Module"),
+        new("OL_E_MODULE_LOAD_FAILED", "Module"),
+        new("OL_E_MODULE_PHASE_FAILED", "Module"),
+        new("OL_E_MODULE_PHASE_TIMEOUT", "Module"),
+        new("OL_E_MODULE_DISABLED", "Module"),
+        new("OL_E_MODULE_NOT_LOADED", "Module"),
+        new("OL_E_MODULE_OPERATION_UNKNOWN", "Module"),
+        new("OL_E_MODULE_OPERATION_FAILED", "Module"),
+        new("OL_E_MODULE_CLEANUP_INCOMPLETE", "Module"),
+        new("OL_E_MODULE_SESSION_FAILED", "Module"),
+        new("OL_E_MODULE_HOOK_UNAVAILABLE", "Module"),
+        new("OL_E_MODULE_SETTING_INVALID", "Module"),
+        new("OL_E_MODULE_CONFLICT", "Module"),
     };
+
+    // The catalogued public code a message starts with (a code alone, or a
+    // code followed by ": detail"), otherwise null. Used where a typed code travels inside an
+    // exception message, so the code survives to the caller unchanged.
+    public static string? FromMessage(string? message)
+    {
+        if (string.IsNullOrEmpty(message) || !message.StartsWith("OL_", StringComparison.Ordinal)) return null;
+        var end = 0;
+        while (end < message.Length && (message[end] is (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_')) end++;
+        var code = message[..end];
+        return All.Any(descriptor => descriptor.Code == code) ? code : null;
+    }
 }
 
 public sealed record PublicErrorDescriptor(string Code, string Category);

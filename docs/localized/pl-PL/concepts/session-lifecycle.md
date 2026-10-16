@@ -1,7 +1,7 @@
 # Cykl życia sesji
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> Tłumaczenie [oryginalnej strony w języku angielskim](../../../concepts/session-lifecycle.md) dla OmsiLaunch 0.1.0-beta3. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> Tłumaczenie [oryginalnej strony w języku angielskim](../../../concepts/session-lifecycle.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 Ta strona opisuje, jak sesja OmsiLaunch przechodzi przez stany `SessionState` od `Created` do `Completed` lub `Failed`: który komponent ustawia każdy stan, które zdarzenia telemetrii wtyczki wyzwalają przejścia, jak działa limit czasu uruchamiania, co oznacza zatrzymanie (wymuszone zakończenie procesu), co zwraca `WaitForAsync`, które stany są końcowe, które stany nigdy nie są lub prawie nie są obserwowalne oraz jakie gwarancje daje właściciel w CLI. Wszystkie informacje pochodzą z `OmsiLaunchService.StartAsync`, `SuperviseAsync` i `ApplyTelemetry` (`src/OmsiLaunch.Core/OmsiLaunchService.cs`), `PluginRuntime` (`src/OmsiLaunch.Plugin/PluginRuntime.cs`) oraz `OwnerSession` (`tools/OmsiLaunch.Cli/Program.cs`).
 
@@ -80,7 +80,7 @@ Ponowne planowanie zachowuje `SessionId` wywołującego, więc identyfikator w u
 
 Nadzorca działa jako zadanie w puli wątków i wykonuje pętlę co 100 ms, dopóki OMSI nie zakończy działania lub nie zostanie zażądane zatrzymanie:
 
-1. Odczytanie najnowszej próbki telemetrii (slot przechowujący najnowszą wartość z numerem sekwencyjnym producenta; rozerwane próbki są pomijane; identyczne kolejne zdarzenia są rozróżniane, ponieważ numer sekwencyjny jest inny). Każda nowa próbka jest dopisywana do `RuntimeEvents` i mapowana przez `ApplyTelemetry`.
+1. Odczytanie po kolei każdego zdarzenia telemetrii zatwierdzonego przez wtyczkę od ostatniego odczytu (pierścień zdarzeń; czytelnik, który został w tyle, otrzymuje `telemetry.lost` z liczbą utraconych zdarzeń). Każde zdarzenie jest dopisywane do `RuntimeEvents` i mapowane przez `ApplyTelemetry`.
 2. Jeśli sesja jest w stanie `Failed`, wyjście z pętli.
 3. Jeśli sesja nie jest jeszcze w stanie `Running`, a termin (`StartupTimeoutSeconds` od wejścia nadzorcy) minął: `Fail` z `OL_E_STARTUP_TIMEOUT`, gdy osiągnięto `PluginBootstrap`, w przeciwnym razie `OL_E_PLUGIN_NOT_LOADED`; wyjście z pętli.
 

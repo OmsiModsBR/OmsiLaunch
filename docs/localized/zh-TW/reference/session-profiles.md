@@ -1,9 +1,9 @@
 # 工作階段設定檔
 
-<!-- l10n: source=reference/session-profiles.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/session-profiles.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=reference/session-profiles.md source-sha256=5bc9beef6e11a8c70d3ea3056678096ccc42321393f0d09fd40217e53c271e4e -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/session-profiles.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-工作階段設定檔是一種宣告式 YAML 套件，由內容作者隨地圖或附加元件一起發佈，讓終端使用者只需一個命令（`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..5> /new`）就能啟動可重現的 OmsiLaunch 工作階段。本頁是下列內容的規範性參考：由 `src/OmsiLaunch.Core/SessionProfiles.cs` 中的 `SessionProfileCompiler` 所實作的 `omsilaunch.session-profile/v1` 格式、CLI 套用的優先順序規則（`tools/OmsiLaunch.Cli/Program.cs` 中的 `CliInput.BuildSpecAsync` 與 `RejectProfileConflicts`），以及設定檔可寫入的設定目錄（`ConfigurationCatalog`）。設定檔能做的一切，CLI 旗標與 [LaunchSpec](launchspec.md) 也都能做；設定檔只是將這些選擇打包起來。
+工作階段設定檔是一種宣告式 YAML 套件，由內容作者隨地圖或附加元件一起發佈，讓終端使用者只需一個命令（`OmsiLaunch.exe /predefined-profile:<id> /predefined-profile-index:<1..99> /new`）就能啟動可重現的 OmsiLaunch 工作階段。本頁是下列內容的規範性參考：由 `src/OmsiLaunch.Core/SessionProfiles.cs` 中的 `SessionProfileCompiler` 所實作的 `omsilaunch.session-profile/v1` 格式、CLI 套用的優先順序規則（`tools/OmsiLaunch.Cli/Program.cs` 中的 `CliInput.BuildSpecAsync` 與 `RejectProfileConflicts`），以及設定檔可寫入的設定目錄（`ConfigurationCatalog`）。設定檔能做的一切，CLI 旗標與 [LaunchSpec](launchspec.md) 也都能做；設定檔只是將這些選擇打包起來。
 
 穩定性：剖析、驗證、衝突偵測以及 `settings` / `presentation` / `internet-textures` / `behavior` 區塊為 `STABLE_BETA`（離線測試 `session-profiles.strict-compiler`；overlay（暫時覆蓋）與還原路徑已由 RV-005 與 RV-006 於執行階段驗證，請見[執行階段驗證狀態](../status/runtime-validation-status.md)）。`new.date`、`new.time`、`new.year` 與 `new.weather` 鍵在此組建中為 `UNAVAILABLE`（請見 [`new` 區塊](#new)）。
 
@@ -57,7 +57,7 @@
 | `version` | 字串 | 是 | 套件版本字串（格式自由，請加上引號：`"1.0"`）；回報於 `SessionProfileMetadata.Version`。 |
 | `compatibility` | 對應 | 否 | 請見 `compatibility`。 |
 | `new` | 對應 | 否 | NEW_MAP 預設值。請見 `new`。 |
-| `presets` | 對應的序列 | 是 | 1 到 5 個預設組合（preset）項目。零個、超過五個或非序列的值為 `OL_E_SESSION_PROFILE_INVALID`。 |
+| `presets` | 對應的序列 | 是 | 1 到 99 個預設組合（preset）項目。零個、超過 99 個或非序列的值為 `OL_E_SESSION_PROFILE_INVALID`。 |
 
 ### `compatibility`
 
@@ -73,13 +73,13 @@
 | --- | --- | --- | --- | --- |
 | `map` | 字串 | 否 | 是 | 正規化形式 `maps\<Map>\global.cfg` 的地圖識別碼（規劃時要求完全符合此形狀：以 `maps\` 開頭、以 `\global.cfg` 結尾、不含 `..`）。設定 `WorldSpec.MapIdentity`。 |
 | `entrypoint-index` | 整數 | 否 | 是 | 所呈現的進入點索引（在 OMSI 進入點清單中以 0 起算的位置）。設定 `PresentedEntrypointIndex` 並清除任何進入點識別碼。 |
-| `entrypoint` | 字串 | 否 | 是 | 原始進入點識別碼。設定 `EntrypointIdentity` 並清除所呈現的索引。若同時有 `entrypoint-index` 與 `entrypoint`，由於 `entrypoint` 最後套用，因此以它為準。以進入點識別碼選取為 `PARTIAL`（BI-001）：規劃時會將 `world.entrypoint-identity` 回報為 `RUNTIME_PARTIAL`，且計畫不可執行。建議使用 `entrypoint-index`。 |
+| `entrypoint` | 字串 | 否 | 是 | 原始進入點識別碼。設定 `EntrypointIdentity` 並清除所呈現的索引。若同時有 `entrypoint-index` 與 `entrypoint`，由於 `entrypoint` 最後套用，因此以它為準。該值是精確（區分大小寫）的標籤或探索識別碼；OMSI 只會呈現每個標籤的第一筆記錄（`world.entrypoint-identity`，`EXPERIMENTAL`）。 |
 | `date` | 對應 | 否 | 否（`UNAVAILABLE`） | 請見 `new.date`。 |
 | `time` | 對應 | 否 | 否（`UNAVAILABLE`） | 請見 `new.time`。 |
 | `year` | 整數 | 否 | 否（`UNAVAILABLE`） | 明確年份。 |
 | `weather` | 對應 | 否 | 否（`UNAVAILABLE`） | 請見 `new.weather`。 |
 
-`date`、`time`、`year` 與 `weather` 會以 `DateTimeMode.Explicit`／所選的 `WeatherMode` 編譯為 `DateSpec`、`TimeSpec`、`YearSpec` 與 `WeatherSpec`。接著工作階段規劃器（`src/OmsiLaunch.Core/SessionPlanner.cs`）會將功能 `world.explicit-date`、`world.explicit-time`、`world.explicit-year` 與 `weather` 回報為 `STATICALLY_PARTIAL`，在計畫診斷訊息中加入 `OL_E_CAPABILITY_UNAVAILABLE`，並將計畫標記為**不可執行**。此外，外掛程式也會拒絕日期或時間模式不為 `Unset` 的交接資料（`plugin.request.unsupported`）。對此組建的影響：設定了這四個鍵中任何一個的設定檔可以用 `/plan` 驗證，但無法啟動工作階段（結束代碼 1，`OL_E_PLAN_NOT_RUNNABLE`）。預定要執行的設定檔請不要包含這些鍵。
+`date`、`time`、`year` 與 `weather` 會被編譯為 `DateSpec`、`TimeSpec`、`YearSpec` 與 `WeatherSpec`，其中 `DateTimeMode.Explicit`／所選的 `WeatherMode`。工作階段規劃器（`src/OmsiLaunch.Core/SessionPlanner.cs`）需要 `world.explicit-date`、`world.explicit-time`、`world.explicit-year` 與 `world.weather`；這四者皆為 `EXPERIMENTAL`（已靜態收尾，執行階段驗證待完成）。起始日期／時間僅適用於 NEW_MAP；天氣適用於每種世界模式。
 
 #### `new.date`
 
@@ -108,13 +108,15 @@
 
 | 鍵 | 型別 | 必要 | 預設值 | 說明 |
 | --- | --- | --- | --- | --- |
-| `index` | 整數 | 是 | | 1 到 5，在設定檔內唯一。以 `/predefined-profile-index` 選取。重複或超出範圍：`OL_E_SESSION_PROFILE_INVALID`；設定檔中任何地方都不存在的索引：`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`。 |
+| `index` | 整數 | 是 | | 1 到 99，在設定檔內唯一；索引不必連續。以 `/predefined-profile-index` 選取。重複或超出範圍：`OL_E_SESSION_PROFILE_INVALID`；設定檔中任何地方都不存在的索引：`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`。 |
 | `id` | 字串 | 是 | | 預設組合識別碼；回報為 `SessionProfileMetadata.PresetId`。 |
 | `name` | 字串 | 是 | | 預設組合顯示名稱；回報為 `SessionProfileMetadata.PresetName`。 |
 | `settings` | 對應 | 否 | 無 | 語意 `options.cfg` 設定，請見[設定](#settings)。鍵以不區分大小寫的方式與設定目錄比對。 |
 | `presentation` | 對應 | 否 | 繼承 | 啟動畫面（splash）呈現，請見 `presentation`。不存在時，預設組合會繼承基準值（`/spec` 的值或 CLI 預設值 `Managed`）。 |
 | `internet-textures` | 對應 | 否 | 繼承 | 請見 `internet-textures`。 |
 | `behavior` | 對應 | 否 | 繼承 | 逾時，請見 `behavior`。 |
+| `hofs` | 對應的序列 | 否 | 繼承 | 工作階段 HOF 操作，請見 `hofs`。存在時會取代基準的 `HofManagement`。 |
+| `modules` | 對應 | 否 | 繼承 | 執行階段模組，請見 `modules`。會與 `/spec` 檔案所要求的合併。 |
 
 只會套用所選的預設組合。但每個預設組合仍會被剖析與驗證，因此預設組合 3 中的錯誤也會使對預設組合 1 的請求失敗。
 
@@ -149,6 +151,45 @@
 | `shutdown-timeout` | 整數（秒） | 否 | 30 | 對應至 `LaunchBehaviorSpec.ShutdownTimeoutSeconds`。ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT：監督程式會直接終止 OMSI，從不讀取此值。 |
 
 `behavior` 區塊存在時，兩個逾時都會被設定（指定值或預設值），並完全取代基準的 `LaunchBehaviorSpec`，包括 `RestoreConfiguration` 與 `SuppressStaleClosecheckWarning`，這兩者會恢復為其預設值（`true`、`true`）。
+
+### `hofs`
+
+每個項目是一項 [HOF 管理](hof-management.md)操作，且恰好指名一個來源鍵（`package`、`collection`、`directory`、`vehicle` 或 `file`）；零個或多個：`OL_E_SESSION_PROFILE_INVALID`。來源與目標是否存在會在規劃工作階段時檢查（`OL_E_HOF_*`），`package` 除外。
+
+| 鍵 | 型別 | 必要 | 預設值 | 說明 |
+| --- | --- | --- | --- | --- |
+| `package` | 字串 | 其中一個來源鍵 | | **相對於套件**的目錄，存放設定檔隨附的 `.hof` 檔案。必須在載入設定檔時存在（`OL_E_SESSION_PROFILE_ASSET_MISSING`）；適用路徑限制規則。成為 `Directory` 來源。 |
+| `collection` | 字串 | 其中一個來源鍵 | | `.omsilaunch\hof\` 之下的集合名稱。 |
+| `directory` | 字串 | 其中一個來源鍵 | | 相對於安裝的目錄，例如地圖內容旁。 |
+| `vehicle` | 字串 | 其中一個來源鍵 | | 要複製其 HOF 的車輛識別或資料夾。 |
+| `file` | 字串 | 其中一個來源鍵 | | 相對於安裝的 `.hof` 檔案。 |
+| `targets` | 字串序列 | 是 | | 目標車輛（`Vehicles\` 之下的識別或資料夾）。缺少或為空：`OL_E_SESSION_PROFILE_INVALID`。 |
+| `files` | 字串序列 | 否 | 全部 | 要從來源取用的檔名。 |
+| `mode` | 字串 | 否 | `add` | `add` 或 `mirror`（不區分大小寫）；其他值：`OL_E_SESSION_PROFILE_INVALID`。 |
+
+含有 `hofs` 的預設組合與 `/hof-source` 旗標並用：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。
+
+### `modules`
+
+每個[執行階段模組](../../../reference/runtime-modules.md) id 一個項目（`EXPERIMENTAL`）。每個項目是帶有下列鍵的對應（內容 `module`）：
+
+| 鍵 | 型別 | 必要 | 預設值 | 說明 |
+| --- | --- | --- | --- | --- |
+| `enabled` | `true` 或 `false` | 否 | 未設定 | `true` 要求該模組（`LaunchSpec.Modules.Enable`）；`false` 讓它不加入工作階段，包括預設載入、由其地圖載入或由設定檔載入的模組（`LaunchSpec.Modules.Disable`）。 |
+| `settings` | 對應 | 否 | 無 | 依鍵指定的模組設定（`LaunchSpec.Modules.Settings`，形式為 `<id>.<key>`）。其值會在規劃工作階段時依模組所宣告的設定檢查（`OL_E_MODULE_SETTING_INVALID`）。 |
+
+```yaml
+modules:
+  example-preload:
+    enabled: true
+    settings:
+      ram_budget_mb: 8192
+      monitor: false
+  example-hud:
+    enabled: false
+```
+
+不符合 `[a-z0-9][a-z0-9-]{1,47}` 的模組 id、不是 `true` 或 `false` 的 `enabled`，或不符合 `[a-z][a-z0-9_]{0,31}` 的設定鍵：`OL_E_SESSION_PROFILE_INVALID`。未安裝的模組會在規劃工作階段時回報（`enabled: true` 為 `OL_E_MODULE_NOT_FOUND`，僅有設定時為 `OL_W_MODULE_SETTING_IGNORED`）。
 
 <a id="settings"></a>
 ## 設定
@@ -252,6 +293,9 @@
 | `/splash`, `/splash-language`, `/splash-assets` | `presentation`（任何內容） | 任意 |
 | `/internet-textures`, `/internet-textures-profile` | `internet-textures`（任何內容） | 任意 |
 | `/startup-timeout`, `/shutdown-timeout` | `behavior`（任何內容） | 任意 |
+| `/module:<id>` | `modules.<id>.enabled: false` | 任意 |
+| `/no-module:<id>` | `modules.<id>.enabled: true` | 任意 |
+| `/module-setting:<id>.<key>=...` 或模組旗標 | `modules.<id>.settings.<key>` | 任意 |
 
 不屬於衝突的情況：預設組合未定義的 `/set` 鍵（會被加入）、車輛旗標（`/vehicle`、`/repaint`、`/hof`、`/fleet`、`/registration`、`/no-vehicle`；設定檔無法定義玩家車輛），以及 `/saved` 下的任何世界引數（`new` 區塊在該情況下不會套用）。無論是否使用設定檔，`/map`、`/entrypoint` 與 `/entrypoint-index` 搭配 `/saved` 一律無效（`OL_E_INVALID_ARGUMENT`）。
 
@@ -264,7 +308,7 @@
 | `OL_E_SESSION_PROFILE_PATH_ESCAPE` | `id` 不是單純的目錄名稱；`assets` / `profile` 離開套件或經過重新分析點 | 2 |
 | `OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED` | `schema` 不是 `omsilaunch.session-profile/v1` | 2 |
 | `OL_E_SESSION_PROFILE_INVALID` | 大小限制、文件結構、錨點、未知鍵、缺少必要鍵、非純量值、錯誤的數字／日期／時間、`id` 不符、預設組合數量／索引規則、不支援的模式字詞、非正數逾時、`presentation` 缺少 `splash`、`override` 缺少 `profile` | 2 |
-| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | 缺少 `/predefined-profile-index`、超出 1..5，或沒有具該 `index` 的預設組合 | 2 |
+| `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND` | 缺少 `/predefined-profile-index`、超出 1..99，或沒有具該 `index` 的預設組合 | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_UNKNOWN` | `settings` 鍵不在設定目錄中 | 2 |
 | `OL_E_SESSION_PROFILE_SETTING_NOT_WRITABLE` | `settings` 鍵已列入目錄但為唯讀 | 2 |
 | `OL_E_SESSION_PROFILE_ASSET_MISSING` | 套件內不存在 `assets` 目錄或 `profile` 檔案 | 2 |
@@ -272,6 +316,15 @@
 | `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` | 明確的 CLI 引數以設定檔所擁有的欄位為目標 | 2 |
 
 這些錯誤全都在編譯命令列時、規劃之前發生。它們是 `SessionProfileException`（衝突則為 `ArgumentException`），且絕不會啟動工作階段。完整目錄請見[錯誤](errors.md)；結束代碼請見[結束代碼](exit-codes.md)。
+
+<a id="discovering-installed-profiles"></a>
+## 探索已安裝的設定檔
+
+`OmsiLaunch.exe /list:SessionProfiles`（API `ListSessionProfilesAsync`）會編譯 `.omsilaunch\session-profiles\` 之下的每個套件，並為每個套件印出一個項目：`Id`、`Name`、`Version`、`Author`、`CompatibleMaps`、`MapIdentity`，以及依索引順序排列的 `Presets`（`Index`、`Id`、`Name`）。無法編譯的套件仍會列出，並帶有 `IsValid: false` 與啟動時會回報的相同 `OL_E_SESSION_PROFILE_*` 代碼。不會寫入任何內容。
+
+```text
+OmsiLaunch.exe /list:SessionProfiles --json
+```
 
 <a id="how-a-profile-appears-in-the-api"></a>
 ## 設定檔在 API 中的呈現方式

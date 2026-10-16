@@ -1,6 +1,6 @@
 # Plano de controlo local
 
-<!-- l10n: source=reference/local-control.md -->
+<!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
 > Tradução da [página original em inglês](../../../reference/local-control.md) do OmsiLaunch 0.1.0-beta3. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
 
 O plano de controlo local é o endpoint de named pipe através do qual um proprietário do OmsiLaunch em execução (o processo que iniciou uma sessão) aceita comandos semânticos de sessão de outros processos na mesma máquina: estado, eventos, paragem e operações de runtime públicas. Esta página especifica o endpoint tal como está implementado em `tools\OmsiLaunch.Cli\LocalControlPlane.cs` e o tratador de pedidos em `OwnerSession.RunAsync` (`tools\OmsiLaunch.Cli\Program.cs`): nomenclatura do pipe, framing, versão do protocolo, comandos, vinculação à sessão, códigos de erro, modelo de confiança, janela de disponibilidade e como comunicar com ele a partir de outras ferramentas. Os comandos do cliente CLI (`session status`, `session stop`, `events read`, `events watch`, rotas como `time get`) são invólucros finos sobre este protocolo; ver a [referência da CLI](cli.md). As operações de runtime propriamente ditas estão especificadas em [controlo de runtime](runtime-control.md); a alternativa dentro do processo para integradores é a [API pública](public-api.md).

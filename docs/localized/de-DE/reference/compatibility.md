@@ -1,32 +1,59 @@
 # Kompatibilität
 
-<!-- l10n: source=reference/compatibility.md -->
-> Übersetzung der [englischen Originalseite](../../../reference/compatibility.md) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
+<!-- l10n: source=reference/compatibility.md source-sha256=bd2e58f38c45a35819751b568f389c9b567f45ecef4a5a5f5a1b68e2f1160907 -->
+> Übersetzung der [englischen Originalseite](../../../reference/compatibility.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
-OmsiLaunch steuert OMSI, indem es profilierte Adressen innerhalb eines exakt festgelegten Builds der Programmdatei patcht. Diese Seite gibt an, welche OMSI-Builds unterstützt werden, was mit jedem anderen Build geschieht und welche Betriebssystem- und Runtime-Anforderungen für den Host und das Plugin gelten. Quellen: `src/OmsiLaunch.Builds.Omsi23004/Profile.cs`, `src/OmsiLaunch.Core/SessionPlanner.cs`, `src/OmsiLaunch.Process/RuntimePlatform.cs`, `src/OmsiLaunch.Plugin/CurrentDnneAdapter.cs` sowie die Projektdateien.
+OmsiLaunch arbeitet mit einem installierten **OMSI 2**. Es setzt keine bestimmte `Omsi.exe`-Datei voraus: Jede native Annahme, die es innerhalb von OMSI trifft (eine Funktion, eine Patch-Stelle, eine Klasse, ein VMT-Slot, eine globale Variable, ein Feld-Offset), wird vor ihrer Verwendung einzeln, im Prozess, aufgelöst und verifiziert, und eine Capability ist nur verfügbar, wenn alle ihre Annahmen verifiziert sind. Diese Seite beschreibt, was „OMSI 2 installiert“ bedeutet, wie Builds identifiziert werden, wie Capabilities aufgelöst werden und welche Betriebssystem- und Runtime-Anforderungen gelten. Quellen: `src/OmsiLaunch.Builds.Omsi23004/OmsiBuildDetection.cs`, `src/OmsiLaunch.Builds.Omsi23004/NativeTargetCatalog.cs`, `src/OmsiLaunch.NativeResolution/`, `src/OmsiLaunch.Plugin/PluginNativeTargets.cs`, `src/OmsiLaunch.Core/SessionPlanner.cs`, `src/OmsiLaunch.Process/RuntimePlatform.cs`.
 
-<a id="supported-omsi-builds"></a>
-## Unterstützte OMSI-Builds
+<a id="requirement-omsi-2-installed"></a>
+## Voraussetzung: OMSI 2 installiert
 
-Es gibt genau ein Build-Profil, `Omsi23004_692EBFBF` (Familie `OMSI_2_3_004_COMMON`). Es akzeptiert zwei Programmdateien anhand ihres exakten SHA-256:
+Ein Plan wird nur dann mit `OL_E_UNSUPPORTED_BUILD` abgelehnt, wenn die Installation keine OMSI-2-Installation ist:
 
-| Variante | `Omsi.exe` SHA-256 | Größe | PE-Dateiversion / Produkt | Status |
-| --- | --- | --- | --- | --- |
-| Profilierte Programmdatei (`ALTERNATE_LAA`) | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` | 8.503.440 Byte | 2.2.032 / 2.3.004 | `STABLE_BETA`; jede Runtime-Validierung in der Matrix lief mit dieser Datei |
-| Steam LAA (`STEAM_LAA`) | `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` | nicht geprüft | | Per Allowlist akzeptiert, weil sie das profilierte native Layout teilt und sich nur in den Headern der Programmdatei unterscheidet; **nicht zur Laufzeit validiert** (`profiles` meldet `runtime_validated=false`, `validation_status=pending_beta_field_validation`). `PARTIAL`. |
+| Prüfung | Abgelehnt, wenn |
+| --- | --- |
+| `Omsi.exe` | im Installationsstammverzeichnis fehlt |
+| Image | kein 32-Bit-x86-PE-Image ist |
+| Version | seine Versionsressource keine OMSI-2-Version (2.x) trägt |
+| Installation | das Stammverzeichnis kein Verzeichnis `maps\` oder `Vehicles\` hat |
 
-`OmsiLaunch.exe profiles` gibt diese Tabelle als JSON aus. Versionsnummern werden für die Akzeptanz nicht verwendet: Es zählen nur der SHA-256 (und, bei der primären Programmdatei, die exakte Größe). Kein anderer OMSI-2-Build, keine gepatchte Programmdatei und keine mit dem 4-GB-Patch versehene Kopie mit abweichendem Hash wird unterstützt.
+SHA-256, Größe und exakte Version der Programmdatei sind **keine** Kompatibilitätskriterien. Sie werden als Diagnosen (`omsi.build.detected`, `OmsiLaunch.exe profiles`) festgehalten und dienen als Nachweis.
 
-<a id="what-happens-with-an-unknown-build"></a>
-## Was bei einem unbekannten Build geschieht
+<a id="build-identity-and-capability-resolution"></a>
+## Build-Identität und Auflösung von Capabilities
 
-| Phase | Prüfung | Ergebnis |
-| --- | --- | --- |
-| Planung (`PlanSessionAsync`, `/plan`, `/validate`) | `Omsi23004.Profile.MatchesExecutable(<root>\Omsi.exe)` | Die erforderliche Capability `omsi.profile.OMSI23004` ist `UNAVAILABLE`; Diagnose `OL_E_UNSUPPORTED_BUILD`; `SessionPlan.IsRunnable=false`. CLI-Exit 1 bei einem Start oder 3 (`UnsupportedProfile`), wenn der Fehler als Ausnahme durchschlägt. |
-| Start (`StartSessionAsync`) | Die Spezifikation wird neu geplant und der Hash von `Omsi.exe` neu berechnet | Ein Plan, der nicht mehr ausführbar ist (zum Beispiel weil sich die Programmdatei nach der Planung geändert hat oder ein Aufrufer `IsRunnable` bearbeitet hat), wird mit `OL_E_PLAN_NOT_RUNNABLE` abgelehnt; es wird keine Transaktion geöffnet und kein Prozess gestartet. |
-| Im Prozess (`PluginRuntime.Start`) | `NativeServices.ValidateBuild` verlangt, dass die `BuildProfileId` der Übergabe `Omsi23004_692EBFBF` ist **und** `NativeValidateBuild()` gegen das laufende Image erfolgreich ist | Telemetrie `plugin.build.invalid`; der Host lässt die Sitzung mit `OL_E_BUILD_VALIDATION_FAILED` fehlschlagen; kein nativer Hook wird aktiviert; OMSI wird beendet und die Transaktion wiederhergestellt. |
+| Konzept | Bedeutung |
+| --- | --- |
+| Code-Identität | SHA-256 des Hauptcodeabschnitts der Programmdatei. Eine bekannte Identität wählt als schneller Pfad ein bekanntes Layout aus. Varianten, die sich nur in den Headern unterscheiden (z. B. eine Large-Address-Aware-Kopie), teilen sich die Code-Identität. |
+| Bekanntes Layout | `Omsi23004`: OMSI 2.3.004 (Dateiversion 2.2.032), Code-Identität `13ec110abdccc09d6d85875a017d5e75e45514283d5a4558f49a7c282dfdc028`. Jede Runtime-Validierung auf der [Statusseite](../status/runtime-validation-status.md) lief auf diesem Layout. |
+| Native Ziel | Eine Annahme der nativen Grenze, im Build-Katalog mit ihrem Guard deklariert. |
+| Capability | Eine Gruppe von Zielen, z. B. `world.new-map` oder `time.read`. Nur verfügbar, wenn jedes Ziel aufgelöst **und** verifiziert ist. |
 
-Da der Hash der Programmdatei mit den Größen und Bytes der profilierten globalen Variablen abgeglichen wird, ist die Prüfung im Prozess die letzte Verteidigungslinie gegen eine Kopie, die die Hash-Prüfung bestanden hat, deren Image sich zur Ladezeit aber unterscheidet. Es gibt kein Ersatzprofil und keinen heuristischen Abgleich.
+So wird ein Ziel im Plugin aufgelöst, bevor OmsiLaunch irgendetwas patcht:
+
+1. **Bekannte Identität:** Zuerst wird die Referenzadresse des bekannten Layouts versucht, und sie muss weiterhin den Guard des Ziels bestehen.
+2. **Andernfalls, oder wenn der Guard fehlschlägt**, werden build-unabhängige Strategien versucht:
+   - Delphi-RTTI-Klassenname (`vmtSelfPtr` geprüft);
+   - veröffentlichte Methoden, Felder und Eigenschaften einer Klasse (RTTI-Tabellen);
+   - VMT-Slot, der eine aufgelöste Methode enthält;
+   - eine maskierte Codesignatur, die genau einmal passen muss (Operanden, die vom Layout abhängen, sind Wildcards) und eine Adresse, eine globale Variable (direkt oder über ihre Zeigerzelle) oder eine Feldverschiebung innerhalb einer Methode der eigenen Klasse des Felds erfasst.
+3. **Nichts passt eindeutig und besteht den Guard:** Das Ziel bleibt nicht aufgelöst. Es gibt **keinen Rückgriff auf eine feste Adresse**.
+
+Guards: maskierte Einstiegsbytes für Funktionen und Patch-Stellen, das Aufrufziel für einen gepatchten Aufruf, `vmtSelfPtr` und der RTTI-Klassenname für Klassen, die gehaltene Methode für VMT-Slots und ein beschreibbarer Datenabschnitt für globale Variablen. Objektlayouts, die die Runtime-Reader lesen (Fahrzeug-, Human-, Wetter-, Fahrplandatensätze usw.), haben noch keine build-unabhängige strukturelle Validierung. Sie werden nur für eine bekannte Code-Identität verifiziert, sodass die Capabilities, die sie lesen, auf einem Build mit unbekannter Identität nicht verfügbar sind.
+
+Auf dem bekannten Layout wird jede Capability aufgelöst. Auf einem Build mit unbekannter Identität können die Capabilities verfügbar sein, deren Ziele über die obigen Strategien aufgelöst werden (der Headless-Start, NEW_MAP, gespeicherte Situationen, Unterdrückung der Internettexturen, Lesen und Setzen der Zeit, D3D), und jede wird einzeln verifiziert; layoutabhängige Lesezugriffe sind nicht verfügbar.
+
+<a id="where-compatibility-is-decided"></a>
+## Wo über die Kompatibilität entschieden wird
+
+| Phase | Was geschieht |
+| --- | --- |
+| Planung (`PlanSessionAsync`, `/plan`) | OMSI-2-Prüfung (`omsi.omsi2`, sonst `OL_E_UNSUPPORTED_BUILD`). Das Dateiimage wird als **Vorhersage** aufgelöst: Erforderliche native Capabilities tragen `RESOLVED_KNOWN_LAYOUT`, `STATICALLY_RESOLVED` oder `PENDING_IN_PROCESS_RESOLUTION` mit der Warnung `OL_W_CAPABILITY_PENDING`. Eine unbekannte Code-Identität fügt die Warnung `OL_W_BUILD_UNRECOGNIZED` hinzu. Warnungen führen nicht dazu, dass ein Plan nicht ausführbar wird. |
+| Start (`StartSessionAsync`) | Die Spezifikation wird erneut geplant; ein Plan, der nicht mehr ausführbar ist, wird mit `OL_E_PLAN_NOT_RUNNABLE` abgelehnt. |
+| Im Prozess (Plugin-Start) | Das geladene Image wird aufgelöst (maßgeblich; eine DRM-geschützte Programmdatei kann von ihrer Datei abweichen). Der Bericht wird als Telemetrie `native.capabilities` gesendet. Sind `boot.headless-start` und die Weltmodus-Capability (`world.new-map` oder `world.saved-situation`) nicht verfügbar, schlägt die Sitzung vor jedem Hook mit `OL_E_CAPABILITY_UNRESOLVED` fehl, und die Dateien werden wiederhergestellt. Sind sie verfügbar, aber das aktive Start-Formular ist nicht im erwarteten Zustand (z. B. weil ein anderes Plugin es gepatcht hat), schlägt die Sitzung mit `OL_E_BUILD_VALIDATION_FAILED` fehl. |
+| Runtime-Operationen | Eine Operation, deren Capability nicht verfügbar ist, wird mit `OL_E_CAPABILITY_UNRESOLVED` (`Data["capability"]`) abgelehnt, ohne den OMSI-Speicher zu berühren. |
+
+`OmsiLaunch.exe profiles --json` meldet die Installation (`is_omsi2`, `build_id`, `identity`, Datei- und Code-Hashes, `file_variant`), die bekannten Layouts und die aus der Datei vorhergesagten Capabilities.
 
 <a id="operating-system-and-architecture"></a>
 ## Betriebssystem und Architektur
@@ -49,7 +76,7 @@ Da der Hash der Programmdatei mit den Größen und Bytes der profilierten global
 | --- | --- | --- |
 | Controller (`OmsiLaunch.exe`, `OmsiLaunchW.exe` -> `OmsiLaunch.Controller.dll`) | .NET 6, x64 | Der native Bootstrapper findet die Runtime über `hostfxr` mithilfe der mitgelieferten `nethost.dll`. Eine fehlende Runtime wird vom Shim gemeldet (Exitcodes 100-106; siehe [CLI](cli.md) und [Exitcodes](exit-codes.md)). |
 | Plugin-Closure (`plugins\OmsiLaunch.Plugin.dll` über `OmsiLaunch.PluginNE.dll`) | .NET 6, **x86** (`net6.0-windows`, `win-x86`), gehostet von DNNE 2.0.6 innerhalb von `Omsi.exe` | Erfordert, dass die x86-.NET-6-Desktop-/Core-Runtime auf dem Rechner installiert ist; die 64-Bit-Runtime allein reicht für das Plugin nicht aus. |
-| Native Bridge (`plugins\OmsiLaunch.Native.x86.dll`) | natives x86 | Wird nur aus `plugins\` geladen (siehe [permanentes Plugin](../concepts/permanent-plugin.md)). |
+| Native Bridge (`plugins\OmsiLaunch.Native.x86.dll`) | natives x86 | Wird nur aus `plugins\` geladen (siehe [permanentes Plugin](../concepts/permanent-plugin.md)). Sie enthält keine OMSI-Adresse: Sie erhält die verifizierte Zieltabelle vom Plugin. |
 
 <a id="legacy-platforms"></a>
 ## Legacy-Plattformen
@@ -59,9 +86,9 @@ Windows 7, Windows 8.x, Windows XP und andere Systeme mit NT 6 und älter liegen
 <a id="steam-and-large-address-aware-notes"></a>
 ## Hinweise zu Steam und Large Address Aware
 
-- Die Steam-Distribution von OMSI 2.3.004 mit dem LAA-Header (`7DAB063D...`) steht auf der Allowlist, weil ihre profilierten Adressen mit denen der primären Programmdatei identisch sind. Bis eine Feldvalidierungssitzung in der Matrix erfasst ist, behandeln Sie jede Capability mit dieser Datei als `PARTIAL`.
+- Eine Large-Address-Aware-Kopie, die sich nur in ihren Headern unterscheidet, hat dieselbe Code-Identität wie ihr Original und verwendet dasselbe bekannte Layout.
+- Die Steam-Programmdatei ist auf dem Datenträger DRM-geschützt, sodass ihre Datei von ihrem geladenen Image abweichen kann: Der Plan kann `OL_W_CAPABILITY_PENDING` melden, und die Auflösung im Prozess entscheidet. Eine Sitzung mit der echten Steam-Programmdatei wurde nicht zur Laufzeit validiert (siehe [Status der Runtime-Validierung](../status/runtime-validation-status.md)).
 - Steam startet OMSI selbst; eine Sitzung muss über `OmsiLaunch.exe` gestartet werden, damit die Übergabe existiert. Beim Start über Steam bleibt das permanente Plugin inaktiv (keine Übergabe, keine Hooks).
-- Wird ein anderer LAA-Patcher auf `Omsi.exe` angewendet, ändert sich deren Hash, und sie wird zu einem unbekannten Build.
 
 <a id="related-pages"></a>
 ## Verwandte Seiten

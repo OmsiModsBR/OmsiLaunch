@@ -16,6 +16,9 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"><ClCompile><WarningLevel>Level3</WarningLevel><PrecompiledHeader>NotUsing</PrecompiledHeader><ConformanceMode>true</ConformanceMode></ClCompile><Link><SubSystem>Windows</SubSystem><AdditionalDependencies>d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="NativeBoundary.cpp" />
+    <ClCompile Include="NativeHooks.cpp" />
+    <ClInclude Include="NativeHooks.h" />
+    <ClInclude Include="include\omsilaunch_module_native_v1.h" />
     <ResourceCompile Include="OmsiLaunch.Native.x86.rc">
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
@@ -31,7 +34,7 @@
        file timestamps. -->
   <Target Name="WriteOmsiLaunchNativeBuildReceipt" AfterTargets="Build">
     <ItemGroup>
-      <_OmsiLaunchReceiptSource Include="@(ClCompile->'%(FullPath)');@(ResourceCompile->'%(FullPath)');$(MSBuildProjectFullPath);$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\OmsiLaunch.Version.props'))" />
+      <_OmsiLaunchReceiptSource Include="@(ClCompile->'%(FullPath)');@(ClInclude->'%(FullPath)');@(ResourceCompile->'%(FullPath)');$(MSBuildProjectFullPath);$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\OmsiLaunch.Version.props'))" />
     </ItemGroup>
     <GetFileHash Files="@(_OmsiLaunchReceiptSource)" Algorithm="SHA256"><Output TaskParameter="Items" ItemName="_OmsiLaunchReceiptSourceHash" /></GetFileHash>
     <GetFileHash Files="$(TargetPath)" Algorithm="SHA256"><Output TaskParameter="Hash" PropertyName="_OmsiLaunchReceiptOutputHash" /></GetFileHash>

@@ -1,9 +1,9 @@
 # Pakketindeling en releasestructuur
 
-<!-- l10n: source=reference/packaging.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/packaging.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=reference/packaging.md source-sha256=8d5d5b27225188339094529a2435a976635969dd53d614c53d768169087e7ffa -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/packaging.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
-Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta3`: wat `tools\New-ReleasePackage.ps1` oplevert, de velden van `release-manifest.json`, hoe de controller het manifest tijdens runtime gebruikt om de permanente plugin-closure te verifiëren, hoe het pakket in een OMSI-installatiemap wordt geïnstalleerd en daaruit wordt verwijderd, wat de map `.omsilaunch` na gebruik bevat, en de validatiescripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). De productidentiteit komt uit `OmsiLaunch.Version.props`. De installatiestappen voor gebruikers staan in [installatie](../getting-started/installation.md); de rol van de plugin-closure tijdens runtime staat in [permanente plugin](../concepts/permanent-plugin.md).
+Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta4`: wat `tools\New-ReleasePackage.ps1` oplevert, de velden van `release-manifest.json`, hoe de controller het manifest tijdens runtime gebruikt om de permanente plugin-closure te verifiëren, hoe het pakket in een OMSI-installatiemap wordt geïnstalleerd en daaruit wordt verwijderd, wat de map `.omsilaunch` na gebruik bevat, en de validatiescripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). De productidentiteit komt uit `OmsiLaunch.Version.props`. De installatiestappen voor gebruikers staan in [installatie](../getting-started/installation.md); de rol van de plugin-closure tijdens runtime staat in [permanente plugin](../concepts/permanent-plugin.md).
 
 <a id="product-identity-omsilaunchversionprops"></a>
 ## Productidentiteit (`OmsiLaunch.Version.props`)
@@ -12,13 +12,13 @@ Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta3`: wat `tool
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Manifest `product`, Windows `ProductName` |
 | `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro` | Windows `LegalCopyright` |
-| `OmsiLaunchProductVersion` | `0.1.0-beta3` | Manifest `product_version`, Windows `ProductVersion`, informatieve assemblyversie (`/version`), naam van de openbare ZIP |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/lmonteirotech/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchProductVersion` | `0.1.0-beta4` | Manifest `product_version`, Windows `ProductVersion`, informatieve assemblyversie (`/version`), naam van de openbare ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Basis van de managed assemblyversie |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Assemblyversie en Windows-bestandsversie |
 | `OmsiLaunchPackageAlias` | `current` | Manifest `package_alias`, stagingmap en naam van de alias-ZIP |
 
-`Directory.Build.props` stelt `InformationalVersion` in op `OmsiLaunchProductVersion` zonder bronrevisie, zodat `OmsiLaunch.exe /version` precies `0.1.0-beta3` afdrukt.
+`Directory.Build.props` stelt `InformationalVersion` in op `OmsiLaunchProductVersion` zonder bronrevisie, zodat `OmsiLaunch.exe /version` precies `0.1.0-beta4` afdrukt.
 
 ## Build (`tools\New-ReleasePackage.ps1`)
 
@@ -45,7 +45,7 @@ Het pakket wordt vervolgens samengesteld in een gloednieuwe stagingmap met een u
 | elk bestand onder `docs\` behalve `docs\localized\` (de Engelse documentatie, met dezelfde mapstructuur) | `.omsilaunch\docs\` (zodat `.omsilaunch\docs\reference\cli.md`, het pad dat de CLI-gebruikstekst afdrukt, bestaat; documentatieaudit BUG-08). Koppelingen vanuit `docs\README.md` naar de samenvattingen in de hoofdmap van de repository (`PUBLIC-API.md` en andere) werken alleen in de bronrepository. |
 | `docs\localized\LOCALIZATION-MANIFEST.md` en `docs\localized\<locale>\**` voor elke locale die in dat manifest staat (`pt-BR`, `pt-PT`, `en-GB`, `fr-FR`, `de-DE`, `es-ES`, `es-LATAM`, `it-IT`, `pl-PL`, `nl-NL`, `ru-RU`, `zh-CN`, `zh-TW` en `ja-JP`) | `.omsilaunch\docs\localized\` (dezelfde structuur); een vermelde locale die ontbreekt, breekt het script af |
 
-Daarna berekent het script de hash van elk gestaged bestand, schrijft het `release-manifest.json` in de hoofdmap van het pakket als UTF-8 **zonder** BOM (het resultaat hangt niet langer af van de PowerShell-editie), voert het `Test-ReleasePackageIntegrity.ps1` uit op de stage, vergelijkt het elk gestaged pluginbestand en `OmsiLaunch.Native.x86.dll` opnieuw met de build-uitvoer, comprimeert het de stage, **pakt het het archief uit in een nieuwe tijdelijke map en valideert het de uitgepakte closure tegen hetzelfde manifest** (het gearchiveerde manifest moet byte voor byte identiek zijn aan het gevalideerde), publiceert het vervolgens de stage als `OmsiLaunch-current` en het archief als `OmsiLaunch-current.zip`, kopieert het dit naar `OmsiLaunch-<product_version>.zip` (`OmsiLaunch-0.1.0-beta3.zip`) en schrijft het `OmsiLaunch-0.1.0-beta3.zip.sha256` met de inhoud `<SHA-256>  <file name>`. Elk ontbrekend artefact breekt het script af. Het script bouwt niet zelf; voer eerst `Invoke-OfflineValidation.ps1` uit (of de afzonderlijke stappen `dotnet build` / MSBuild).
+Daarna berekent het script de hash van elk gestaged bestand, schrijft het `release-manifest.json` in de hoofdmap van het pakket als UTF-8 **zonder** BOM (het resultaat hangt niet langer af van de PowerShell-editie), voert het `Test-ReleasePackageIntegrity.ps1` uit op de stage, vergelijkt het elk gestaged pluginbestand en `OmsiLaunch.Native.x86.dll` opnieuw met de build-uitvoer, comprimeert het de stage, **pakt het het archief uit in een nieuwe tijdelijke map en valideert het de uitgepakte closure tegen hetzelfde manifest** (het gearchiveerde manifest moet byte voor byte identiek zijn aan het gevalideerde), publiceert het vervolgens de stage als `OmsiLaunch-current` en het archief als `OmsiLaunch-current.zip`, kopieert het dit naar `OmsiLaunch-<product_version>.zip` (`OmsiLaunch-0.1.0-beta4.zip`) en schrijft het `OmsiLaunch-0.1.0-beta4.zip.sha256` met de inhoud `<SHA-256>  <file name>`. Elk ontbrekend artefact breekt het script af. Het script bouwt niet zelf; voer eerst `Invoke-OfflineValidation.ps1` uit (of de afzonderlijke stappen `dotnet build` / MSBuild).
 
 <a id="package-layout"></a>
 ## Pakketindeling
@@ -71,7 +71,7 @@ plugins\                             the permanent plugin closure (9 files, all 
 .omsilaunch\
   assets\splash\{PTB,ENG,DEU,FRA}.bmp   640x480 24-bit managed splash assets
   docs\                               English documentation (README.md, getting-started\, reference\, concepts\, status\, ...)
-  docs\localized\<locale>\             translations of the 0.1.0-beta3 pages (not normative)
+  docs\localized\<locale>\             translations of the 0.1.0-beta4 pages (not normative)
   examples\release-session.example.json
   examples\session-profiles\rmg-leste\profile.yaml
 ```
@@ -83,11 +83,11 @@ Alleen de productbestanden in de hoofdmap, `plugins\OmsiLaunch.*` en `.omsilaunc
 | Veld | Type | Betekenis |
 |---|---|---|
 | `product` | string | `OmsiLaunch` |
-| `product_version` | string | `0.1.0-beta3` |
+| `product_version` | string | `0.1.0-beta4` |
 | `package_alias` | string | `current` |
 | `control_protocol` | string | `0.1`; moet overeenkomen met `PublicCapabilityRegistry.ProtocolVersion` |
-| `target_profile` | string | `Omsi23004_692EBFBF`, het enige ondersteunde buildprofiel |
-| `supported_executable_hashes` | string[] | `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (runtime-gevalideerd) en `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` (Steam LAA, `pending_beta_field_validation`) |
+| `requirement` | string | `OMSI 2` |
+| `known_layouts` | object[] | `build_id` en `code_sha256` van elke bekende indeling (`Omsi23004`, `13ec110a...c028`); een snelle route, geen vereiste |
 | `configuration` | string | `Release` of `Debug` |
 | `generated_utc` | string | Buildtijd in ISO-8601 |
 | `files[]` | object[] | `path` (slashes, relatief ten opzichte van de hoofdmap van het pakket), `bytes`, `sha256` (hexadecimaal in hoofdletters) voor elk verpakt bestand |
@@ -110,7 +110,7 @@ Pluginbestanden worden door een sessie nooit gestaged, in een snapshot opgenomen
 <a id="installation-into-the-omsi-root"></a>
 ## Installatie in de OMSI-hoofdmap
 
-1. Verifieer het archief: vergelijk `OmsiLaunch-0.1.0-beta3.zip` met `OmsiLaunch-0.1.0-beta3.zip.sha256`.
+1. Verifieer het archief: vergelijk `OmsiLaunch-0.1.0-beta4.zip` met `OmsiLaunch-0.1.0-beta4.zip.sha256`.
 2. Pak het archief **rechtstreeks uit in de OMSI-installatiemap** (de map die `Omsi.exe` bevat). Daarmee worden de bestanden in de hoofdmap, `plugins\OmsiLaunch.*` (naast eventuele plugins van derden) en `.omsilaunch\` geplaatst.
 3. Laat `release-manifest.json` naast `OmsiLaunch.exe` staan: het maakt pluginintegriteit op basis van het manifest mogelijk. Het manifest en de binaire bestanden moeten uit hetzelfde pakket komen: nieuwe binaire bestanden over een ouder manifest (of omgekeerd) laten elke start mislukken met `OL_E_PERMANENT_PLUGIN_HASH_MISMATCH`. `Test-ReleasePresentation.ps1 -InstallPackage` kopieert het manifest nu samen met de productbestanden; vroeger sloeg het dit over, waardoor een ouder manifest naast nieuwere binaire bestanden achterbleef (Round A RA-007).
 4. Controleer de samenhang alleen-lezen met `tools\Test-ReleasePackageIntegrity.ps1 -PackagePath <zip> -InstallationRoot <root>`: `installation_comparison.coherent_with_package` moet `true` zijn.

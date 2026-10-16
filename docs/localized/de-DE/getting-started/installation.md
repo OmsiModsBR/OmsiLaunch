@@ -1,9 +1,9 @@
 # Installation
 
-<!-- l10n: source=getting-started/installation.md -->
-> Übersetzung der [englischen Originalseite](../../../getting-started/installation.md) für OmsiLaunch 0.1.0-beta3. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
+<!-- l10n: source=getting-started/installation.md source-sha256=a547bd23c9342584c75eb8f54ddbc7a43478458dd0863949b72893826df2e136 -->
+> Übersetzung der [englischen Originalseite](../../../getting-started/installation.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
-Diese Seite erläutert, was OmsiLaunch `0.1.0-beta3` voraussetzt, welchen OMSI-Build es unterstützt, wie das Release-Paket in ein Installationsstammverzeichnis von OMSI installiert wird und wie Sie die Installation mit `/version` und `/plan` überprüfen, bevor Sie eine Sitzung starten. Der Paketinhalt ist unter [Paketierung](../reference/packaging.md) spezifiziert; der erste Start ist unter [Erste Sitzung](first-session.md) beschrieben.
+Diese Seite erläutert, was OmsiLaunch `0.1.0-beta4` voraussetzt, welchen OMSI-Build es unterstützt, wie das Release-Paket in ein Installationsstammverzeichnis von OMSI installiert wird und wie Sie die Installation mit `/version` und `/plan` überprüfen, bevor Sie eine Sitzung starten. Der Paketinhalt ist unter [Paketierung](../reference/packaging.md) spezifiziert; der erste Start ist unter [Erste Sitzung](first-session.md) beschrieben.
 
 <a id="requirements"></a>
 ## Voraussetzungen
@@ -13,7 +13,7 @@ Diese Seite erläutert, was OmsiLaunch `0.1.0-beta3` voraussetzt, welchen OMSI-B
 | Windows 10 oder neuer, 64-Bit | Der Controller prüft `Environment.OSVersion.Version.Major >= 10`, ein x64-Betriebssystem und einen x64-Prozess. | Plan nicht ausführbar mit `OL_E_UNSUPPORTED_OPERATING_SYSTEM` (oder `OL_E_UNSUPPORTED_OS_ARCHITECTURE`), Exit `1`/`3`. |
 | .NET 6 Desktop Runtime, **x64** | `OmsiLaunch.Controller.runtimeconfig.json` erfordert `Microsoft.NETCore.App` 6.0 und `Microsoft.WindowsDesktop.App` 6.0 (Windows Forms wird von der Tray-Anzeige verwendet). Die Shims finden sie mit `nethost.dll`. | `OmsiLaunch.exe` beendet sich vor jeglicher Ausgabe mit Shim-Code `102`..`106`; `OmsiLaunchW.exe` zeigt `OmsiLaunch could not start the .NET host (code N).` an. |
 | .NET 6 Runtime, **x86** | `plugins\OmsiLaunch.Plugin.runtimeconfig.json` erfordert `Microsoft.NETCore.App` 6.0 für x86, da das Plugin innerhalb der 32-Bit-`Omsi.exe` läuft. Das x86-Paket der .NET 6 Desktop Runtime erfüllt diese Anforderung ebenfalls. | Das Plugin startet nicht innerhalb von OMSI; die Sitzung erreicht `Running` nicht (`OL_E_PLUGIN_NOT_LOADED` / `OL_E_STARTUP_TIMEOUT`), Exit `1`, Dateien wiederhergestellt. |
-| Unterstützter OMSI-2-Build | `Omsi.exe` mit SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (8.503.440 Byte), Profil `Omsi23004_692EBFBF`, zur Laufzeit validiert. Die Steam-LAA-Programmdatei `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` wird akzeptiert, ihr Validierungsstatus ist jedoch `pending_beta_field_validation`. Der Hash wird bei jeder Planung und bei jedem Start erneut geprüft. | `OL_E_UNSUPPORTED_BUILD`; Plan nicht ausführbar, Exit `1`. Siehe [Kompatibilität](../reference/compatibility.md). |
+| Installiertes OMSI 2 | Eine 32-Bit-`Omsi.exe` mit einer OMSI-2-Version (2.x) sowie `maps\` und `Vehicles\` im Stammverzeichnis. Es ist kein bestimmter Hash der Programmdatei erforderlich; OMSI 2.3.004 ist das bekannte, zur Laufzeit validierte Layout, und bei anderen Builds wird jede Capability im Prozess aufgelöst und verifiziert. | `OL_E_UNSUPPORTED_BUILD`; Plan nicht ausführbar, Exit `1`. Eine auf dem Build nicht verfügbare Capability schlägt mit `OL_E_CAPABILITY_UNRESOLVED` fehl. Siehe [Kompatibilität](../reference/compatibility.md). |
 | Beschreibbares Installationsstammverzeichnis | Die Transaktion schreibt `.omsilaunch\`, Overlays unter `GUI\`, `Texture\` und `options.cfg` und stellt sie wieder her; das Stammverzeichnis muss für den aktuellen Benutzer beschreibbar sein (vermeiden Sie `Program Files` ohne entsprechende Berechtigungen). | `OL_E_INSTALLATION_NOT_WRITABLE`, Exit `1`. |
 | Ein Benutzer, ein Eigentümer pro Installation | Die Installations-Lease `Local\OmsiLaunch.Installation.<sha256(root)>` und die Steuerungs-Pipe gelten pro Anmeldesitzung. | `OL_E_INSTALLATION_BUSY` / `OL_E_SESSION_ALREADY_ACTIVE`, Exit `7`. |
 
@@ -34,7 +34,7 @@ Der Hash muss einer der beiden oben aufgeführten sein. `OmsiLaunch.exe profiles
 <a id="install-the-package"></a>
 ## Paket installieren
 
-1. Laden Sie `OmsiLaunch-0.1.0-beta3.zip` und `OmsiLaunch-0.1.0-beta3.zip.sha256` herunter; überprüfen Sie die Prüfsumme (`Get-FileHash` muss dem Wert in der `.sha256`-Datei entsprechen).
+1. Laden Sie `OmsiLaunch-0.1.0-beta4.zip` und `OmsiLaunch-0.1.0-beta4.zip.sha256` herunter; überprüfen Sie die Prüfsumme (`Get-FileHash` muss dem Wert in der `.sha256`-Datei entsprechen).
 2. Entpacken Sie das Archiv **direkt in das Installationsstammverzeichnis von OMSI** (den Ordner, der `Omsi.exe` enthält). Das Archiv ist für dieses Stammverzeichnis aufgebaut:
    - `OmsiLaunch.exe`, `OmsiLaunchW.exe`, `nethost.dll`, `OmsiLaunch.Controller.dll` und die übrigen `OmsiLaunch.*.dll`-Controller-Assemblys, `YamlDotNet.dll`, `release-manifest.json`, `LICENSE`, `THIRD-PARTY-NOTICES.md` im Stammverzeichnis;
    - die Plugin-Gesamtheit (Closure) des permanenten Plugins `plugins\OmsiLaunch.*` (9 Dateien) neben Ihren vorhandenen Plugins, die niemals angerührt werden;
@@ -52,7 +52,7 @@ Führen Sie im OMSI-Stammverzeichnis aus (das Installationsargument ist standard
 ```text
 OmsiLaunch.exe /version
 ```
-Erwartet: `"version": "0.1.0-beta3"`, `"protocol_version": "0.1"`, `"supported_family": "OMSI_2_3_004_COMMON"`; Exit `0`. Exit `102`..`106` bedeutet, dass die x64-.NET-6-Runtime fehlt oder das Paket unvollständig ist.
+Erwartet: `"version": "0.1.0-beta4"`, `"protocol_version": "0.1"`, `"supported_family": "OMSI_2"`; Exit `0`. Exit `102`..`106` bedeutet, dass die x64-.NET-6-Runtime fehlt oder das Paket unvollständig ist.
 
 ```text
 OmsiLaunch.exe profiles
@@ -63,7 +63,7 @@ Erwartet: die unterstützten Hashes, dann die in dieser Installation gefundenen 
 ```text
 OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /plan
 ```
-Erwartet: `Plan: READY profile=Omsi23004_692EBFBF` und Exit `0` (verwenden Sie eine beliebige Kartenidentität aus `/list:Maps`; der Einstiegspunkt-Index muss ein angezeigter Index dieser Karte sein, siehe `/list:Entrypoints /map:<identity>`). Mit `--json` listet der Plan `TouchedFiles` (die Startbild-Overlays), `PlannedMutations`, `RequiredCapabilities` (alle `STATICALLY_VALIDATED`), `Diagnostics` (einschließlich `plugin.integrity.reference`) und `IsRunnable` auf. `Plan: NOT RUNNABLE` mit Exit `1` nennt den Grund in `Diagnostics` (`OL_E_UNSUPPORTED_BUILD`, `OL_E_MAP_NOT_FOUND`, `OL_E_ENTRYPOINT_REQUIRED`, `OL_E_RUNTIME_ARTIFACT_MISSING`, ...). Die Planung startet niemals OMSI und schreibt niemals in die Installation.
+Erwartet: `Plan: READY profile=Omsi23004` (auf dem bekannten Layout; sonst `unrecognized`) und Exit `0` (verwenden Sie eine beliebige Kartenidentität aus `/list:Maps`; der Einstiegspunkt-Index muss ein angezeigter Index dieser Karte sein, siehe `/list:Entrypoints /map:<identity>`). Mit `--json` listet der Plan `TouchedFiles` (die Startbild-Overlays), `PlannedMutations`, `RequiredCapabilities` (`STATICALLY_VALIDATED` und auf dem bekannten Layout `RESOLVED_KNOWN_LAYOUT` für die nativen Start-Capabilities), `Diagnostics` (einschließlich `plugin.integrity.reference`) und `IsRunnable` auf. `Plan: NOT RUNNABLE` mit Exit `1` nennt den Grund in `Diagnostics` (`OL_E_UNSUPPORTED_BUILD`, `OL_E_MAP_NOT_FOUND`, `OL_E_ENTRYPOINT_REQUIRED`, `OL_E_RUNTIME_ARTIFACT_MISSING`, ...). Die Planung startet niemals OMSI und schreibt niemals in die Installation.
 
 <a id="where-things-live-afterwards"></a>
 ## Wo sich danach was befindet

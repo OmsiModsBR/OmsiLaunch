@@ -1,7 +1,7 @@
 # Riferimento di LaunchSpec
 
-<!-- l10n: source=reference/launchspec.md -->
-> Traduzione della [pagina originale in inglese](../../../reference/launchspec.md) di OmsiLaunch 0.1.0-beta3. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
+<!-- l10n: source=reference/launchspec.md source-sha256=fc6d2fffb75e37ffbd49ece3a88aa84e08c55696a149f74e35f98b492b79caef -->
+> Traduzione della [pagina originale in inglese](../../../reference/launchspec.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
 Questa pagina è il riferimento normativo per `LaunchSpec`, il record di richiesta che descrive una sessione OmsiLaunch: la sua forma C# (`OmsiLaunch.Api`), la sua forma di file JSON così come viene caricata dalla CLI (`/spec:<path>`, `tools/OmsiLaunch.Cli/LaunchSpecJson.cs`), ogni proprietà con tipo, valore predefinito, regola di validazione ed effetto attuale, le regole di validazione che rendono un piano non eseguibile e la precedenza tra flag della CLI, file di specifica e profili di sessione. Viene documentato solo ciò che fa il codice attuale.
 
@@ -28,7 +28,7 @@ L'[esempio completo](#complete-example) riportato sotto è verificato rispetto a
 | Nomi delle proprietà | I nomi delle proprietà C# (`Installation`, `RootPath`, ...). In caricamento il confronto non distingue maiuscole e minuscole; la CLI li scrive in PascalCase. |
 | Enumerazioni | Interi (non esiste un converter per enumerazioni come stringhe). `"Mode": 0` è valido; `"Mode": "NewMap"` viene rifiutato come JSON malformato. I valori sono elencati in [Enumerazioni](#enumerations). |
 | `OptionalValue<T>` | Un oggetto `{ "Presence": 0 | 1, "Value": <T or null> }`. `Presence` 0 = `Unset` (il valore viene ignorato), 1 = `Set` (il valore deve essere presente e non null; un `Set` con valore null non viene validato e si comporta come un valore non valido). Un membro `OptionalValue` omesso è `Unset`. Il membro di sola lettura `IsSet` compare nell'output scritto dalla CLI e in caricamento viene accettato e ignorato. |
-| Record facoltativi | `Year`, `Weather`, `Input`, `Diagnostics`, `Presentation`, `InternetTextures`, `SessionProfile` possono essere `null` od omessi; le funzioni di accesso `Effective*` sostituiscono i valori predefiniti. |
+| Record facoltativi | `Year`, `Weather`, `Input`, `Diagnostics`, `Presentation`, `InternetTextures`, `SessionProfile`, `HofManagement`, `Modules` possono essere `null` od omessi; le funzioni di accesso `Effective*` sostituiscono i valori predefiniti. |
 | Record obbligatori | `Installation`, `World`, `Date`, `Time`, `Environment` (con tutti e otto i dizionari, usare `{}`), `Behavior` devono essere oggetti presenti. Non vengono validati: uno `null` o mancante fallisce più tardi con un riferimento null, che la CLI segnala come `OL_E_INTERNAL` (uscita 10) o `OL_E_INVALID_ARGUMENT` (uscita 2). |
 | Proprietà sconosciute | Rifiutate prima del binding: `OL_E_SPEC_UNKNOWN_PROPERTY: $.Path.Name` (il percorso usa i nomi dei membri così come sono scritti nel file). Il contenuto dei dizionari (`Environment.*`) non viene controllato come proprietà. |
 | Radice | Deve essere un oggetto JSON: `OL_E_SPEC_INVALID`. Profondità massima di annidamento 32. |
@@ -45,10 +45,10 @@ L'[esempio completo](#complete-example) riportato sotto è verificato rispetto a
   // Comments and trailing commas are accepted. Enums are integers.
   "Installation": {
     "RootPath": ".",                          // "." = directory that contains OmsiLaunch.exe (CLI only)
-    "ExpectedExecutableSha256": null          // carried, not consumed
+    "ExpectedExecutableSha256": null          // optional pin of Omsi.exe
   },
   "World": {
-    "Mode": 0,                                // 0 NewMap, 1 SavedSituation, 2 LastMapState (unavailable)
+    "Mode": 0,                                // 0 NewMap, 1 SavedSituation, 2 LastMapState
     "MapIdentity": { "Presence": 1, "Value": "maps\\Grundorf\\global.cfg" },
     "SituationIdentity": { "Presence": 0, "Value": null },
     "PresentedEntrypointIndex": { "Presence": 1, "Value": 1 },
@@ -68,10 +68,11 @@ L'[esempio completo](#complete-example) riportato sotto è verificato rispetto a
     "Sound": {}, "AiPassengers": {}, "Keyboard": {}, "Controllers": {}
   },
   "Behavior": {
-    "RestoreConfiguration": true,             // carried, restore always happens
+    "RestoreConfiguration": true,             // must be true
     "SuppressStaleClosecheckWarning": true,
     "StartupTimeoutSeconds": 180,             // 1..600
-    "ShutdownTimeoutSeconds": 30              // carried, not consumed
+    "ShutdownTimeoutSeconds": 30,             // with CooperativeShutdown
+    "CooperativeShutdown": false              // opt-in
   },
   "Input": null,
   "Diagnostics": null,
@@ -89,7 +90,7 @@ L'[esempio completo](#complete-example) riportato sotto è verificato rispetto a
 }
 ```
 
-Una data esplicita, quando il build la supporta, si scrive come `"Date": { "Mode": 1, "Value": { "Presence": 1, "Value": { "Year": 2024, "Month": 5, "Day": 1 } } }` e un orario come `{ "Mode": 1, "Value": { "Presence": 1, "Value": { "Hour": 7, "Minute": 30, "Second": 0 } } }`. In questo build entrambi rendono il piano non eseguibile (vedere sotto).
+Una data esplicita, quando il build la supporta, si scrive come `"Date": { "Mode": 1, "Value": { "Presence": 1, "Value": { "Year": 2024, "Month": 5, "Day": 1 } } }` e un orario come `{ "Mode": 1, "Value": { "Presence": 1, "Value": { "Hour": 7, "Minute": 30, "Second": 0 } } }`. Entrambi si applicano solo alle sessioni NEW_MAP (`EXPERIMENTAL`; vedere sotto).
 
 <a id="property-reference"></a>
 ## Riferimento delle proprietà
@@ -102,53 +103,55 @@ La colonna «Utilizzo» indica che cosa fa il codice attuale con il valore. La s
 | --- | --- | --- | --- | --- | --- |
 | `Installation` | oggetto `InstallationSpec` | sì | nessuno | sì | `STABLE_BETA` |
 | `World` | oggetto `WorldSpec` | sì | nessuno | sì | `STABLE_BETA` |
-| `Date` | oggetto `DateSpec` | sì | nessuno | validato; qualsiasi modalità diversa da `Unset` è non eseguibile | `PARTIAL` |
-| `Time` | oggetto `TimeSpec` | sì | nessuno | validato; qualsiasi modalità diversa da `Unset` è non eseguibile | `PARTIAL` |
+| `Date` | oggetto `DateSpec` | sì | nessuno | sì, solo NEW_MAP (vedere [`DateSpec`](#datespec-timespec-yearspec)) | `EXPERIMENTAL` |
+| `Time` | oggetto `TimeSpec` | sì | nessuno | sì, solo NEW_MAP | `EXPERIMENTAL` |
 | `PlayerVehicle` | `OptionalValue<PlayerVehicleSpec>` | no | `Unset` | risolto per la diagnostica; qualsiasi campo impostato è non eseguibile | `PARTIAL` |
 | `Environment` | oggetto `EnvironmentSpec` | sì | nessuno | sì (overlay semantico di `options.cfg`) | `STABLE_BETA` |
 | `Behavior` | oggetto `LaunchBehaviorSpec` | sì | nessuno | in parte (vedere il record) | `STABLE_BETA` / `PARTIAL` |
-| `Year` | oggetto `YearSpec` o null | no | `null` → `EffectiveYear` = modalità `Unset` | qualsiasi modalità diversa da `Unset` è non eseguibile | `PARTIAL` |
-| `Weather` | oggetto `WeatherSpec` o null | no | `null` → `EffectiveWeather` = modalità `Unset` | qualsiasi modalità diversa da `Unset` è non eseguibile | `PARTIAL` |
-| `Input` | oggetto `InputSpec` o null | no | `null` → `EffectiveInput` = entrambi non impostati | qualsiasi documento impostato è non eseguibile | `PARTIAL` |
+| `Year` | oggetto `YearSpec` o null | no | `null` → `EffectiveYear` = modalità `Unset` | sì, solo NEW_MAP | `EXPERIMENTAL` |
+| `Weather` | oggetto `WeatherSpec` o null | no | `null` → `EffectiveWeather` = modalità `Unset` | sì, ogni modalità di mondo, applicato subito dopo l'avvio del mondo (vedere [`WeatherSpec`](#weatherspec)) | `EXPERIMENTAL` |
+| `Input` | oggetto `InputSpec` o null | no | `null` → `EffectiveInput` = entrambi non impostati | sì (vedere [`InputSpec`](#inputspec)) | `EXPERIMENTAL` |
 | `Diagnostics` | oggetto `DiagnosticsSpec` o null | no | `null` → `EffectiveDiagnostics` = valori predefiniti | solo trasportato | `PARTIAL` |
 | `Presentation` | oggetto `SessionPresentationSpec` o null | no | `null` → `EffectivePresentation` = splash gestita, nessuna lingua, nessuna directory personalizzata, icona nell'area di notifica visibile | sì | `STABLE_BETA` |
 | `InternetTextures` | oggetto `InternetTexturesSpec` o null | no | `null` → `EffectiveInternetTextures` = `Native` | sì | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | oggetto `SessionProfileMetadata` o null | no | `null` | solo provenienza (diagnostica del piano `session_profile.selected`) | `STABLE_BETA` |
+| `HofManagement` | oggetto `HofManagementSpec` o null | no | `null` → `EffectiveHofManagement` = nessuna operazione | sì (overlay HOF di sessione, vedere [gestione HOF](hof-management.md)) | `STABLE_BETA` |
+| `Modules` | oggetto `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) o null | no | `null` → `EffectiveModules` = nulla di richiesto, disabilitato o impostato | no (i moduli non toccano mai i file dell'installazione tramite OmsiLaunch; vedere [moduli runtime](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
 
-Funzioni di accesso di sola lettura (presenti nell'output JSON della CLI, ignorate in caricamento): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`.
+Funzioni di accesso di sola lettura (presenti nell'output JSON della CLI, ignorate in caricamento): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
 ### `InstallationSpec`
 
 | Proprietà | Tipo | Predefinito | Valori validi | Utilizzo | Stabilità |
 | --- | --- | --- | --- | --- | --- |
 | `RootPath` | stringa | obbligatorio | Directory che contiene `Omsi.exe` e `plugins\`. Vedere [regole dei percorsi](#path-rules). Vuoto/solo spazi → `OL_E_INSTALLATION_NOT_FOUND`. | sì | `STABLE_BETA` |
-| `ExpectedExecutableSha256` | stringa o null | `null` | Qualsiasi stringa. | Nessun consumatore nel codice attuale: l'host calcola sempre l'hash di `Omsi.exe` e lo confronta con il profilo di build, mai con questo valore. | `PARTIAL` (trasportato, attualmente senza effetto) |
+| `ExpectedExecutableSha256` | stringa o null | `null` | `null`, oppure 64 cifre esadecimali (altrimenti `OL_E_INVALID_ARGUMENT`). | Pin facoltativo: quando è impostato, il piano non è eseguibile a meno che lo SHA-256 di `Omsi.exe` sia uguale ad esso (`OL_E_UNSUPPORTED_BUILD`, dati `expected_sha256` e `file_sha256`). | `STABLE_BETA` |
 
 ### `WorldSpec`
 
 | Proprietà | Tipo | Predefinito | Valori validi | Utilizzo | Stabilità |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | int `WorldMode` | obbligatorio | `0` `NewMap`, `1` `SavedSituation`, `2` `LastMapState` (`LastSituation` è un alias obsoleto con lo stesso valore 2). | sì; `LastMapState` → `OL_E_CAPABILITY_UNAVAILABLE` | `NewMap`, `SavedSituation`: `STABLE_BETA`; `LastMapState`: `UNAVAILABLE` |
+| `Mode` | int `WorldMode` | obbligatorio | `0` `NewMap`, `1` `SavedSituation`, `2` `LastMapState` (`LastSituation` è un alias obsoleto con lo stesso valore 2). | sì; `LastMapState` richiede `MapIdentity` e il file `laststn.osn` della mappa (`OL_E_MAP_NOT_FOUND`, `OL_E_SITUATION_NOT_FOUND`) | `NewMap`, `SavedSituation`: `STABLE_BETA`; `LastMapState`: `EXPERIMENTAL` |
 | `MapIdentity` | `OptionalValue<string>` | `Unset` | Per `NewMap`: obbligatorio, nella forma `maps\<dir>\global.cfg` (senza distinzione tra maiuscole e minuscole, `/` accettato, nessun `..`) e installato. Ignorato per `SavedSituation` (la mappa è fornita dal file `.osn`). | sì (handoff) | `STABLE_BETA` |
 | `SituationIdentity` | `OptionalValue<string>` | `Unset` | Per `SavedSituation`: obbligatorio, un'identità `situations\...\<file>.osn` installata (come restituita da `DiscoverAsync(Situations)` / `/list:situations`). | sì (handoff) | `STABLE_BETA` |
 | `PresentedEntrypointIndex` | `OptionalValue<int>` | `Unset` | Per `NewMap` senza `EntrypointIdentity`: obbligatorio, `>= 0`, un indice nell'elenco dei punti di ingresso presentato da OMSI per la mappa. Inviato al plugin come `-1` quando non è impostato. | sì (handoff) | `STABLE_BETA` |
-| `EntrypointIdentity` | `OptionalValue<string>` | `Unset` | Un'etichetta grezza del punto di ingresso o un'identità di discovery. Impostarlo rende il piano non eseguibile (`world.entrypoint-identity`, `RUNTIME_PARTIAL`, `OL_E_CAPABILITY_UNAVAILABLE`). | trasportato | `PARTIAL` |
+| `EntrypointIdentity` | `OptionalValue<string>` | `Unset` | Un'etichetta esatta (con distinzione tra maiuscole e minuscole) del punto di ingresso o un'identità di discovery. Il pianificatore la risolve nell'etichetta che OMSI presenta e l'avvio seleziona quell'etichetta (`world.entrypoint-identity`); un record che OMSI non presenta viene rifiutato (`OL_E_ENTRYPOINT_NOT_PRESENTED`), così come uno sconosciuto (`OL_E_ENTRYPOINT_NOT_FOUND`). | trasportato | `RUNTIME_VALIDATION_REQUIRED` |
 | `Entrypoint` | `EntrypointSpec` (sola lettura) | calcolato | `Mode` = `Identity` quando `EntrypointIdentity` è impostato, altrimenti `PresentedIndex` quando l'indice è impostato, altrimenti `Unset`; `PresentedIndex`, `Identity` rispecchiano gli input. | derivato | `STABLE_BETA` |
 
 ### `DateSpec`, `TimeSpec`, `YearSpec`
 
 | Proprietà | Tipo | Predefinito | Valori validi | Utilizzo | Stabilità |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | int `DateTimeMode` | obbligatorio (`Year`: `0` quando il record è null) | `0` `Unset`, `1` `Explicit`, `2` `System`. | `Explicit`/`System` → voce `unsupported` (`world.explicit-date`, `world.explicit-time`, `world.explicit-year`, `STATICALLY_PARTIAL`) e `OL_E_CAPABILITY_UNAVAILABLE`. Le modalità vengono anche copiate nell'handoff di avvio, che il plugin rifiuta quando non sono `Unset` (mai raggiunto perché il piano è non eseguibile). | `PARTIAL` |
-| `Value` | `OptionalValue<SemanticDate>` / `OptionalValue<SemanticTime>` / `OptionalValue<int>` | `Unset` | `SemanticDate`: `Year`, `Month` 1..12, `Day` 1..31; `SemanticTime`: `Hour` 0..23, `Minute` 0..59, `Second` 0..59. Deve essere impostato quando `Mode` è `Explicit` (altrimenti `OL_E_DATE_TIME_APPLY_FAILED`) e non deve essere impostato quando `Mode` non è `Explicit` (`OL_E_INVALID_ARGUMENT`). `YearSpec.Value` non viene validato. | solo validato | `PARTIAL` |
+| `Mode` | int `DateTimeMode` | obbligatorio (`Year`: `0` quando il record è null) | `0` `Unset`, `1` `Explicit`, `2` `System`. | NEW_MAP: `Explicit` usa `Value`, `System` l'orologio del PC al momento della pianificazione della sessione; `Unset` mantiene il valore proprio di OMSI (le sue opzioni e il form Start). Il controller risolve la richiesta nell'orologio di avvio di OMSI (anno, giorno dell'anno, ora, minuto, secondo; capability `world.explicit-date`, `world.explicit-time`, `world.explicit-year`), l'handoff di avvio (versione 7) lo trasporta e il plugin lo scrive subito prima di `NewSituation` di OMSI, così OMSI deriva stagione e calendario dalla data richiesta prima del caricamento della mappa. Dopo l'avvio l'orologio in esecuzione viene riletto; una discrepanza, oppure OMSI che usa un orario di avvio fisso, fa fallire l'avvio con `OL_E_DATE_TIME_APPLY_FAILED`. `SavedSituation`: una modalità diversa da `Unset` è `OL_E_CAPABILITY_UNAVAILABLE` (una situazione porta con sé il proprio orario). | `EXPERIMENTAL` |
+| `Value` | `OptionalValue<SemanticDate>` / `OptionalValue<SemanticTime>` / `OptionalValue<int>` | `Unset` | `SemanticDate`: una data di calendario reale (`Day` valido per il mese e l'anno); `SemanticTime`: `Hour` 0..23, `Minute` 0..59, `Second` 0..59; anni 1900..2200. `YearSpec` imposta l'anno (e l'anno di `Date`, quando sono presenti entrambi). Il 31 dicembre di un anno bisestile viene rifiutato: il calendario di OMSI non può rappresentare il giorno 366. Valori non validi: `OL_E_DATE_TIME_APPLY_FAILED`. Deve essere impostato quando `Mode` è `Explicit` e non impostato negli altri casi (`OL_E_INVALID_ARGUMENT`). | sì | `EXPERIMENTAL` |
 
 ### `WeatherSpec`
 
 | Proprietà | Tipo | Predefinito | Valori validi | Utilizzo | Stabilità |
 | --- | --- | --- | --- | --- | --- |
-| `Mode` | int `WeatherMode` | `0` quando il record è null | `0` `Unset`, `1` `Preset`, `2` `Icao`, `3` `RealCurrent`. | Qualsiasi modalità diversa da `Unset` → voce unsupported `weather` e `OL_E_CAPABILITY_UNAVAILABLE`. | `PARTIAL` |
-| `Preset` | `OptionalValue<string>` | `Unset` | Nome del preset (non validato). | trasportato | `PARTIAL` |
-| `Icao` | `OptionalValue<string>` | `Unset` | Codice ICAO (non validato). | trasportato | `PARTIAL` |
+| `Mode` | int `WeatherMode` | `0` quando il record è null | `0` `Unset`, `1` `Preset`, `2` `Icao`, `3` `RealCurrent`. | Qualsiasi modalità diversa da `Unset` richiede `world.weather`; il plugin la applica subito dopo l'avvio del mondo (ogni modalità di mondo; sovrascrive il meteo di una situazione salvata). Un errore fa fallire l'avvio con `OL_E_WEATHER_APPLY_FAILED`. | `EXPERIMENTAL` |
+| `Preset` | `OptionalValue<string>` | `Unset` | Un file della cartella `weather` dell'installazione, per nome o come `weather\<name>.owt`; controllato in fase di pianificazione (`OL_E_WEATHER_INVALID`). | handoff | `EXPERIMENTAL` |
+| `Icao` | `OptionalValue<string>` | `Unset` | Quattro lettere o cifre (altrimenti `OL_E_WEATHER_INVALID`); usato dalla modalità `Icao`. | handoff | `EXPERIMENTAL` |
 
 <a id="playervehiclespec-inside-playervehicle"></a>
 ### `PlayerVehicleSpec` (all'interno di `PlayerVehicle`)
@@ -162,7 +165,7 @@ Funzioni di accesso di sola lettura (presenti nell'output JSON della CLI, ignora
 | `Registration` | `OptionalValue<string>` | `Unset` | Qualsiasi stringa. | `OL_E_CAPABILITY_UNAVAILABLE` | `PARTIAL` |
 | `Enabled` | bool (sola lettura) | calcolato | `true` quando `Model` è impostato. `PlayerVehicle.IsSet` è ciò che l'handoff trasporta come `PlayerVehicleEnabled`. | derivato | `PARTIAL` |
 
-Un `PlayerVehicle` con `Presence` 1 e tutti i campi non impostati viene accettato e non ha alcun effetto. Qualsiasi campo impostato rende il piano non eseguibile in questo build (`STATICALLY_PARTIAL`).
+Un `PlayerVehicle` con `Presence` 1 e tutti i campi non impostati viene accettato e non ha alcun effetto. Qualsiasi campo impostato rende il piano non eseguibile in questo build (`UNAVAILABLE`).
 
 ### `EnvironmentSpec`
 
@@ -212,17 +215,18 @@ I file modificati mantengono la loro codifica (byte Windows-1252 preservati; UTF
 
 | Proprietà | Tipo | Predefinito | Valori validi | Utilizzo | Stabilità |
 | --- | --- | --- | --- | --- | --- |
-| `RestoreConfiguration` | bool | `true` | qualsiasi | Nessun consumatore: i file di proprietà della sessione vengono sempre ripristinati in modo esatto. | `PARTIAL` (trasportato, attualmente senza effetto) |
+| `RestoreConfiguration` | bool | `true` | solo `true` | Il ripristino esatto è obbligatorio: `false` viene rifiutato con `OL_E_INVALID_ARGUMENT`. | `STABLE_BETA` |
 | `SuppressStaleClosecheckWarning` | bool | `true` | qualsiasi | `true`: un file `closecheck` che esiste prima della sessione viene rimosso definitivamente all'avvio (diagnostica `closecheck.stale-removed` con il suo SHA-256; errore `OL_E_CLOSECHECK_REMOVE_FAILED`). `false`: un `closecheck` esistente viene lasciato intatto e non costituisce un'eliminazione della sessione. Il `closecheck` che OMSI scrive durante la sessione viene sempre rimosso al ripristino. | `STABLE_BETA` |
 | `StartupTimeoutSeconds` | int | `180` | 1..600 (altrimenti `ArgumentOutOfRangeException` da `StartSessionAsync`; il `/startup-timeout` della CLI impone 1..600; i profili richiedono > 0). Tempo concesso dall'avvio del supervisore a `Running`; alla scadenza la sessione fallisce con `OL_E_STARTUP_TIMEOUT` (plugin avviato) o `OL_E_PLUGIN_NOT_LOADED`. | sì | `STABLE_BETA` |
-| `ShutdownTimeoutSeconds` | int | `30` | qualsiasi int (`/shutdown-timeout` della CLI 1..600) | Nessun consumatore: il supervisore termina OMSI immediatamente con `TerminateProcess`; non esiste un'attesa di arresto cooperativo. | `PARTIAL` (trasportato, attualmente senza effetto) |
+| `ShutdownTimeoutSeconds` | int | `30` | 1..600 (`/shutdown-timeout` della CLI) | Con `CooperativeShutdown`: il tempo di cui dispone OMSI per terminare da solo prima di essere terminato forzatamente. Senza di esso OMSI viene terminato subito. | `EXPERIMENTAL` |
+| `CooperativeShutdown` | bool | `false` | qualsiasi (`/cooperative-shutdown` della CLI) | `true`: la terminazione di una sessione in esecuzione chiede a OMSI di uscire tramite la propria routine di uscita (`TForm_main.CloseOMSI`: le opzioni e il file `laststn.osn` della mappa vengono salvati, i plugin finalizzati) invece di terminarlo; dopo `ShutdownTimeoutSeconds` viene terminato forzatamente (`OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE`). Il ripristino viene eseguito dopo l'uscita, quindi i file di proprietà della sessione tornano comunque ai byte originali. | `EXPERIMENTAL` |
 
 ### `InputSpec`
 
 | Proprietà | Tipo | Predefinito | Utilizzo | Stabilità |
 | --- | --- | --- | --- | --- |
-| `KeyboardDocument` | `OptionalValue<string>` | `Unset` | Impostato → `input.keyboard` unsupported (`STATICALLY_PARTIAL`) e `OL_E_CAPABILITY_UNAVAILABLE`. L'esecuzione di PATCH/REPLACE della tastiera non è implementata. | `PARTIAL` |
-| `ControllerDocument` | `OptionalValue<string>` | `Unset` | Impostato → `input.controller` unsupported e `OL_E_CAPABILITY_UNAVAILABLE`. | `PARTIAL` |
+| `KeyboardDocument` | `OptionalValue<string>` | `Unset` | Percorso (assoluto, oppure relativo all'installazione) di un file di tastiera nel formato di OMSI. La sessione lo usa al posto di `Inputs\keyboard.cfg` (un overlay di transazione: il file dell'installazione viene ripristinato byte per byte al termine). Il file deve esistere, avere al massimo 1 MiB e contenere almeno un'associazione `[entry]`; altrimenti `OL_E_INVALID_ARGUMENT`. | `EXPERIMENTAL` |
+| `ControllerDocument` | `OptionalValue<string>` | `Unset` | Percorso di un file di controller nel formato di OMSI, usato nello stesso modo al posto di `Inputs\gamectrler.cfg` per la sessione. Deve contenere almeno un dispositivo `[ctrl]`; altrimenti `OL_E_INVALID_ARGUMENT`. | `EXPERIMENTAL` |
 
 ### `DiagnosticsSpec`
 
@@ -232,8 +236,8 @@ I file modificati mantengono la loro codifica (byte Windows-1252 preservati; UTF
 | `Verbose` | bool | `false` | Nessun consumatore. | `PARTIAL` |
 | `OmsiLogAll` | bool | `false` | Nessun consumatore. | `PARTIAL` |
 | `ProcessTrace` | bool | `false` | Nessun consumatore. | `PARTIAL` |
-| `PluginTrace` | bool | `false` | Nessun consumatore. | `PARTIAL` |
-| `NativeTrace` | bool | `false` | Nessun consumatore. | `PARTIAL` |
+| `PluginTrace` | bool | `false` | Flag dell'handoff di avvio: il plugin scrive eventi `plugin.trace.operation` (operazione, esito, codice, durata in microsecondi) per ogni operazione runtime; raggiungono `<root>\.omsilaunch\diagnostics\<sessionId>-host.log` attraverso l'event ring di telemetria. | `EXPERIMENTAL` |
+| `NativeTrace` | bool | `false` | Flag dell'handoff di avvio: il livello nativo riporta ogni installazione e rimozione di hook (`native.trace`: confine, proprietario, destinazione, risultato) nella stessa traccia dell'host. | `EXPERIMENTAL` |
 
 I flag della CLI `/log`, `/logall`, `/omsi-logall`, `/verbose`, `/trace`, `/trace-process`, `/trace-plugin`, `/trace-native` valorizzano questi booleani (`/logall` imposta `Verbose`, `ProcessTrace`, `PluginTrace`, `NativeTrace`); vengono combinati in OR con i valori della specifica.
 
@@ -253,6 +257,22 @@ I flag della CLI `/log`, `/logall`, `/omsi-logall`, `/verbose`, `/trace`, `/trac
 | `Mode` | int `InternetTexturesMode` | `0` (`Native`) | `0` `Native`: non cambia nulla. `1` `Disabled`: il plugin sopprime il downloader in-process di OMSI (telemetria `internet-textures.suppressed` / `internet-textures.suppression.failed`). `2` `Override`: il profilo `.itx` viene applicato in overlay come `Texture\standard.itx`; i suoi file di destinazione e `Texture\standard.ipr` diventano eliminazioni della sessione. | sì | `Native`: `STABLE_BETA`; `Disabled`, `Override`: `EXPERIMENTAL` |
 | `OverrideProfilePath` | `OptionalValue<string>` | `Unset` | Obbligatorio per `Override` (`OL_E_ITX_PROFILE_REQUIRED`). Un file di testo con coppie di righe: URL assoluto `http`/`https`, poi un percorso di destinazione relativo alla radice dell'installazione che contiene un componente `Texture\`, non è radicato, non contiene `..`, non inizia con `\` e non attraversa alcuna junction/symlink (`OL_E_ITX_PROFILE_INVALID`, `OL_E_ITX_TARGET_OUTSIDE_TEXTURE_PATH`). Vedere [regole dei percorsi](#path-rules). | sì | `EXPERIMENTAL` |
 
+### `HofManagementSpec`
+
+| Proprietà | Tipo | Predefinito | Valori validi | Consumato | Stabilità |
+| --- | --- | --- | --- | --- | --- |
+| `Operations` | array di `HofOperationSpec` | nessuno | Applicate in ordine; vedere [gestione HOF](hof-management.md) per risoluzione, regole sui conflitti e limiti. | sì | `STABLE_BETA` |
+
+Membri di `HofOperationSpec`: `SourceKind` (int `HofSourceKind`), `Source` (stringa), `TargetVehicles` (array di identità di veicoli o di cartelle sotto `Vehicles\`, almeno una), `Mode` (int `HofApplyMode`, predefinito `0` `Add`), `Files` (array di nomi di file `.hof`, oppure null per tutti). I problemi sono diagnostica del piano `OL_E_HOF_*`.
+
+### `RuntimeModulesSpec`
+
+| Proprietà | Tipo | Predefinito | Valori validi | Consumato | Stabilità |
+| --- | --- | --- | --- | --- | --- |
+| `Enable` | array di id di modulo | nessuno | Id di moduli installati sotto `plugins\OmsiLaunch.Modules`; vedere [moduli runtime](../../../reference/runtime-modules.md). Un modulo richiesto che non può essere caricato è una diagnostica del piano `OL_E_MODULE_*` (piano non eseguibile). | sì | `EXPERIMENTAL` |
+| `Disable` | array di id di modulo o null | nessuno | Tiene fuori dalla sessione un modulo predefinito, di contenuto o del file di impostazioni (diagnostica del piano `module.disabled`). Un modulo sia abilitato sia disabilitato è `OL_E_MODULE_SETTING_INVALID`. Accessor di sola lettura `EffectiveDisable`. | sì | `EXPERIMENTAL` |
+| `Settings` | oggetto di stringhe o null | nessuno | `"<module id>.<key>": "<value>"`. Prevale sul file di impostazioni `.omsilaunch\modules.ini` e sul valore predefinito del manifest. Un valore non valido o una chiave che il modulo non dichiara è `OL_E_MODULE_SETTING_INVALID` (piano non eseguibile); le impostazioni per un modulo che la sessione non carica sono `OL_W_MODULE_SETTING_IGNORED`. I valori effettivi sono in `PlannedModule.Settings`. Accessor di sola lettura `EffectiveSettings`. | sì | `EXPERIMENTAL` |
+
 ### `SessionProfileMetadata`
 
 | Proprietà | Tipo | Utilizzo | Stabilità |
@@ -269,6 +289,8 @@ I flag della CLI `/log`, `/logall`, `/omsi-logall`, `/verbose`, `/trace`, `/trac
 | `WeatherMode` | `Unset` = 0, `Preset` = 1, `Icao` = 2, `RealCurrent` = 3 |
 | `SplashMode` | `Unset` = 0, `Native` = 0 (alias), `Managed` = 1 |
 | `InternetTexturesMode` | `Native` = 0, `Disabled` = 1, `Override` = 2 |
+| `HofSourceKind` | `Collection` = 0, `Directory` = 1, `Vehicle` = 2, `File` = 3 |
+| `HofApplyMode` | `Add` = 0, `Mirror` = 1 |
 | `Presence` | `Unset` = 0, `Set` = 1 |
 | `EntrypointMode` (`Entrypoint.Mode` di sola lettura) | `Unset` = 0, `PresentedIndex` = 1, `Identity` = 2 |
 
@@ -291,8 +313,8 @@ Gli interi al di fuori dell'intervallo dichiarato vengono memorizzati così come
 | `OL_E_SITUATION_MAP_NOT_FOUND` | `SavedSituation`: la mappa indicata nel file `.osn` non è installata | `SessionPlanner` |
 | `OL_E_UNSUPPORTED_OPERATING_SYSTEM` | non Windows 10+ su un sistema operativo x64 con un processo host x64 (`runtime.current-windows-x64`) | `SessionPlanner` |
 | `OL_E_INSTALLATION_NOT_WRITABLE` | directory radice mancante, attributo di sola lettura impostato o nessuna sottodirectory `plugins\` (`transaction.exact-restore`) | `SessionPlanner` |
-| `OL_E_UNSUPPORTED_BUILD` | `Omsi.exe` mancante, oppure la sua dimensione/SHA-256 non corrisponde né all'impronta del profilo (`692EBFBF...`, 8 503 440 byte) né a un hash nell'elenco consentito (`omsi.profile.OMSI23004`) | `SessionPlanner` |
-| `OL_E_CAPABILITY_UNAVAILABLE` | `World.Mode` = `LastMapState`; `EntrypointIdentity` impostato; modalità di `Date`/`Time`/`Year` diversa da `Unset`; modalità di `Weather` diversa da `Unset`; qualsiasi campo di `PlayerVehicle` impostato; `Input.KeyboardDocument` o `Input.ControllerDocument` impostato | `SessionPlanner` |
+| `OL_E_UNSUPPORTED_BUILD` | Non è un'installazione di OMSI 2: `Omsi.exe` mancante, non è un'immagine PE x86 a 32 bit, nessuna versione di OMSI 2 (2.x), oppure assenza della directory `maps\` / `Vehicles\` (`omsi.omsi2`). L'hash non è un criterio. | `SessionPlanner` |
+| `OL_E_CAPABILITY_UNAVAILABLE` | `EntrypointIdentity` impostato; modalità di `Date`/`Time`/`Year` diversa da `Unset` con `SavedSituation`; modalità di `Weather` diversa da `Unset`; qualsiasi campo di `PlayerVehicle` impostato | `SessionPlanner` |
 | `OL_E_VEHICLE_NOT_FOUND`, `OL_E_REPAINT_NOT_FOUND`, `OL_E_HOF_NOT_FOUND` | `PlayerVehicle.Model` / `Repaint` / `Hof` non installato (in aggiunta a `OL_E_CAPABILITY_UNAVAILABLE`) | `SessionPlanner` |
 | `OL_E_UNKNOWN_SETTING`, `OL_E_SETTING_NOT_WRITABLE` | una chiave di `Environment` che non è nel catalogo / non è scrivibile | `SessionPlanner` |
 | `OL_E_SESSION_PRESENTATION_INVALID` | la costruzione del piano splash/ITX ha generato un'eccezione; il messaggio contiene `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`, `OL_E_SPLASH_ASSET_MISSING`, `OL_E_SPLASH_FORMAT_UNSUPPORTED`, `OL_E_ITX_PROFILE_REQUIRED`, `OL_E_ITX_PROFILE_MISSING`, `OL_E_ITX_PROFILE_INVALID` o `OL_E_ITX_TARGET_OUTSIDE_TEXTURE_PATH` | `SessionPlanner` |
@@ -314,7 +336,7 @@ Diagnostica informativa del piano: `plugin.integrity.reference` (messaggio `mani
 5. `/date`, `/time`, `/year`, `/weather*` sovrascrivono la base quando indicati (`system` seleziona `DateTimeMode.System`).
 6. `/no-vehicle` azzera `PlayerVehicle`; i singoli `/vehicle`, `/repaint`, `/hof`, `/fleet`, `/registration` sovrascrivono i singoli campi del veicolo del giocatore della base.
 7. Le voci `/set:<key>=<value>` vengono aggiunte a `Environment.General` (chiave controllata, valore no); gli altri sette gruppi provengono dalla base senza modifiche.
-8. `/startup-timeout` e `/shutdown-timeout` sovrascrivono la base solo quando indicati; altrimenti si applicano la specifica, poi il profilo, poi i valori predefiniti 180 s / 30 s. `ShutdownTimeoutSeconds` è `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT` sul supervisore.
+8. `/startup-timeout` e `/shutdown-timeout` sovrascrivono la base solo quando indicati; altrimenti si applicano la specifica, poi il profilo, poi i valori predefiniti 180 s / 30 s. `ShutdownTimeoutSeconds` ha effetto con `/cooperative-shutdown` (combinato in OR con il valore della specifica).
 9. `/splash`, `/splash-language`, `/splash-assets`, `/internet-textures`, `/internet-textures-profile` sovrascrivono la base quando indicati; `SuppressTrayIcon` proviene solo dalla base.
 10. I flag di diagnostica vengono combinati in OR con la base.
 
@@ -336,14 +358,6 @@ Risultato: flag esplicito della CLI > profilo di sessione > file di specifica > 
 
 | Campo | Effetto attuale | Stabilità |
 | --- | --- | --- |
-| `Installation.ExpectedExecutableSha256` | nessuno (l'host confronta l'hash di `Omsi.exe` con il profilo di build) | `PARTIAL` |
-| `Behavior.RestoreConfiguration` | nessuno (il ripristino viene sempre eseguito) | `PARTIAL` |
-| `Behavior.ShutdownTimeoutSeconds` | nessuno (terminazione forzata; `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT`) | `PARTIAL` |
-| `Diagnostics.*` | nessuno (la traccia dell'host viene sempre scritta) | `PARTIAL` |
-| `Input.KeyboardDocument`, `Input.ControllerDocument` | piano non eseguibile quando impostati | `PARTIAL` |
-| `Date`, `Time`, `Year` (modalità diversa da `Unset`) | piano non eseguibile (`STATICALLY_PARTIAL`) | `PARTIAL` |
-| `Weather` (modalità diversa da `Unset`) | piano non eseguibile (`STATICALLY_PARTIAL`) | `PARTIAL` |
-| `PlayerVehicle.*` (qualsiasi campo impostato) | contenuto risolto per la diagnostica, piano non eseguibile (`STATICALLY_PARTIAL`) | `PARTIAL` |
-| `World.EntrypointIdentity` | piano non eseguibile (`RUNTIME_PARTIAL`) | `PARTIAL` |
-| `World.Mode` = `LastMapState` / `LastSituation` | piano non eseguibile (`UNSUPPORTED_FOR_CURRENT_PROFILE`) | `UNAVAILABLE` |
+| `Diagnostics.Log`, `Verbose`, `OmsiLogAll`, `ProcessTrace` | nessuno (la traccia dell'host viene sempre scritta) | `PARTIAL` |
+| `PlayerVehicle.*` (qualsiasi campo impostato) | contenuto risolto per la diagnostica, piano non eseguibile (`UNAVAILABLE`) | `PARTIAL` |
 | `SessionProfile` | solo diagnostica di provenienza | `STABLE_BETA` |

@@ -1,9 +1,9 @@
 # CLI 参考
 
-<!-- l10n: source=reference/cli.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/cli.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/cli.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-本页是 OmsiLaunch `0.1.0-beta3` 命令行完整的规范性参考：三个可执行文件、参数语法、分派顺序、每个命令词、每条层级路由、每个参数、输出信封（envelope）以及每个命令的错误行为。本页依据 `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs` 以及 `tools\OmsiLaunch.Bootstrapper` 下的两个原生 shim 生成。进程结果列于[退出码](exit-codes.md)；错误码见[错误](errors.md)；完整调用示例见 [CLI 示例](cli-examples.md)。
+本页是 OmsiLaunch `0.1.0-beta4` 命令行完整的规范性参考：三个可执行文件、参数语法、分派顺序、每个命令词、每条层级路由、每个参数、输出信封（envelope）以及每个命令的错误行为。本页依据 `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs` 以及 `tools\OmsiLaunch.Bootstrapper` 下的两个原生 shim 生成。进程结果列于[退出码](exit-codes.md)；错误码见[错误](errors.md)；完整调用示例见 [CLI 示例](cli-examples.md)。
 
 <a id="executables"></a>
 ## 可执行文件
@@ -49,17 +49,17 @@
 ### 分派顺序（`CliProgram.RunAsync`）
 
 1. `/silent`（当前未在 `OmsiLaunchW.exe` 下运行时）：通过 `ShellExecute`（不继承句柄）从可执行文件所在目录启动 `OmsiLaunchW.exe`，传入去掉 `/silent`/`--silent` 后的相同参数，写出 `silent` 信封（`delegated`、`host_process_id`）并返回 `0`。控制台进程不等待会话；见 [OmsiLaunchW.exe](omsilaunchw.md#silent-delegation)。`OL_E_WINDOWS_HOST_MISSING` / `OL_E_WINDOWS_HOST_START_FAILED` 返回 `7`。
-2. `/version`：信封 `version`，包含 `product`、`version`（程序集信息版本，取自 `OmsiLaunch.Version.props`，`0.1.0-beta3`）、`protocol_version`（`0.1`）、`supported_family`（`OMSI_2_3_004_COMMON`）；退出码 `0`。
-3. `capabilities`：信封中包含 `PublicCapabilityRegistry` 的每个 `PublicStableBeta` 或 `PublicExperimental` 描述符；退出码 `0`。
+2. `/version`：信封 `version`，包含 `product`、`version`（程序集信息版本，取自 `OmsiLaunch.Version.props`，`0.1.0-beta4`）、`protocol_version`（`0.1`）、`supported_family`（`OMSI_2_3_004_COMMON`）；退出码 `0`。
+3. `capabilities`：信封中包含规范目录 `PublicCapabilityRegistry` 的每个 `PublicStableBeta` 或 `PublicExperimental` 描述符（含其操作、原生能力、证据和说明）；退出码 `0`。
 4. `help [family]`：信封 `help`，包含 `usage`、`product_version`、`protocol_version`、`family` 以及公开的 `commands`（`CliRoute`、`Description`、`Classification`、`RuntimeValidation`），可按能力族过滤；退出码 `0`。
-5. `profiles`：信封中包含 `family` 以及 `supported` 可执行文件变体（`ALTERNATE_LAA` `692EBFBF...`，`runtime_validated=true`；Steam LAA 哈希 `7DAB063D...`，`validation_status=pending_beta_field_validation`）；退出码 `0`。
+5. `profiles`：信封中包含 `requirement`（`OMSI 2`）、目标根目录的 `installation` 报告（`is_omsi2`、`reason`、`build_id`、`identity` 取 `known`/`unknown`、`file_sha256`、`file_version`、`code_sha256`、`file_variant`）、`known_layouts`，以及从可执行文件解析出的 `predicted_capabilities`（启动时的进程内解析具有权威性）；退出码 `0`。
 6. 客户端运行时操作（无安装参数，且带有路由或 `/runtime:`）：参数先由 `PublicCapabilityRegistry.ValidateRuntimeArguments` 校验（`OL_E_RUNTIME_OPERATION_UNKNOWN`、`OL_E_RUNTIME_ARGUMENT_REQUIRED`，退出码 `2`），然后以 8 s 超时转发 `runtime.execute`（`road-vehicles.spawn` 为 30 s）。
 7. 客户端 `session status`（750 ms）、`session stop`（绑定到活动会话 ID，750 ms）、`events read`（750 ms）、`events watch`（每 250 ms 轮询一次，直到 Ctrl+C）。
 8. `detect`，或者**完全没有参数**（无安装、无命令、无 `/?`、无 `/spec`、无启动参数、无恢复参数、无 `/list`）：枚举 `Omsi` 进程并探测控制端点（250 ms）；信封 `detect`；退出码 `0`。
 9. `/?` 或 `/help`：打印用法文本，退出码 `0`。任何带有命令词但没有可分派路由的其他调用（例如单独的 `d3d` 或 `session status D:\OMSI`）会打印用法文本并以 `2` 退出。
 10. 所有者模式。前提条件：`plugins\OmsiLaunch.Plugin.opl` 和 `plugins\OmsiLaunch.Native.x86.dll` 必须存在于可执行文件旁边（`OL_E_RUNTIME_INSTALLATION_INCOMPLETE`，退出码 `7`）。可执行文件旁边的 `release-manifest.json`（如果存在）提供预期的插件哈希。
 11. `/recovery-status` / `/recover`：`RecoverPendingAsync`；信封 `recover`，包含 `pending`、`recovered`、`diagnostics`；仅当请求了还原但还原未完成时退出码为 `8`，否则为 `0`。
-12. `/list:<category>`：`DiscoverAsync`；信封 `content.list`；退出码 `0`。
+12. `/list:<category>`：`DiscoverAsync`；信封 `content.list`；退出码 `0`。`/list:SessionProfiles` 改用 `ListSessionProfilesAsync`；信封 `session-profiles.list`。
 13. 构建 `LaunchSpec`（`BuildSpecAsync`），对其进行规划（`PlanSessionAsync`），打印计划。`/plan` 或 `/validate`：`IsRunnable` 时退出码 `0`，否则为 `1`。不可运行的计划从不启动 OMSI（退出码 `1`）；在 `OmsiLaunchW.exe` 下，使用不可运行计划的启动会在消息框中显示其最后一个 `OL_E_` 诊断信息（文档审计 BUG-06）。规划时还会依据 `release-manifest.json` 校验已安装的永久插件闭包，因此插件缺失或被改动会使计划不可运行（`OL_E_PERMANENT_PLUGIN_*`）。
 14. 探测是否已有所有者（`OL_E_SESSION_ALREADY_ACTIVE`，退出码 `7`），然后执行 `OwnerSession.RunAsync`。
 
@@ -91,14 +91,14 @@
 | `session` | `session status`、`session stop` | 客户端 | 后面恰好跟一个词；其他任何情况打印用法，退出码 `2`。`session plan`/`session start` 是 API 路由名，不是 CLI 词：请使用 `/plan` 和 `/new`。 |
 | `events` | `events read`、`events watch` | 客户端 | `read` 一次性返回有界事件列表；`watch` 每 250 ms 将每个新事件（按 `Sequence`）作为 `events.watch` 信封打印，直到 Ctrl+C（退出码 `0`）；没有所有者响应时为 `4`，控制错误时为 `7`。 |
 | `time` | `time get`、`time set` | 客户端路由 | |
-| `weather` | `weather get`、`weather set`、`weather actual get` | 客户端路由 | |
+| `weather` | `weather get`、`weather set`、`weather metar set`、`weather actual get` | 客户端路由 | |
 | `map` | `map get` | 客户端路由 | |
 | `camera` | `camera get`、`camera set`、`camera lock`、`camera unlock` | 客户端路由 | |
 | `vehicles` | `vehicles list`、`vehicles get`、`vehicles summary`、`vehicles spawn`、`vehicles place-random` | 客户端路由 | |
 | `player` | `player get` | 客户端路由 | |
 | `humans` | `humans list`、`humans get`、`humans summary` | 客户端路由 | |
 | `timetable` | `timetable get`、`timetable <table> list`、`timetable logs list` | 客户端路由 | |
-| `scripts` | `scripts variable list|get|set`、`scripts string list|get` | 客户端路由 | |
+| `scripts` | `scripts variable list|get|set`、`scripts string list|get|set`、`scripts trigger`、`scripts sound-trigger` | 客户端路由 | |
 | `constants` | `constants list`、`constants get` | 客户端路由 | |
 | `curves` | `curves list`、`curves evaluate` | 客户端路由 | |
 | `hof` | `hof get` | 客户端路由 | |
@@ -116,7 +116,8 @@
 | `time get` | `time.read` | Read | 是 | 否 | 无 | STABLE_BETA | 时钟和日历字段。 |
 | `time set` | `time.set` | Write | 是 | 是（内存中的时钟） | 无，不撤销 | EXPERIMENTAL | 例如 `--minute=<0..59>`；写入、回读和还原已于 2026-09-20 验证。 |
 | `weather get` | `weather.read` | Read | 是 | 否 | 无 | STABLE_BETA | |
-| `weather set` | `weather.set` | Write | 是 | 否（始终被拒绝） | 无 | UNAVAILABLE | 返回 `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`；OMSI 会在下一次天气更新时覆盖该值。 |
+| `weather set` | `weather.set` | Write | 是 | 是（内存中的天气） | 无，不撤销 | EXPERIMENTAL | 例如 `--wind_speed=5 --cloud_type="Cumulus 1"`。手动天气：实时 METAR 更新停止。运行时验证待完成。 |
+| `weather metar set` | `weather.metar.set` | Write | 是 | 是（内存中的天气；OMSI 会把 ICAO 保存在 `options.cfg` 中，会话会将其还原） | 无，不撤销 | EXPERIMENTAL | `--icao=<ICAO>`。实时 METAR 天气，与 OMSI 的天气对话框所设置的一致。运行时验证待完成。 |
 | `weather actual get` | `weather.actual.read` | Read | 是 | 否 | 无 | EXPERIMENTAL | 实际/ICAO 控制器状态。 |
 | `map get` | `map.read` | Read | 是 | 否 | 无 | STABLE_BETA | 地图名称、文件、描述、地块数量、年份范围和通行方向；已在修正后的地图槽上重新经运行时验证。 |
 | `camera get` | `camera.read` | Read | 是 | 否 | 无 | STABLE_BETA | |
@@ -126,7 +127,7 @@
 | `vehicles list` | `road-vehicles.list` | Read | 是 | 否 | 无 | STABLE_BETA | 返回会话范围的 `rv-NNNNNN` 句柄。 |
 | `vehicles get` | `road-vehicle.read` | Read | 是 | 否 | 无 | STABLE_BETA | 需要 `--handle=`。失效句柄：`OL_E_RUNTIME_OBJECT_HANDLE_STALE`。 |
 | `vehicles summary` | `road-vehicles.read` | Read | 是 | 否 | 无 | STABLE_BETA | 计数和玩家状态，不含句柄。 |
-| `vehicles spawn` | `road-vehicles.spawn` | Action | 是 | 是（添加一辆 RoadVehicle） | 无，不移除 | EXPERIMENTAL | 需要 `--model=Vehicles\...\*.bus`。客户端超时 30 s，所有者超时 15 s。不会指派玩家车辆。RV-003 `RUNTIME_PASS`。 |
+| `vehicles spawn` | `road-vehicles.spawn` | Action | 是 | 是（添加一辆 RoadVehicle） | 无，不移除 | EXPERIMENTAL | 需要 `--model=Vehicles\...\*.bus`。客户端超时 30 s，所有者超时 15 s。不会指派玩家车辆。RV-003 `RUNTIME_VALIDATED`。 |
 | `vehicles place-random` | `road-vehicles.place-random` | Action | 是 | 是 | 无 | EXPERIMENTAL | 经构建配置分析的 `PlaceRandomBus`。 |
 | `player get` | `player-vehicle.read` | Read | 是 | 否 | 无 | STABLE_BETA | 没有玩家车辆时返回语义上的 null。 |
 | `humans list` | `humans.list` | Read | 是 | 否 | 无 | EXPERIMENTAL | 返回 `hb-NNNNNN` 句柄。 |
@@ -141,6 +142,8 @@
 | `timetable bus-stops list` | `timetable.bus-stops.list` | Read | 是 | 否 | 无 | STABLE_BETA | 同上。 |
 | `timetable station-links list` | `timetable.station-links.list` | Read | 是 | 否 | 无 | STABLE_BETA | 同上。 |
 | `timetable logs list` | `timetable.logs.read` | Read | 是 | 否 | 无 | STABLE_BETA | 同上。 |
+| `timetable no-rv-numbers list` | `timetable.no-rv-numbers.list` | Read | 是 | 否 | 无 | EXPERIMENTAL | OMSI 不让其自由用于 AI 的车辆编号（被时刻表班次预留，或属于固定 AI 列表）。分页（`cursor`、`limit`，每页最多 256 个）。 |
+| `map tiles list` | `map.tiles.list` | Read | 是 | 否 | 无 | EXPERIMENTAL | 地图的图块：网格位置、自身索引、文件和加载状态，以及对象、路径和样条的数量。分页（`cursor`、`limit`，每页最多 256 个）。 |
 | `drivers list` | `drivers.read` | Read | 是 | 否 | 无 | EXPERIMENTAL | 司机记录。 |
 | `tickets get` | `tickets.read` | Read | 是 | 否 | 无 | EXPERIMENTAL | 车票包记录。 |
 | `hof get` | `vehicle.hofs.read` | Read | 是 | 否 | 无 | STABLE_BETA | 需要 `--handle=`。 |
@@ -153,6 +156,9 @@
 | `scripts variable set` | `vehicle.variable.set` | Write | 是 | 是（脚本变量） | 无，不撤销 | EXPERIMENTAL | 需要 `--handle=`、`--name=`、`--value=`（有限数值）。 |
 | `scripts string list` | `vehicle.string-variables.list` | Read | 是 | 否 | 无 | EXPERIMENTAL | 需要 `--handle=`。 |
 | `scripts string get` | `vehicle.string-variable.get` | Read | 是 | 否 | 无 | EXPERIMENTAL | 需要 `--handle=`、`--name=`。 |
+| `scripts string set` | `vehicle.string-variable.set` | Write | 是 | 是（内存中的脚本状态） | 无，不撤销 | EXPERIMENTAL | 需要 `--handle=`、`--name=`、`--value=`。OMSI 自身的 `SetStringVariable`。运行时验证待完成。 |
+| `scripts trigger` | `vehicle.trigger` | Action | 是 | 是（运行车辆脚本代码） | 无，不撤销 | EXPERIMENTAL | 需要 `--handle=`、`--name=`、`--value=`（`1` 按下，`0` 释放，`2` 拖动）。运行时验证待完成。 |
+| `scripts sound-trigger` | `vehicle.sound-trigger` | Action | 是 | 是（播放车辆声音） | 无，不撤销 | EXPERIMENTAL | 需要 `--handle=`、`--trigger=`；可选 `--file=`。运行时验证待完成。 |
 
 <a id="operations-without-a-route"></a>
 ### 没有路由的操作
@@ -173,17 +179,17 @@
 | `/help` | `/help` | 关 | 控制 | STABLE_BETA | 与 `/?` 相同。（裸词 `help` 则返回结构化目录。） |
 | `/version` | `/version` | 关 | 控制 | STABLE_BETA | `version` 信封，退出码 `0`。在除 `/silent` 之外的所有其他命令之前求值。 |
 | `/json` | `/json` 或 `--json` | 关 | 控制 | STABLE_BETA | 输出 JSON 信封；即使在 `OmsiLaunchW.exe` 下也强制输出到控制台。 |
-| `/quiet` | `/quiet` | 关 | 控制 | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | 设置 `CliInput.Quiet`；没有任何代码读取它。 |
+| `/quiet` | `/quiet` | 关 | 控制 | STABLE_BETA | 抑制面向人的成功输出。JSON 输出（`/json`）和错误仍会写出；退出码不变。 |
 | `/silent` | `/silent`（也可用 `--silent`） | 关 | 控制 | EXPERIMENTAL | 将整个命令行委托给 `OmsiLaunchW.exe`，主机进程一启动即返回 `0`。会话结果由 `OmsiLaunchW.exe`（消息框、托盘图标）、`.omsilaunch\diagnostics` 和本地控制端点报告。委托和失败对话框已经运行时验证（运行时闭包 `T04`）；见 [OmsiLaunchW.exe](omsilaunchw.md)。 |
-| `/serve` | `/serve` | 关 | 控制 | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | 设置 `CliInput.Serve`；没有任何代码读取它。控制端点始终由所有者启动。 |
+| `/serve` | `/serve` | — | 控制 | REMOVED | 在 0.1.0-beta4 中移除：以 `OL_E_INVALID_ARGUMENT` 被拒绝（退出码 `2`）。会话所有者始终提供本地控制端点。 |
 | `/verbose` | `/verbose` | 关 | 启动时 | PARTIAL | `DiagnosticsSpec.Verbose`。其值随 spec 传递；效果仅限于 `.omsilaunch\diagnostics` 下的主机跟踪。 |
 | `/log` | `/log` | 开（`DiagnosticsSpec.Log` 默认为 `true`） | 启动时 | PARTIAL | `DiagnosticsSpec.Log`。实际上始终开启。 |
 | `/logall` | `/logall` | 关 | 启动时 | PARTIAL | 同时设置 `Verbose`、`ProcessTrace`、`PluginTrace` 和 `NativeTrace`。 |
 | `/omsi-logall` | `/omsi-logall` | 关 | 启动时 | PARTIAL | `DiagnosticsSpec.OmsiLogAll`。 |
 | `/trace` | `/trace` | 关 | 启动时 | PARTIAL | `/trace-process` 的别名。 |
 | `/trace-process` | `/trace-process` | 关 | 启动时 | PARTIAL | `DiagnosticsSpec.ProcessTrace`。 |
-| `/trace-plugin` | `/trace-plugin` | 关 | 启动时 | PARTIAL | `DiagnosticsSpec.PluginTrace`。 |
-| `/trace-native` | `/trace-native` | 关 | 启动时 | PARTIAL | `DiagnosticsSpec.NativeTrace`。 |
+| `/trace-plugin` | `/trace-plugin` | 关 | 启动时 | EXPERIMENTAL | `DiagnosticsSpec.PluginTrace`：插件会把每个运行时操作（`plugin.trace.operation`：操作、结果、代码、耗时）报告到会话的宿主跟踪中。 |
+| `/trace-native` | `/trace-native` | 关 | 启动时 | EXPERIMENTAL | `DiagnosticsSpec.NativeTrace`：原生层会把每次钩子的安装和移除（`native.trace`）报告到会话的宿主跟踪中。 |
 
 <a id="planning-validation-and-harnesses"></a>
 ### 规划、验证与测试工具
@@ -205,35 +211,43 @@
 |---|---|---|---|---|---|
 | `/new` | `/new` | `WorldMode.NewMap` 是默认模式，但只有存在 `/new`、`/saved`、`/last`、`/spec` 之一时才会请求启动 | 启动时 | STABLE_BETA | NEW_MAP。需要 `/map` 和 `/entrypoint-index`（没有给出所呈现入口点索引的计划会报告 `OL_E_ENTRYPOINT_REQUIRED`；没有 `/map` 则不会解析任何地图）。`/new` 从不静默选择地图。 |
 | `/saved` | `/saved:<file.osn>` | 无 | 启动时 | STABLE_BETA | SAVED_SITUATION。地图和位置来自 `.osn`；`/map`、`/entrypoint`、`/entrypoint-index` 与 `/saved` 一起使用时会被拒绝（退出码 `2`）。情景缺失：`OL_E_SITUATION_NOT_FOUND`；其地图缺失：`OL_E_SITUATION_MAP_NOT_FOUND`。 |
-| `/last` | `/last` | 无 | 启动时 | UNAVAILABLE | LAST_MAP_STATE。在此构建配置上始终产生 `OL_E_CAPABILITY_UNAVAILABLE`（不可运行，退出码 `1`）；不会执行基于时间戳的 `.osn` 回退。 |
+| `/last` | `/last /map:<identity>` | 无 | 启动时 | EXPERIMENTAL | LAST_MAP_STATE：通过 Start 窗体的上次状态分支加载该地图自身的 `laststn.osn`（OMSI 在关闭地图时写入）。需要 `/map`；没有 `laststn.osn` 的地图为 `OL_E_SITUATION_NOT_FOUND`。绝不是“最新 `.osn`”的启发式方法。运行时验证待完成。 |
 | `/map` | `/map:<identity>`（例如 `maps\Grundorf\global.cfg`） | 无 | 启动时 | STABLE_BETA | `/new` 的地图标识，或 `/list:Entrypoints` 的范围。未知：`OL_E_MAP_NOT_FOUND`。 |
-| `/entrypoint` | `/entrypoint:<identity>` | 无 | 启动时 | UNAVAILABLE | 按标签指定入口点。受门禁限制：计划将 `world.entrypoint-identity` 记录为 `RUNTIME_PARTIAL`，并变为不可运行（`OL_E_CAPABILITY_UNAVAILABLE`）。与 `/entrypoint-index` 互斥（标识优先并清除索引）。 |
+| `/entrypoint` | `/entrypoint:<identity>` | 无 | 启动时 | EXPERIMENTAL | 按其精确（区分大小写）的标签，或按来自 `/list:entrypoints` 的标识指定入口点。OMSI 只呈现每个标签的第一条记录；共用该标签的后续记录会被拒绝（`OL_E_ENTRYPOINT_NOT_PRESENTED`），未知的也会被拒绝（`OL_E_ENTRYPOINT_NOT_FOUND`）。运行时验证待完成。与 `/entrypoint-index` 互斥（标识优先并清除索引）。 |
 | `/entrypoint-index` | `/entrypoint-index:<n>`，`0..2147483647` | 无 | 启动时 | STABLE_BETA | 入口点在所呈现列表中的索引（与 OMSI 呈现的一样从 1 开始）。可运行的 NEW_MAP 计划必需此参数。 |
 
 <a id="date-time-and-weather"></a>
 ### 日期、时间与天气
 
-这四类参数都会被接受并带入 `LaunchSpec`，但原生启动路径不会应用它们：规划器将它们记录为 `STATICALLY_PARTIAL`，**并添加 `OL_E_CAPABILITY_UNAVAILABLE`，因此计划不可运行（NOT RUNNABLE，退出码 `1`）**。设置了这些项的 `/spec` 文件或会话配置档具有相同的效果。
+这些参数会被接受并带入 `LaunchSpec`。开始日期、时间和年份仅适用于 NEW_MAP 会话：与 `/saved` 或 `/last` 一起使用时，规划器将它们记录为 `UNAVAILABLE`，**并添加 `OL_E_CAPABILITY_UNAVAILABLE`，因此计划不可运行（NOT RUNNABLE，退出码 `1`）**，因为已保存情景自带其时钟。天气适用于每种世界模式。它们全部为 `EXPERIMENTAL`：原生启动路径已通过静态分析确定，运行时验证待完成。设置了这些项的 `/spec` 文件或会话配置档具有相同的效果。
 
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
-| `/date` | `/date:<yyyy-mm-dd>` 或 `/date:system` | 未设置 | 启动时 | UNAVAILABLE | `DateSpec` 显式值/系统值。无法解析的值：`OL_E_INVALID_ARGUMENT`，退出码 `2`。 |
-| `/time` | `/time:<hh:mm[:ss]>` 或 `/time:system` | 未设置 | 启动时 | UNAVAILABLE | `TimeSpec` 显式值/系统值。 |
-| `/year` | `/year:<n>` 或 `/year:system` | 未设置 | 启动时 | UNAVAILABLE | `YearSpec`。 |
-| `/weather` | `/weather:<preset>` | 未设置 | 启动时 | UNAVAILABLE | `WeatherMode.Preset`。 |
-| `/weather-icao` | `/weather-icao:<code>` | 未设置 | 启动时 | UNAVAILABLE | `WeatherMode.Icao`。 |
-| `/weather-real` | `/weather-real` | 未设置 | 启动时 | UNAVAILABLE | `WeatherMode.RealCurrent`。`/weather`、`/weather-icao`、`/weather-real` 中最后出现者生效。 |
+| `/date` | `/date:<yyyy-mm-dd>` 或 `/date:system` | 未设置 | 启动时 | EXPERIMENTAL | `DateSpec` 显式值/系统值：NEW_MAP 会话的启动日期（参见 [launchspec](launchspec.md#datespec-timespec-yearspec)）。无法解析的值：`OL_E_INVALID_ARGUMENT`，退出码 `2`；不可能存在的日期：`OL_E_DATE_TIME_APPLY_FAILED`。 |
+| `/time` | `/time:<hh:mm[:ss]>` 或 `/time:system` | 未设置 | 启动时 | EXPERIMENTAL | `TimeSpec` 显式值/系统值：NEW_MAP 会话的启动时间。 |
+| `/year` | `/year:<n>` 或 `/year:system` | 未设置 | 启动时 | EXPERIMENTAL | `YearSpec`：NEW_MAP 会话的启动年份（1900..2200）。 |
+| `/weather` | `/weather:<preset>` | 未设置 | 启动时 | EXPERIMENTAL | `WeatherMode.Preset`：安装的 `weather` 文件夹中的某个文件，按名称（`Regen`）或路径（`weather\Regen.owt`）指定；不存在的在规划时为 `OL_E_WEATHER_INVALID`。在世界启动后立即通过 OMSI 自身的 `loadWeather` 加载；实时 METAR 保持关闭。运行时验证待完成。 |
+| `/weather-icao` | `/weather-icao:<code>` | 未设置 | 启动时 | EXPERIMENTAL | `WeatherMode.Icao`：四字符 ICAO 站点的实时 METAR 天气（否则为 `OL_E_WEATHER_INVALID`）。OMSI 会把该站点保存在 `options.cfg` 中，会话会将其还原。运行时验证待完成。 |
+| `/weather-real` | `/weather-real` | 未设置 | 启动时 | EXPERIMENTAL | `WeatherMode.RealCurrent`：OMSI 已配置的站点的实时 METAR 天气；没有配置站点时，启动以 `OL_E_WEATHER_APPLY_FAILED` 失败。`/weather`、`/weather-icao`、`/weather-real` 中最后出现的生效。任何启动天气都会覆盖已保存情景的天气。 |
 
 <a id="player-vehicle"></a>
 ### 玩家车辆
 
-这些参数会被接受并依据安装实例解析，但运行时不会应用它们：每个已设置的字段都是 `STATICALLY_PARTIAL`，并添加 `OL_E_CAPABILITY_UNAVAILABLE`（计划不可运行，NOT RUNNABLE，退出码 `1`）。
+这些参数会被接受并依据安装实例解析，但运行时不会应用它们：每个已设置的字段都是 `UNAVAILABLE`，并添加 `OL_E_CAPABILITY_UNAVAILABLE`（计划不可运行，NOT RUNNABLE，退出码 `1`）。
 
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
 | `/vehicle` | `/vehicle:<identity>`（`Vehicles\...\*.bus`） | 未设置 | 启动时 | UNAVAILABLE | 最先解析（未知时为 `OL_E_VEHICLE_NOT_FOUND`）。 |
 | `/repaint` | `/repaint:<id>` | 未设置 | 启动时 | UNAVAILABLE | 仅与 `/vehicle` 一起解析（`OL_E_REPAINT_NOT_FOUND`）。 |
 | `/hof` | `/hof:<id>` | 未设置 | 启动时 | UNAVAILABLE | 未知时为 `OL_E_HOF_NOT_FOUND`。 |
+| `/hof-source` | `/hof-source:<collection\|directory\|vehicle\|file>:<value>` | 无 | 启动时 | STABLE_BETA | 一个会话 [HOF 管理](hof-management.md)操作：`HofSourceKind` 和 `Source`。至少需要一个 `/hof-target`。会替换 `/spec` 的 `HofManagement`；与带有 `hofs` 的会话配置档预设一起使用时：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。格式错误：退出码 `2`。 |
+| `/hof-target` | `/hof-target:<vehicle identity or folder>`（可重复） | 无 | 启动时 | STABLE_BETA | `Vehicles\` 之下的一个目标车辆。没有 `/hof-source`：退出码 `2`。 |
+| `/hof-file` | `/hof-file:<name.hof>`（可重复） | 全部文件 | 启动时 | STABLE_BETA | 将来源限制为这些文件名。没有 `/hof-source`：退出码 `2`。 |
+| `/hof-mode` | `/hof-mode:add\|mirror` | `add` | 启动时 | STABLE_BETA | `HofApplyMode`。没有 `/hof-source`：退出码 `2`。 |
+| `/module` | `/module:<id>`（可重复） | 无 | 启动时 | EXPERIMENTAL | 为会话请求一个[运行时模块](../../../reference/runtime-modules.md)（`LaunchSpec.Modules.Enable`，会加入 `/spec` 文件中的模块）。无法加载的被请求模块会使计划不可运行，并给出其 `OL_E_MODULE_*` 代码（退出码 `1`）。其操作通过 `/runtime:module.<id>.<operation>` 和 `/runtime-arg` 调用。与为其设置了 `enabled: false` 的会话配置档预设一起使用时：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。 |
+| `/no-module` | `/no-module:<id>`（可重复） | 无 | 启动时 | EXPERIMENTAL | 使模块不进入会话，包括默认加载、由其地图加载或由设置文件加载的模块（`LaunchSpec.Modules.Disable`）。与为其设置了 `enabled: true` 的预设一起使用时：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。没有值：退出码 `2`。 |
+| `/module-setting` | `/module-setting:<module id>.<key>=<value>`（可重复） | 无 | 启动时 | EXPERIMENTAL | 设置模块设置项（`LaunchSpec.Modules.Settings`）；优先于 `/spec` 文件、设置文件和默认值。所选预设也设置了的键：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。不是 `<id>.<key>=<value>`：退出码 `2`。无效的值或未声明的键：计划诊断信息 `OL_E_MODULE_SETTING_INVALID`（退出码 `1`）。 |
+| `/<module flag>` | `/<flag>:<value>`；对布尔设置项，单独的 `/<flag>` 表示 `true` | 无 | 启动时 | EXPERIMENTAL | 已安装模块为其某个设置项声明的参数（清单中的 `flag`；由 `/list:RuntimeModules` 列出）。它在规划会话时解析，与 `/module-setting:<id>.<key>=<value>` 相同。没有任何已安装模块声明的参数，或在启动之外使用的参数：`Unknown argument`，退出码 `2`。由两个模块声明的参数：`OL_E_MODULE_SETTING_INVALID`，退出码 `2`。模块参数绝不会取代内置参数。 |
 | `/fleet` | `/fleet:<n>` | 未设置 | 启动时 | UNAVAILABLE | 车队编号。 |
 | `/registration` | `/registration:<text>` | 未设置 | 启动时 | UNAVAILABLE | 车牌号。 |
 | `/no-vehicle` | `/no-vehicle` | 关 | 启动时 | STABLE_BETA | 清除种子（`/spec` 或配置档）中的任何玩家车辆。无副作用。 |
@@ -243,14 +257,14 @@
 
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
-| `/set` | `/set:<key>=<value>`（可重复；键不区分大小写） | 无 | 启动时 | STABLE_BETA | 来自 `ConfigurationCatalog` 的语义 `options.cfg` 覆盖层（overlay）（例如 `graphics.maxFPS=60`、`traffic.randomVehicles=150`）。未知键：`OL_E_UNKNOWN_SETTING`（退出码 `2`）；只读键（`advanced.multithreadingCalculate`、`advanced.multithreadingTextureLoad`、`graphics.texture`、`graphics.textureFilter`）：`OL_E_SETTING_NOT_WRITABLE`（退出码 `2`）；超出范围或格式错误的值：构建覆盖层时报告 `OL_E_INVALID_SETTING_VALUE`。覆盖层属于会话变更：先做快照，在 OMSI 启动前应用，停止时逐字节还原（RV-005 `RUNTIME_PASS`）。与所选配置档中预设拥有的键冲突：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。 |
+| `/set` | `/set:<key>=<value>`（可重复；键不区分大小写） | 无 | 启动时 | STABLE_BETA | 来自 `ConfigurationCatalog` 的语义 `options.cfg` 覆盖层（overlay）（例如 `graphics.maxFPS=60`、`traffic.randomVehicles=150`）。未知键：`OL_E_UNKNOWN_SETTING`（退出码 `2`）；只读键（`advanced.multithreadingCalculate`、`advanced.multithreadingTextureLoad`、`graphics.texture`、`graphics.textureFilter`）：`OL_E_SETTING_NOT_WRITABLE`（退出码 `2`）；超出范围或格式错误的值：构建覆盖层时报告 `OL_E_INVALID_SETTING_VALUE`。覆盖层属于会话变更：先做快照，在 OMSI 启动前应用，停止时逐字节还原（RV-005 `RUNTIME_VALIDATED`）。与所选配置档中预设拥有的键冲突：`OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`。 |
 
 <a id="splash-presentation"></a>
 ### 启动画面呈现
 
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
-| `/splash` | `/splash:Managed`、`/splash:Native`、`/splash:Unset`（不区分大小写） | `Managed` | 启动时 | STABLE_BETA | `Managed`：打包的 640x480 24 位 BMP 会一次性复制到 `<root>\.omsilaunch\assets\splash`，并以事务方式覆盖 `GUI\NewSplashscreen_ENG.bmp` 和 `GUI\NewSplashscreen_<lang>.bmp`，随后精确还原（RV-006 `RUNTIME_PASS`）。`Native`/`Unset`（别名）：不触及 OMSI 文件。缺少值：`/splash requires Unset, Native, or Managed`，退出码 `2`。 |
+| `/splash` | `/splash:Managed`、`/splash:Native`、`/splash:Unset`（不区分大小写） | `Managed` | 启动时 | STABLE_BETA | `Managed`：打包的 640x480 24 位 BMP 会一次性复制到 `<root>\.omsilaunch\assets\splash`，并以事务方式覆盖 `GUI\NewSplashscreen_ENG.bmp` 和 `GUI\NewSplashscreen_<lang>.bmp`，随后精确还原（RV-006 `RUNTIME_VALIDATED`）。`Native`/`Unset`（别名）：不触及 OMSI 文件。缺少值：`/splash requires Unset, Native, or Managed`，退出码 `2`。 |
 | `/splash-language` | `/splash-language:PTB|ENG|DEU|FRA`（也可用 `pt-BR`、`de`、`fr`、`en`；其他任何值回退为 `ENG`） | 来自 `options.cfg` 的 `[language]`，否则为 `ENG` | 启动时 | STABLE_BETA | 选择本地化的目标文件。 |
 | `/splash-assets` | `/splash-assets:<directory>`（相对路径在安装根目录下解析） | `<root>\.omsilaunch\assets\splash`，否则为打包的资源集 | 启动时 | STABLE_BETA | 自定义资源目录；必须包含 `ENG.bmp`，对于非英语语言还须包含 `<lang>.bmp`。错误：`OL_E_SPLASH_ASSET_DIRECTORY_MISSING`、`OL_E_SPLASH_ASSET_MISSING`、`OL_E_SPLASH_FORMAT_UNSUPPORTED`（在计划中表现为 `OL_E_SESSION_PRESENTATION_INVALID`；不可运行）。 |
 
@@ -268,7 +282,7 @@
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
 | `/predefined-profile` | `/predefined-profile:<id>` | 无 | 启动时 | STABLE_BETA（编译；离线 `OmsiLaunch.ProfileTests`） | 加载 `<root>\.omsilaunch\session-profiles\<id>\profile.yaml`（见[会话配置档](session-profiles.md)）。需要 `/predefined-profile-index`（`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`，退出码 `2`）。`new:` 块仅在使用 `/new` 时生效；`compatibility.maps` 对 `/new` 和 `/saved` 强制执行（`OL_E_SESSION_PROFILE_MAP_MISMATCH`）。与配置档拥有的字段冲突的显式参数会以 `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` 被拒绝（`CliInput.RejectProfileConflicts`）：`new:` 块拥有地图/入口点/日期/时间/年份/天气时的相应参数、预设拥有的 `/set` 键、预设含 `presentation` 时的启动画面参数、预设含 `internet-textures` 时的网络纹理参数、预设含 `behavior` 时的超时参数。 |
-| `/predefined-profile-index` | `/predefined-profile-index:<1..5>` | 无 | 启动时 | STABLE_BETA | 按 `index` 选择预设。超出范围：退出码 `2`。 |
+| `/predefined-profile-index` | `/predefined-profile-index:<1..99>` | 无 | 启动时 | STABLE_BETA | 按 `index` 选择预设。超出范围：退出码 `2`。 |
 
 <a id="launchspec-file"></a>
 ### LaunchSpec 文件
@@ -284,7 +298,7 @@
 
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
-| `/list` | `/list:<category>`；类别为 `ContentQueryKind` 值 `Maps`、`Situations`、`Vehicles`、`Repaints`、`Hofs`、`FleetNumbers`、`Registrations`、`Addons`、`Entrypoints`（不区分大小写） | 无 | 本地，无会话 | STABLE_BETA | 对安装实例执行 `DiscoverAsync`；信封 `content.list`，条目包含 `Identity`、`Kind`、`DisplayName`；退出码 `0`。未知类别：`Unknown discovery category`，退出码 `2`。重解析点（目录联接/符号链接）会被跳过，OMSI 文件按 Windows-1252 读取。 |
+| `/list` | `/list:<category>`；类别为 `ContentQueryKind` 值 `Maps`、`Situations`、`Vehicles`、`Repaints`、`Hofs`、`FleetNumbers`、`Registrations`、`Addons`、`Entrypoints`、`SessionProfiles`、`RuntimeModules`（不区分大小写） | 无 | 本地，无会话 | STABLE_BETA | 对安装实例执行 `DiscoverAsync`；信封 `content.list`，包含 `Identity`、`Kind`、`DisplayName` 条目；退出码 `0`。`SessionProfiles` 由 `ListSessionProfilesAsync` 应答（信封 `session-profiles.list`），`RuntimeModules` 由 `ListRuntimeModulesAsync` 应答（信封 `runtime-modules.list`：每个模块的 id、版本、激活方式、操作、有效性，以及其设置项的类型、默认值和参数）。未知类别：`Unknown discovery category`，退出码 `2`。重解析点（联接点/符号链接）会被跳过，OMSI 文件按 Windows-1252 读取。 |
 | `/vehicle-scope` | `/vehicle-scope:<vehicle identity>` | 无 | 本地 | STABLE_BETA | 对除 `Entrypoints` 之外的每个类别转发的范围；`Entrypoints` 使用 `/map` 作为其范围。 |
 
 <a id="timeouts-and-observation"></a>
@@ -293,7 +307,8 @@
 | 参数 | 语法与取值 | 默认值 | 阶段 | 稳定性 | 行为 |
 |---|---|---|---|---|---|
 | `/startup-timeout` | `/startup-timeout:<1..600>` 秒 | spec/配置档中的值，否则为 `180` | 启动时 | STABLE_BETA | `Behavior.StartupTimeoutSeconds`。所有者等待 `Running` 的时长为该值加 5 s；`OL_E_STARTUP_TIMEOUT` 以退出码 `1` 结束会话。 |
-| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` 秒 | spec/配置档中的值，否则为 `30` | 启动时 | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | 带入 `Behavior.ShutdownTimeoutSeconds`；在此构建中监管器不使用它（OMSI 被终止，而不是被请求关闭）。 |
+| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` 秒 | spec/配置档中的值，否则为 `30` | 启动时 | EXPERIMENTAL | `Behavior.ShutdownTimeoutSeconds`：配合 `/cooperative-shutdown`，指监管器在终止 OMSI 之前等待其退出的时长；没有它时，OMSI 会被立即终止，该值不起作用。 |
+| `/cooperative-shutdown` | `/cooperative-shutdown` | 关 | 启动时 | EXPERIMENTAL | `Behavior.CooperativeShutdown`：结束正在运行的会话时，通过 OMSI 自身的退出例程（用户确认退出后运行的那个：它会保存 `options.cfg` 和地图的 `laststn.osn`，然后关闭）请求 OMSI 退出，并在终止它之前等待 `ShutdownTimeoutSeconds`。在经运行时验证之前为可选启用；当不得不终止 OMSI 时给出 `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE`。无论哪种情况，会话的文件都会在退出后被还原。 |
 | `/observe-seconds` | `/observe-seconds:<0..2147483647>` | 无（一直运行，直到 OMSI 退出或收到停止请求） | 运行时（所有者） | STABLE_BETA | 运行阶段的上限：处于 `Running` 达 `n` 秒后请求规范停止。托盘或管道停止、或 OMSI 退出会使其提前结束。`0` 在进入 `Running` 后立即停止。 |
 
 <a id="recovery"></a>
@@ -303,6 +318,7 @@
 |---|---|---|---|---|---|
 | `/recovery-status` | `/recovery-status` | 关 | 本地 | STABLE_BETA | 报告 `<root>\.omsilaunch\journal.json` 是否处于待处理状态（`pending`），从不还原；退出码 `0`。会获取安装租约：所有者持有租约时返回 `OL_E_INSTALLATION_BUSY`（退出码 `7`）。 |
 | `/recover` | `/recover` | 关 | 本地 | STABLE_BETA | 还原待处理的事务日志（journal）（先依据快照 SHA-256 校验备份；`OL_E_RECOVERY_BACKUP_CORRUPT`、`OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`、`OL_W_RESTORE_FOREIGN_FILE_RETAINED` 在 `diagnostics` 中报告）。没有待处理内容或还原完成时退出码 `0`；存在待处理事务日志且仍未处理时为 `8`。当事务日志中记录的 OMSI 进程（PID、创建时间、exe 路径）仍存活时，或者对于已越过 `HandoffCreated` 但没有 PID 的事务日志、该根目录下的任何 `Omsi.exe` 仍存活时，以 `OL_E_INSTALLATION_BUSY` 拒绝。每次会话启动都会在读取安装实例之前自动执行相同的恢复。 |
+| `/clear-module-data` | `/clear-module-data:<module id>` | 无 | 本地，无会话 | EXPERIMENTAL | 删除模块的数据目录 `<root>\.omsilaunch\module-data\<id>`，且不删除其他任何内容；信封 `module-data.clear`，包含 `module` 和 `cleared`（没有可删除内容时为 `false`）；退出码 `0`。会获取安装租约：会话拥有该安装实例期间为 `OL_E_INSTALLATION_BUSY`（退出码 `7`）。通过链接访问的模块数据文件夹会被拒绝（`OL_E_MODULE_INTEGRITY`）；其中的链接会按链接被移除。 |
 
 <a id="output-formats"></a>
 ## 输出格式

@@ -1,7 +1,7 @@
 # Indicateur de la zone de notification Windows
 
-<!-- l10n: source=reference/windows-tray.md -->
-> Traduction de la [page originale en anglais](../../../reference/windows-tray.md) d’OmsiLaunch 0.1.0-beta3. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> Traduction de la [page originale en anglais](../../../reference/windows-tray.md) d’OmsiLaunch 0.1.0-beta4. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
 
 Chaque session propriétaire autonome (démarrée avec `OmsiLaunch.exe` ou `OmsiLaunchW.exe`) affiche une icône dans la zone de notification qui présente la session et permet à l'utilisateur d'y mettre fin. Cette page spécifie l'indicateur tel qu'il est implémenté par `SessionTrayIndicator`, `StatusWindow` et `StopConfirmationWindow` dans `tools\OmsiLaunch.Cli\WindowsHost.cs`, par le présentateur en lecture seule `SessionStatusPresenter` (`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`) et par le registre de chaînes `WindowsUiStrings` (`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`), ainsi que les boîtes de dialogue d'échec de `OmsiLaunchW.exe` de `WindowsHost`. La zone de notification n'est qu'un adaptateur de présentation : elle ne détient ni OMSI ni la récupération, et son action d'arrêt déclenche le même chemin d'arrêt canonique du propriétaire que `session stop` (voir la [référence de la CLI](cli.md) et le [contrôle local](local-control.md)).
 
@@ -59,7 +59,7 @@ Les sections apparaissent dans cet ordre, et une section est omise lorsqu'elle n
 | `Presentation` | `Splash` | toujours | `Managed` ou `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | toujours | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-Les sections `Environment` et `Vehicle` ne peuvent jamais apparaître dans une session Beta 3 en cours d'exécution : demander une date, une heure, une année, une météo ou un champ quelconque du véhicule du joueur rend le plan non exécutable, de sorte qu'aucune session de ce type ne démarre (voir les [limitations connues](known-limitations.md)). Elles existent pour de futurs builds et sont couvertes par le test hors ligne du présentateur.
+La section `Environment` apparaît dans une session Beta 4 en cours d'exécution lorsqu'une date, une heure, une année ou une météo a été demandée (ces demandes sont expérimentales, voir les [limitations connues](known-limitations.md)). La section `Vehicle` ne peut jamais apparaître dans une session en cours d'exécution : demander un champ quelconque du véhicule du joueur rend le plan non exécutable, de sorte qu'aucune session de ce type ne démarre. Elle existe pour un futur build et est couverte par le test hors ligne du présentateur.
 
 Preuves d'exécution (interface pt-BR, closure runtime `T01`) : une session NEW_MAP sur Grundorf a affiché `Sessão em execução` ; `Sessão` : `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1` ; `Apresentação` : `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

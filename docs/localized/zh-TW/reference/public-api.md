@@ -1,9 +1,9 @@
 # 公開 API 參考（`OmsiLaunch.Api`）
 
-<!-- l10n: source=reference/public-api.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../../reference/public-api.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=reference/public-api.md source-sha256=84642bb43094a73ea13c435992e09e49f1a9328928880336e171182bb1ad6851 -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/public-api.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-本頁是 OmsiLaunch 0.1.0-beta3 受控（managed）公開 API 的規範性參考：涵蓋 `OmsiLaunch.Api` 組件（合約）以及 `OmsiLaunch.Core` 中供整合者使用的進入點 `OmsiLaunchService`。本頁只記載目前程式碼實際的行為。整合者可以呼叫、接收或觀察的一切，皆連同其穩定性等級列於此處；未列出者即不屬於整合介面。
+本頁是 OmsiLaunch 0.1.0-beta4 受控（managed）公開 API 的規範性參考：涵蓋 `OmsiLaunch.Api` 組件（合約）以及 `OmsiLaunch.Core` 中供整合者使用的進入點 `OmsiLaunchService`。本頁只記載目前程式碼實際的行為。整合者可以呼叫、接收或觀察的一切，皆連同其穩定性等級列於此處；未列出者即不屬於整合介面。
 
 自動產生的[公開 API 清單](public-api-inventory.md)列出 `OmsiLaunch.Api`、`OmsiLaunch.Core` 與 `OmsiLaunch.Process` 的每個公開型別與成員，並附上其簽章與穩定性；當清單與組件不一致時，文件檢查關卡會失敗。本頁則說明其語意。
 
@@ -90,6 +90,8 @@ public interface IOmsiLaunch
     Task<RuntimeCommandResult> ExecuteRuntimeAsync(SessionHandle session, RuntimeCommand command, TimeSpan timeout, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ContentIdentity>> DiscoverAsync(InstallationSpec installation, ContentQueryKind query, OptionalValue<string> scope = default, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default);
     Task<RecoveryStatus> RecoverPendingAsync(InstallationSpec installation, bool restore, CancellationToken cancellationToken = default);
 }
 ```
@@ -99,7 +101,7 @@ public interface IOmsiLaunch
 - 未知或已關閉的 handle 會擲回 `KeyNotFoundException`（"Unknown OmsiLaunch session."）。
 - 除 `ExecuteRuntimeAsync` 外，沒有任何方法需要處於 Running 狀態的工作階段。
 - 帶有 OmsiLaunch 代碼的例外會將代碼置於 `Exception.Message` 的開頭（`"OL_E_PLAN_NOT_RUNNABLE: ..."`）。CLI 以相同方式從訊息中擷取代碼（`CliProgram.Classify`）。
-- 支援的組建：僅 `Omsi23004_692EBFBF`（另加 Steam LAA 允許清單雜湊，會被接受；遊戲過程未經驗證，需要真正的 Steam 安裝）。請參閱[相容性](compatibility.md)。
+- 支援的安裝：OMSI 2。原生功能會依組建在處理程序內解析並驗證；在某個組建上無法使用的功能會以 `OL_E_CAPABILITY_UNRESOLVED` 失敗。請參閱[相容性](compatibility.md)。
 
 <a id="complete-minimal-example"></a>
 ### 完整的最小範例
@@ -144,7 +146,7 @@ finally
 | 簽章 | `Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default)` |
 | 用途 | 在不啟動 OMSI 的情況下，將 `LaunchSpec` 編譯為 `SessionPlan`：驗證 spec、偵測平台、為 `Omsi.exe` 計算指紋、解析內容識別、計算預定的檔案變更、列出所需與不支援的功能，並決定 `IsRunnable`。公開功能 `session.plan`。 |
 | 參數 | `spec`：完整填入的 `LaunchSpec`（請參閱 [LaunchSpec 參考](launchspec.md)）。`Installation`、`World`、`Date`、`Time`、`Environment`（全部八個字典）與 `Behavior` 不得為 null；選用成員可為 `null`。`RootPath` 應為絕對目錄路徑；空的根目錄會被記錄為 `OL_E_INSTALLATION_NOT_FOUND`，但對空路徑進行平台探測會在計畫回傳前擲回 `ArgumentException`，因此切勿傳入空的根目錄。 |
-| 回傳 | `SessionPlan`，包含新的 `SessionId`、`BuildProfileId = "Omsi23004_692EBFBF"`（永遠是此常數，即使執行檔不相符亦然）、輸入的 `Spec`、`Platform`、`ResolvedContent`、`TouchedFiles`、`RuntimeArtifacts`（`plugins\OmsiLaunch.*` 目的地路徑，加上 `"OmsiLaunch startup handoff v4"`）、`RequiredCapabilities`、`UnsupportedRequestedFeatures`、`PlannedMutations`、`Diagnostics`、`IsRunnable`。當且僅當沒有任何診斷訊息代碼以 `OL_E_` 開頭時，`IsRunnable` 為 `true`。資訊性診斷訊息（訊息為 `self` 或 `manifest` 的 `plugin.integrity.reference`、`session_profile.selected`）絕不會使計畫變成不可執行。 |
+| 回傳 | `SessionPlan`，包含新的 `SessionId`、`BuildProfileId` = 已知配置（`"Omsi23004"`），對沒有已知配置的 OMSI 2 組建則為 `"unrecognized"`、輸入的 `Spec`、`Platform`、`ResolvedContent`、`TouchedFiles`、`RuntimeArtifacts`（`plugins\OmsiLaunch.*` 目的地路徑，加上 `"OmsiLaunch startup handoff v6"`）、`RequiredCapabilities`、`UnsupportedRequestedFeatures`、`PlannedMutations`、`Diagnostics`、`IsRunnable`、`PlannedModules`（每個被要求或由內容啟用的[執行階段模組](../../../reference/runtime-modules.md)一個 `PlannedModule`；存取子 `EffectivePlannedModules`）。當且僅當沒有任何診斷訊息代碼以 `OL_E_` 開頭時，`IsRunnable` 為 `true`。資訊性診斷訊息（訊息為 `self` 或 `manifest` 的 `plugin.integrity.reference`、`session_profile.selected`）絕不會使計畫變成不可執行。 |
 | 由結果攜帶的錯誤 | 每個規劃錯誤都是診斷訊息，而非例外：`OL_E_INSTALLATION_NOT_FOUND`、`OL_E_INSTALLATION_NOT_WRITABLE`、`OL_E_UNSUPPORTED_OPERATING_SYSTEM`、`OL_E_UNSUPPORTED_BUILD`、`OL_E_MAP_NOT_FOUND`、`OL_E_ENTRYPOINT_NOT_FOUND`、`OL_E_ENTRYPOINT_REQUIRED`、`OL_E_SITUATION_NOT_FOUND`、`OL_E_SITUATION_MAP_NOT_FOUND`、`OL_E_VEHICLE_NOT_FOUND`、`OL_E_REPAINT_NOT_FOUND`、`OL_E_HOF_NOT_FOUND`、`OL_E_DATE_TIME_APPLY_FAILED`、`OL_E_INVALID_ARGUMENT`、`OL_E_CAPABILITY_UNAVAILABLE`、`OL_E_UNKNOWN_SETTING`、`OL_E_SETTING_NOT_WRITABLE`、`OL_E_SESSION_PRESENTATION_INVALID`（訊息中帶有 splash／ITX 代碼）、`OL_E_PERMANENT_PLUGIN_MISSING`、`OL_E_PERMANENT_PLUGIN_HASH_MISMATCH`、`OL_E_PERMANENT_PLUGIN_MANIFEST_INCOMPLETE`（`plugins\` 中已安裝的外掛程式封閉集合會在規劃時依發行資訊清單驗證）、`OL_E_RUNTIME_ARTIFACT_MISSING`（訊息中可能帶有 `OL_E_RELEASE_MANIFEST_INVALID`）。完整條件：[LaunchSpec 驗證規則](launchspec.md#validation-rules-and-non-runnable-diagnostics)。 |
 | 擲回 | 若 token 在進入時已取消，擲回 `OperationCanceledException`（唯一的檢查點）；語法無效的根路徑擲回 `ArgumentException`／`NotSupportedException`；必要成員為 null 時擲回 `NullReferenceException`／`ArgumentNullException`；語法無效的發行資訊清單擲回 `System.Text.Json.JsonException`。 |
 | 取消 | 僅在進入時檢查一次。之後的規劃為同步的檔案系統作業。 |
@@ -152,7 +154,7 @@ finally
 | 變更 OMSI 狀態 | 否。 |
 | 變更檔案系統 | 否（會讀取 `Omsi.exe`、內容檔案、外掛程式封閉集合、資訊清單）。此處不驗證設定值（只檢查鍵是否存在及是否可寫入）；無效的值會在啟動時以 `OL_E_INVALID_SETTING_VALUE` 失敗。 |
 | 交易／還原 | 無。 |
-| 限制 | 在此組建上，要求 `Date`／`Time`／`Year` 中任一個採用 `Unset` 以外的模式、`Unset` 以外的任何 `Weather` 模式、任何 `PlayerVehicle` 欄位、`Input` 文件、`EntrypointIdentity` 或 `WorldMode.LastMapState`，都會產生 `OL_E_CAPABILITY_UNAVAILABLE` 以及不可執行的計畫（`UnsupportedRequestedFeatures` 中的 `STATICALLY_PARTIAL`／`UNSUPPORTED_FOR_CURRENT_PROFILE` 項目）。 |
+| 限制 | 在此組建上，要求 `Date`／`Time`／`Year` 中任一個採用 `Unset` 以外的模式、`Unset` 以外的任何 `Weather` 模式、任何 `PlayerVehicle` 欄位、`Input` 文件、`EntrypointIdentity` 或 `WorldMode.LastMapState`，都會產生 `OL_E_CAPABILITY_UNAVAILABLE` 以及不可執行的計畫（`UnsupportedRequestedFeatures` 中的項目附帶其目錄證據，`UNAVAILABLE` 或 `PARTIAL`）。 |
 | 穩定性 | `STABLE_BETA`。 |
 | 範例 | `var plan = await launch.PlanSessionAsync(spec); Console.WriteLine(plan.IsRunnable ? "READY" : string.Join(", ", plan.Diagnostics.Where(d => d.Code.StartsWith("OL_E_")).Select(d => d.Code)));` |
 
@@ -171,7 +173,7 @@ finally
 | 變更 OMSI 狀態 | 是：以環境變數 `OMSILAUNCH_SESSION_ID`、`OMSILAUNCH_HANDOFF_NAME`、`OMSILAUNCH_TELEMETRY_NAME`、`OMSILAUNCH_RUNTIME_CHANNEL`、`OMSILAUNCH_INTERNET_TEXTURES_MODE` 建立 OMSI 處理程序。 |
 | 變更檔案系統 | 是，在安裝根目錄內：`.omsilaunch\diagnostics\<sessionId>-host.log`（保留：最新的 50 個工作階段）、`.omsilaunch\journal.json`、`.omsilaunch\backup\<sessionId>\*.bin`、`.omsilaunch\assets\splash\*.bmp`（為受管啟動畫面複製一次）、工作階段 overlay（`options.cfg` 修補、`GUI\NewSplashscreen_*.bmp`、`Texture\standard.itx`）、工作階段刪除（ITX 目標、`Texture\standard.ipr`、`closecheck`），以及在 `SuppressStaleClosecheckWarning` 為 true 時永久移除事先存在的殘留 `closecheck`（診斷訊息 `closecheck.stale-removed`）。 |
 | 交易／還原 | 開啟交易（`Prepared` → `Applied` → `RuntimeDeployed` → `HandoffCreated` → `ProcessStarted`）。離開工作階段的每條路徑都以還原作結。請參閱[交易與復原](../concepts/transactions-and-recovery.md)。 |
-| 限制 | 只有搭配 `PresentedEntrypointIndex` 的 `WorldMode.NewMap` 與 `WorldMode.SavedSituation` 能進入遊戲。`WorldMode.LastMapState` 為 `UNAVAILABLE`。日期／時間／天氣／玩家車輛／輸入的要求永遠不會到達此方法，因為它們在規劃時即為不可執行。 |
+| 限制 | 只有搭配 `PresentedEntrypointIndex` 的 `WorldMode.NewMap` 與 `WorldMode.SavedSituation` 能進入遊戲。`WorldMode.LastMapState` 為 `UNAVAILABLE`。玩家車輛的要求永遠不會到達此方法，因為它們在規劃時即為不可執行。 |
 | 穩定性 | `STABLE_BETA`（NEW_MAP 與 SAVED_SITUATION 生命週期已於執行階段驗證）。 |
 | 範例 | `var session = await launch.StartSessionAsync(plan); var s = await launch.GetStatusAsync(session); if (s.State == SessionState.Failed) Console.WriteLine(s.Diagnostics.Last(d => d.Code.StartsWith("OL_E_")).Message);` |
 
@@ -248,14 +250,14 @@ finally
 | 參數 | `command.SessionId` 必須等於 `session.SessionId`。`command.RequestId`：由呼叫端選擇的 `ulong`；請在每個處理程序中使用嚴格遞增的計數器（D3D 輔助方法從 30 000 開始，CLI 擁有者從 10 001／50 000 開始）。`command.Operation`：來自 `PublicCapabilityRegistry.PublicRuntimeOperationIds` 的公開操作 id（例如 `time.read`、`road-vehicle.read`、`d3d.texture.create`）。`command.Arguments`：以序數名稱為鍵的字串值；各操作的必要名稱來自 `PublicCapabilityRegistry.GetRuntimeArguments`。`timeout`：從要求放入信箱的那一刻開始計算（排在另一個進行中命令之後等待的時間不計入）。CLI 作為擁有者時使用 5 s（`road-vehicles.spawn` 為 15 s），作為用戶端時使用 8 s／30 s。 |
 | 檢查順序 | 1. 登錄驗證（在查找工作階段之前）：未知或 `internal.*` 操作 → 結果 `Succeeded=false, ErrorCode=OL_E_RUNTIME_OPERATION_UNKNOWN`；缺少必要引數（不存在或僅含空白）→ `OL_E_RUNTIME_ARGUMENT_REQUIRED`。2. 查找工作階段 → `KeyNotFoundException`。3. `command.SessionId != session.SessionId` → `InvalidOperationException("OL_E_RUNTIME_SESSION_MISMATCH")`。4. 狀態不是 `Running` → `InvalidOperationException("OL_E_SESSION_NOT_RUNNING")`。5. 信箱要求。6. 鍵以 `internal_` 開頭或以 `_address`、`_pointer`、`_vmt` 結尾的結果值會被移除。 |
 | 回傳 | `RuntimeCommandResult(SessionId, RequestId, Succeeded, ErrorCode, Values)`。成功時，`Values` 保存該操作的語意字串（各操作的說明見[執行階段控制](runtime-control.md)）。 |
-| 由結果攜帶的錯誤 | `OL_E_RUNTIME_OPERATION_UNKNOWN`、`OL_E_RUNTIME_ARGUMENT_REQUIRED`（登錄）；`OL_E_RUNTIME_RESPONSE_TOO_LARGE`（外掛程式結果超出信箱；有界清單結果則改以 `truncated=true` 縮短）；`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`（`weather.set`，一律如此）；每個 `OL_E_D3D_*` 代碼（附 `Values["detail"]` 與 `Values["native_status"]`）；以及其他所有外掛程式端失敗的 `OL_E_RUNTIME_OPERATION_FAILED`。在最後這種情況下，具體代碼不在 `ErrorCode` 中：它是 `Values["detail"]` 的第一個 token（例如 `detail = "OL_E_RUNTIME_OBJECT_HANDLE_STALE"`、`exception = "InvalidOperationException"`）。以此方式傳回的代碼：`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_RUNTIME_ARGUMENT_REQUIRED`（外掛程式端檢查）、`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`、`OL_E_RUNTIME_VALUE_INVALID`、`OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`、`OL_E_RUNTIME_OBJECT_HANDLE_STALE`、`OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE`、`OL_E_RUNTIME_VARIABLE_NOT_FOUND`、`OL_E_RUNTIME_VARIABLE_UNAVAILABLE`、`OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND`、`OL_E_RUNTIME_CONSTANT_NOT_FOUND`、`OL_E_RUNTIME_CONSTANTS_UNAVAILABLE`、`OL_E_RUNTIME_CURVE_NOT_FOUND`、`OL_E_RUNTIME_CURVE_EMPTY`、`OL_E_RUNTIME_CURVE_DEGENERATE`、`OL_E_RUNTIME_CURVE_INVALID`、`OL_E_RUNTIME_HOF_UNAVAILABLE`、`OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`、`OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`、`OL_E_TIME_APPLY_FAILED`、`OL_E_RUNTIME_BUS_IDENTITY_INVALID`、`OL_E_MAKEVEHICLE_BUS_NOT_FOUND`、`OL_E_MAKEVEHICLE_DELTA_ZERO`、`OL_E_MAKEVEHICLE_DELTA_MULTIPLE`、`OL_E_MAKEVEHICLE_NATIVE_FAILED`、`OL_E_RUNTIME_CREATED_OBJECT_NOT_IN_COLLECTION`、`OL_E_RUNTIME_CREATED_OBJECT_INVALID`、`OL_E_PLACE_RANDOM_BUS_FAILED`、`OL_E_RUNTIME_SETTING_UNAVAILABLE`。請參閱[錯誤碼](errors.md)。 |
+| 由結果攜帶的錯誤 | `OL_E_RUNTIME_OPERATION_UNKNOWN`、`OL_E_RUNTIME_ARGUMENT_REQUIRED`（登錄）；`OL_E_RUNTIME_RESPONSE_TOO_LARGE`（外掛程式結果超出信箱；有界清單結果則改以 `truncated=true` 縮短）；`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`（帶有衍生索引鍵的 `weather.set`）；每個 `OL_E_D3D_*` 代碼（附 `Values["detail"]` 與 `Values["native_status"]`）；`OL_E_CAPABILITY_UNRESOLVED`（該操作的原生功能在執行中的組建上未解析）；以及每個外掛程式端的具型別失敗，其專屬代碼位於 `ErrorCode`，訊息位於 `Values["detail"]`（Beta 4；只有沒有已登錄代碼的失敗才是 `OL_E_RUNTIME_OPERATION_FAILED`）。以此方式傳回的代碼：`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_RUNTIME_ARGUMENT_REQUIRED`（外掛程式端檢查）、`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`、`OL_E_RUNTIME_VALUE_INVALID`、`OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`、`OL_E_RUNTIME_OBJECT_HANDLE_STALE`、`OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE`、`OL_E_RUNTIME_VARIABLE_NOT_FOUND`、`OL_E_RUNTIME_VARIABLE_UNAVAILABLE`、`OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND`、`OL_E_RUNTIME_CONSTANT_NOT_FOUND`、`OL_E_RUNTIME_CONSTANTS_UNAVAILABLE`、`OL_E_RUNTIME_CURVE_NOT_FOUND`、`OL_E_RUNTIME_CURVE_EMPTY`、`OL_E_RUNTIME_CURVE_DEGENERATE`、`OL_E_RUNTIME_CURVE_INVALID`、`OL_E_RUNTIME_HOF_UNAVAILABLE`、`OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`、`OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`、`OL_E_TIME_APPLY_FAILED`、`OL_E_RUNTIME_BUS_IDENTITY_INVALID`、`OL_E_MAKEVEHICLE_BUS_NOT_FOUND`、`OL_E_MAKEVEHICLE_DELTA_ZERO`、`OL_E_MAKEVEHICLE_DELTA_MULTIPLE`、`OL_E_MAKEVEHICLE_NATIVE_FAILED`、`OL_E_RUNTIME_CREATED_OBJECT_NOT_IN_COLLECTION`、`OL_E_RUNTIME_CREATED_OBJECT_INVALID`、`OL_E_PLACE_RANDOM_BUS_FAILED`、`OL_E_RUNTIME_SETTING_UNAVAILABLE`。請參閱[錯誤碼](errors.md)。 |
 | 擲回 | `KeyNotFoundException`；附 `OL_E_RUNTIME_SESSION_MISMATCH`、`OL_E_SESSION_NOT_RUNNING`、`OL_E_RUNTIME_CHANNEL_CLOSED`（信箱已被監督程式處置）、`OL_E_RUNTIME_CHANNEL_BUSY`（槽位仍保有被放棄的要求）、`OL_E_RUNTIME_REQUEST_ID_REUSED`（槽位中仍有相同要求 id 的過時回應）的 `InvalidOperationException`；`TimeoutException("OL_E_RUNTIME_REQUEST_TIMEOUT")`；`InvalidDataException("OL_E_RUNTIME_RESPONSE_INVALID")`（回應損毀、來源不符或不相符）；序列化後的要求超出信箱時擲回 `ArgumentOutOfRangeException`；`OperationCanceledException`。 |
 | 取消 | 在等待每個工作階段的閘道（gate）時，以及輪詢回應期間每 20 ms 檢查一次。在進行途中取消不會重設槽位：該工作階段的下一個呼叫可能以 `OL_E_RUNTIME_CHANNEL_BUSY` 失敗，直到外掛程式發佈其回應為止（該回應接著會被視為過時而捨棄）。建議改用逾時；逾時會重設槽位，而延遲抵達的回應會被偵測並捨棄。 |
 | 需要 Running 工作階段 | 是（`SessionState.Running`）；否則會擲回 `OL_E_SESSION_NOT_RUNNING`。信箱會一直存在，直到監督程式在還原期間將其處置。 |
 | 變更 OMSI 狀態 | 取決於操作：`Read` 操作不會；`Write`／`Action` 操作（`time.set`、`camera.set`、`camera.lock`、`camera.unlock`、`road-vehicles.spawn`、`road-vehicles.place-random`、`vehicle.variable.set`、`d3d.texture.*`）會變更處理程序內的狀態，且這些狀態不會被還原。 |
 | 變更檔案系統 | 主機不寫入任何檔案。OMSI 可能因此寫入其自身的檔案（不追蹤）。 |
 | 交易／還原 | 無。 |
-| 限制 | 每個工作階段同時只有一個進行中的命令（對同一工作階段的呼叫會序列化）。要求與回應各自限制為 64 KiB 減 8 位元組；D3D 像素承載限制為 48 KiB。`internal.road-vehicles.make-basic` 為 `INTERNAL` 且無法觸及。`weather.set` 為 `UNAVAILABLE`。`timetable.logs.read` 不是有界的，在大型時刻表上可能回傳 `OL_E_RUNTIME_RESPONSE_TOO_LARGE`。`camera.lock` 為 `EXPERIMENTAL`；它需要玩家車輛，且已於執行階段驗證（`CAM01`），儘管登錄中的 `RuntimeValidation` 字串仍顯示 `STATICALLY_VALIDATED`。handle（`rv-NNNNNN`、`hb-NNNNNN`、`d3dtex-<session>-<hex>`）的範圍限於工作階段。 |
+| 限制 | 每個工作階段同時只有一個進行中的命令（對同一工作階段的呼叫會序列化）。要求與回應各自限制為 64 KiB 減 8 位元組；D3D 像素承載限制為 48 KiB。`internal.road-vehicles.make-basic` 為 `INTERNAL` 且無法觸及。`weather.set` 與 `weather.metar.set` 為 `EXPERIMENTAL`。`timetable.logs.read` 不是有界的，在大型時刻表上可能回傳 `OL_E_RUNTIME_RESPONSE_TOO_LARGE`。`camera.lock` 為 `EXPERIMENTAL`；它需要玩家車輛，且已於執行階段驗證（`CAM01`），儘管登錄中的 `RuntimeValidation` 字串仍顯示 `STATICALLY_VALIDATED`。handle（`rv-NNNNNN`、`hb-NNNNNN`、`d3dtex-<session>-<hex>`）的範圍限於工作階段。 |
 | 穩定性 | 傳輸與合約為 `STABLE_BETA`；各操作的穩定性依循 `PublicCapabilityRegistry`（`PublicStableBeta` → `STABLE_BETA`、`PublicExperimental` → `EXPERIMENTAL`），上述例外除外。 |
 | 範例 | `var r = await launch.ExecuteRuntimeAsync(session, new RuntimeCommand(session.SessionId, 42, "road-vehicle.read", new Dictionary<string, string> { ["handle"] = "rv-000001" }), TimeSpan.FromSeconds(5)); if (!r.Succeeded) Console.WriteLine($"{r.ErrorCode} {r.Values?["detail"]}");` |
 
@@ -264,10 +266,10 @@ finally
 | 面向 | 詳細說明 |
 | --- | --- |
 | 簽章 | `Task<IReadOnlyList<Capability>> GetCapabilitiesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
-| 用途 | 回傳產品針對某個 OMSI 安裝的證據清單：一份在 `OmsiLaunchService` 中維護的固定 `Capability(Name, Available, EvidenceState, Reason)` 項目清單。只有 `runtime.current-windows-x64` 是計算得出的（來自平台偵測）；其他所有項目皆為常數。 |
-| 參數 | `installation.RootPath`：用於平台探測的目錄（可寫入性要求目錄存在、不是唯讀，且包含 `plugins\`）。`ExpectedExecutableSha256` 會被忽略。 |
-| 回傳 | 51 個項目，例如 `runtime.time.read`（`RUNTIME_VALIDATED`）、`runtime.weather.write`（`false`、`RUNTIME_PARTIAL`）、`world.last-map-state`（`false`、`UNSUPPORTED_FOR_CURRENT_PROFILE`）、`world.date.explicit`（`false`、`STATICALLY_PARTIAL`）、`content.maps`（`STATICALLY_VALIDATED`）、`runtime.d3d.lifecycle.reset`（`IMPLEMENTED_NOT_RUNTIME_VALIDATED`）。 |
-| 與 `PublicCapabilityRegistry` 的差異 | `PublicCapabilityRegistry.All` 是編譯時期的控制介面目錄（36 個描述項，含分類、種類、API 與 CLI 路由、必要引數），由 API 與 CLI 強制執行；它不依賴於 OMSI 安裝。`GetCapabilitiesAsync` 則是執行階段證據報告（驗證狀態與原因）。請以登錄決定可以呼叫什麼；以此清單判斷哪些已被證實。兩份清單都不是由另一份衍生而來。 |
+| 用途 | 回傳針對某個安裝評估的功能目錄：每個非 `InternalOnly` 的 `PublicCapabilityRegistry` 項目對應一個 `Capability(Name, Available, EvidenceState, Reason)`。`Name` 為目錄 id，`EvidenceState` 為目錄證據（`RUNTIME_VALIDATED`、`STATICALLY_VALIDATED`、`PARTIAL`、`RUNTIME_VALIDATION_REQUIRED`、`UNAVAILABLE`）。`Available` 依平台、OMSI 2 檢查、分類以及該項目所需的原生功能計算得出（請參閱[功能](capabilities.md#getcapabilitiesasync)）。 |
+| 參數 | `installation.RootPath`：被探測的安裝（平台、`Omsi.exe`）。`ExpectedExecutableSha256` 會被忽略。 |
+| 回傳 | 每個非內部目錄項目一個項目，例如 `time.read`（`RUNTIME_VALIDATED`，在已知配置上 `Reason` 為 `native: RESOLVED_KNOWN_LAYOUT`）、`world.last-map-state`（`false`、`UNAVAILABLE`）。 |
+| 與 `PublicCapabilityRegistry` 的關係 | 由其衍生：登錄宣告功能、其操作與其證據；此呼叫則針對單一安裝評估它們。 |
 | 擲回 | 進入時擲回 `OperationCanceledException`；根路徑為空時擲回 `ArgumentException`。 |
 | 取消 | 僅在進入時檢查一次。 |
 | 需要 Running 工作階段 | 否。 |
@@ -303,8 +305,33 @@ finally
 | `Registrations` | 車輛識別（必要；缺少時：空清單） | `registration_automatic` / `registration_list` / `registration_free` | `registration` | 第一個值所在的行（free 時為 `null`） |
 | `Addons` | 無 | `Addons\<dir>` | `addon` | `directory-only` |
 | `Entrypoints` | 地圖識別（必要；缺少時：`ArgumentException`） | `<map identity>#entrypoint:<SHA-256 of the 12-line record>` | `entrypoint` | 進入點標籤 |
+| `SessionProfiles` | 無 | 套件目錄名稱（即 `/predefined-profile` 的 id） | `session-profile`，套件無法編譯時為 `session-profile-invalid` | 設定檔的 `name`，或無效套件的 `OL_E_SESSION_PROFILE_*` 代碼 |
+| `RuntimeModules` | 無 | 模組 id | `runtime-module`，無法載入時為 `runtime-module-invalid` | 模組的 `name`，或 `OL_E_MODULE_*` 代碼 |
 
-進入點識別僅供探索使用：啟動路徑使用 `PresentedEntrypointIndex`；在此組建上傳入 `EntrypointIdentity` 會使計畫變成不可執行（`world.entrypoint-identity`、`RUNTIME_PARTIAL`）。
+進入點可由 `PresentedEntrypointIndex` 或 `EntrypointIdentity`（探索識別或精確標籤）選擇。規劃器會將識別解析為 OMSI 所呈現的標籤（OMSI 只呈現每個精確標籤的第一筆記錄），計畫會將其以種類 `entrypoint` 列在 `ResolvedContent` 之下；在完成執行階段驗證之前，`world.entrypoint-identity` 為 `EXPERIMENTAL`。
+
+### `ListSessionProfilesAsync`
+
+| 面向 | 詳細說明 |
+| --- | --- |
+| 簽章 | `Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| 用途 | 列出 `<root>\.omsilaunch\session-profiles\` 之下的每個工作階段設定檔套件及其預設組合，讓前端不必解析 YAML 即可提供它們。CLI `/list:SessionProfiles`。 |
+| 回傳 | 每個套件目錄一個 `SessionProfileSummary(Id, Name, Version, Author, CompatibleMaps, MapIdentity, Presets, IsValid, ErrorCode, ErrorMessage)`，依 `Id` 排序。`Presets` 為依索引順序排列的 `SessionProfilePresetSummary(Index, Id, Name)`。每個套件都以與啟動相同的嚴格規則編譯（`SessionProfileCompiler`）；無法編譯的套件會以 `IsValid = false`、其 `OL_E_SESSION_PROFILE_*` 代碼與訊息列出，且沒有預設組合。沒有設定檔目錄：空清單。 |
+| 擲回 | 進入時擲回 `OperationCanceledException`。編譯錯誤會在結果中回報，不會擲回。 |
+| 需要 Running 工作階段 | 否。 |
+| 變更 OMSI／檔案系統／交易 | 否／否／無。 |
+| 穩定性 | `STABLE_BETA`（離線關卡 `session-profiles.discovery`）。 |
+| 範例 | `foreach (var p in await launch.ListSessionProfilesAsync(new InstallationSpec(root))) Console.WriteLine($"{p.Id}: {string.Join(", ", p.Presets.Select(x => x.Index + "=" + x.Name))}");` |
+
+### `ListRuntimeModulesAsync`
+
+| 面向 | 詳細說明 |
+| --- | --- |
+| 簽章 | `Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default)` |
+| 用途 | 探索安裝在 `plugins\OmsiLaunch.Modules` 之下的[執行階段模組](../../../reference/runtime-modules.md)及其完整性與設定。唯讀。載入是開放的：不會依清單或簽章檢查任何模組。 |
+| 回傳 | 每個模組目錄一個 `RuntimeModuleSummary(Id, Version, Name, Activation, IsValid, Operations, ContentBindingMap, ErrorCode, ErrorMessage, Settings)`，依目錄名稱排序。`Activation` 為 `requested`、`content` 或 `default`；模組無法載入時 `IsValid` 為 false 並帶有 `OL_E_MODULE_*` 代碼；`Settings` 列出模組所宣告的設定，為 `RuntimeModuleSettingSummary(Key, Type, Default, AllowsAuto, Minimum, Maximum, Choices, Flag, Description)`。 |
+| 擲回 | 進入時擲回 `OperationCanceledException`。 |
+| 需要 Running 工作階段 | 否。CLI：`/list:RuntimeModules`（`runtime-modules.list` 封套）。 |
 
 ### `RecoverPendingAsync`
 
@@ -344,9 +371,9 @@ finally
 | 型別 | 用途 | 穩定性 |
 | --- | --- | --- |
 | `LaunchSpec` | 根要求 record，具有 `EffectiveYear`、`EffectiveWeather`、`EffectiveInput`、`EffectiveDiagnostics`、`EffectivePresentation`、`EffectiveInternetTextures` 存取子，會以預設值取代為 `null` 的選用成員。 | `STABLE_BETA` |
-| `InstallationSpec` | `RootPath`、`ExpectedExecutableSha256`（會攜帶，但不會使用）。 | `STABLE_BETA` / `PARTIAL` |
+| `InstallationSpec` | `RootPath`、`ExpectedExecutableSha256`（`Omsi.exe` 的選用固定值，於規劃時檢查）。 | `STABLE_BETA` |
 | `WorldSpec`、`WorldMode`、`EntrypointSpec`、`EntrypointMode` | 世界選擇。`WorldMode`：`NewMap` = 0、`SavedSituation` = 1、`LastMapState` = 2、`LastSituation` = 2（`LastMapState` 的已淘汰別名；絕不表示「最新的 .osn」）。`EntrypointMode`：`Unset`、`PresentedIndex`、`Identity`（由 `WorldSpec.Entrypoint` 計算）。 | `NewMap`、`SavedSituation`：`STABLE_BETA`；`LastMapState`：`UNAVAILABLE`；`EntrypointMode.Identity`：`PARTIAL` |
-| `DateSpec`、`TimeSpec`、`YearSpec`、`DateTimeMode` | `DateTimeMode`：`Unset`、`Explicit`、`System`。`Unset` 以外的任何模式都會使計畫變成不可執行。 | `PARTIAL`（`STATICALLY_PARTIAL`） |
+| `DateSpec`、`TimeSpec`、`YearSpec`、`DateTimeMode` | `DateTimeMode`：`Unset`、`Explicit`、`System`。`Unset` 以外的任何模式都會使計畫變成不可執行。 | `PARTIAL`（計畫證據 `UNAVAILABLE`） |
 | `WeatherSpec`、`WeatherMode` | `WeatherMode`：`Unset`、`Preset`、`Icao`、`RealCurrent`。`Unset` 以外的任何模式都會使計畫變成不可執行。 | `PARTIAL` |
 | `PlayerVehicleSpec` | `Model`、`Repaint`、`Hof`、`FleetNumber`、`Registration`、`Enabled`。設定任何欄位都會使計畫變成不可執行。 | `PARTIAL` |
 | `EnvironmentSpec` | 八組 `IReadOnlyDictionary<string, OptionalValue<string>>`，內容為語意化的 `options.cfg` 設定。 | `STABLE_BETA` |
@@ -355,6 +382,18 @@ finally
 | `SessionPresentationSpec`、`SplashMode` | `SplashMode`：`Unset` = 0、`Native` = 0（別名）、`Managed` = 1。 | `STABLE_BETA` |
 | `InternetTexturesSpec`、`InternetTexturesMode` | `InternetTexturesMode`：`Native`、`Disabled`、`Override`。 | `STABLE_BETA`（`Native`）、`EXPERIMENTAL`（`Disabled`、`Override`） |
 | `SessionProfileMetadata` | 已編譯工作階段設定檔的來源資訊（`Id`、`Name`、`Version`、`Author`、`PresetId`、`PresetIndex`、`PresetName`、`PackagePath`）。 | `STABLE_BETA` |
+| `HofManagementSpec` | 工作階段 [HOF 管理](hof-management.md)：`Operations`（`HofOperationSpec` 清單）。欄位 `LaunchSpec.HofManagement`；存取子 `EffectiveHofManagement`。 | `STABLE_BETA` |
+| `RuntimeModulesSpec` | 工作階段的[執行階段模組](../../../reference/runtime-modules.md)：`Enable`（模組 id）、`Disable`（被排除的模組 id）、`Settings`（`"<module id>.<key>"` 對應值）；存取子 `EffectiveDisable`、`EffectiveSettings`。欄位 `LaunchSpec.Modules`；存取子 `EffectiveModules`。 | `EXPERIMENTAL` |
+| `PlannedModule` | 模組的計畫評估：`Id`、`Version`、`Status`（`ELIGIBLE` 或 `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` 或 `default`）、`Settings`；`IsEligible`、`EffectiveSettings`。常數 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
+| `PlannedModuleSetting` | 一個有效的模組設定：`Key`、`Value`、`Source`（`request`、`settings-file` 或 `default`）。 | `EXPERIMENTAL` |
+| `RuntimeModuleSummary` | 已安裝模組的探索檢視；請參閱 `ListRuntimeModulesAsync`。 | `EXPERIMENTAL` |
+| `RuntimeModuleSettingSummary` | 模組所宣告的設定：`Key`、`Type`、`Default`、`AllowsAuto`、`Minimum`、`Maximum`、`Choices`、`Flag`、`Description`。 | `EXPERIMENTAL` |
+| `HofOperationSpec` | 一項 HOF 操作（`SourceKind`、`Source`、`TargetVehicles`、`Mode`、`Files`）。 | `STABLE_BETA` |
+| `HofSourceKind` | `Collection`、`Directory`、`Vehicle`、`File`。 | `STABLE_BETA` |
+| `HofApplyMode` | `Add`、`Mirror`。 | `STABLE_BETA` |
+| `HofPlanningException` | 由 HOF 規劃擲回（`OmsiLaunch.Core`）；`Code` 為 `OL_E_HOF_*` 代碼。公開 API 會將其回報為計畫診斷訊息。 | `STABLE_BETA` |
+| `SessionProfileSummary` | 單一套件的探索檢視（`Id`、`Name`、`Version`、`Author`、`CompatibleMaps`、`MapIdentity`、`Presets`、`IsValid`、`ErrorCode`、`ErrorMessage`）。請參閱 `ListSessionProfilesAsync`。 | `STABLE_BETA` |
+| `SessionProfilePresetSummary` | 摘要中的一個預設組合（`Index`、`Id`、`Name`）。 | `STABLE_BETA` |
 | `LaunchBehaviorSpec` | `RestoreConfiguration`（會攜帶，還原一律會發生）、`SuppressStaleClosecheckWarning`、`StartupTimeoutSeconds`（1..600，預設 180）、`ShutdownTimeoutSeconds`（會攜帶，但不會使用）。 | `STABLE_BETA` / `PARTIAL` |
 
 <a id="plan-and-status-types"></a>
@@ -362,17 +401,17 @@ finally
 
 | 型別 | 欄位 | 附註 |
 | --- | --- | --- |
-| `SessionPlan` | `SessionId`（每個計畫一個新的 `Guid`）、`BuildProfileId`（`"Omsi23004_692EBFBF"`）、`Spec`、`Platform`（`RuntimePlatformInfo`）、`ResolvedContent`（`ContentIdentity` 清單：`map`、`vehicle`、`repaint`、`hof`、`situation`、`situation-map`）、`TouchedFiles`（`PlannedMutations` 中不重複的相對路徑）、`RuntimeArtifacts`、`RequiredCapabilities`（`STATICALLY_VALIDATED` 或 `UNAVAILABLE` 的 `Capability`）、`UnsupportedRequestedFeatures`（針對已要求但不支援之功能的 `Capability` 項目）、`PlannedMutations`、`Diagnostics`、`IsRunnable`。 | 這是公開的 record：它可能被修改或過時，這正是 `StartSessionAsync` 會重新規劃的原因。 |
+| `SessionPlan` | `SessionId`（每個計畫一個新的 `Guid`）、`BuildProfileId`（`"Omsi23004"` 或 `"unrecognized"`）、`Spec`、`Platform`（`RuntimePlatformInfo`）、`ResolvedContent`（`ContentIdentity` 清單：`map`、`vehicle`、`repaint`、`hof`、`situation`、`situation-map`）、`TouchedFiles`（`PlannedMutations` 中不重複的相對路徑）、`RuntimeArtifacts`、`RequiredCapabilities`（`STATICALLY_VALIDATED` 或 `UNAVAILABLE` 的 `Capability`；原生啟動功能為 `RESOLVED_KNOWN_LAYOUT`、`STATICALLY_RESOLVED` 或 `PENDING_IN_PROCESS_RESOLUTION`）、`UnsupportedRequestedFeatures`（針對已要求但不支援之功能的 `Capability` 項目）、`PlannedMutations`、`Diagnostics`、`IsRunnable`。 | 這是公開的 record：它可能被修改或過時，這正是 `StartSessionAsync` 會重新規劃的原因。 |
 | `RuntimePlatformInfo` | `OsFamily`、`OsVersion`、`OsArchitecture`、`HostArchitecture`、`OmsiArchitecture`（`X86`）、`PluginArchitecture`（`X86`）、`CurrentPlatformSupported`（Windows 10 以上、x64 作業系統與 x64 主機）、`LegacyPlatform`（一律為 `false`）、`Wow64Available`、`InstallationWritable`、`ProcessLaunchSupported`、`PluginRuntimeSupported`、`NativeInteropSupported`、`SharedMemorySupported`、`ExactRestoreSupported`（全部等於 `CurrentPlatformSupported`）。 | |
-| `Capability` | `Name`、`Available`、`EvidenceState`、`Reason`。 | 證據字串為自由文字（`RUNTIME_VALIDATED`、`STATICALLY_VALIDATED`、`STATICALLY_PARTIAL`、`RUNTIME_PARTIAL`、`UNAVAILABLE`、`UNSUPPORTED_FOR_CURRENT_PROFILE`、`IMPLEMENTED_NOT_RUNTIME_VALIDATED`、`RELEASE_IF_CLOSED`）。 |
+| `Capability` | `Name`、`Available`、`EvidenceState`、`Reason`。 | `EvidenceState` 為 `PublicEvidence` 值（`RUNTIME_VALIDATED`、`STATICALLY_VALIDATED`、`PARTIAL`、`RUNTIME_VALIDATION_REQUIRED`、`UNAVAILABLE`），但 `SessionPlan.RequiredCapabilities` 中除外：平台或內容需求為 `STATICALLY_VALIDATED` 或 `UNAVAILABLE`，原生功能為 `RESOLVED_KNOWN_LAYOUT`、`STATICALLY_RESOLVED` 或 `PENDING_IN_PROCESS_RESOLUTION`。 |
 | `PlannedMutation` | `RelativePath`、`SemanticKey`、`RequestedValue`、`Operation`（`token-patch`、`vector-component-patch`、`exact-file-overlay`）。 | 呈現相關的變更使用鍵 `session-presentation.splash`、`internet-textures.override`、`internet-textures.cache`、`internet-textures.target`。 |
 | `LaunchDiagnostic` | `Code`、`Message`、`Data`（選用的字串對應）。 | 以 `OL_E_` 開頭的代碼為錯誤，`OL_W_` 為警告，其餘為資訊。 |
 | `SessionStatus` | `SessionId`、`State`（`SessionState`）、`Diagnostics`、`RuntimeEvents`。 | 工作階段診斷訊息不包含計畫診斷訊息。 |
-| `RuntimeEvent` | `Type`、`TimestampUtc`（主機接收時間）、`Sequence`（從 1 起算，每個工作階段各自計數）、`Data`。 | 上限為最近的 256 個事件（捨棄最舊的）。遙測槽位只保留最新值：發出速度快於主機 100 ms 輪詢的事件可能遺漏。這不是無損的記錄。 |
+| `RuntimeEvent` | `Type`、`TimestampUtc`（主機接收時間）、`Sequence`（從 1 起算，每個工作階段各自計數）、`Data`、`SessionTickMilliseconds`（外掛程式發出事件時其單調遞增的工作階段時鐘；主機事件為 null）。 | 上限為最近的 256 個事件（捨棄最舊的）。外掛程式事件會依序經由遙測環狀緩衝區抵達；因環狀緩衝區溢位而遺失的事件由 `telemetry.lost` 計數。 |
 | `SessionHandle` | `SessionId`。 | 僅限處理程序本機。 |
 | `RecoveryStatus` | `Pending`、`Recovered`、`Diagnostics`。 | 請參閱 `RecoverPendingAsync`。 |
 | `ContentIdentity` | `Identity`、`Kind`、`DisplayName`。 | 請參閱 `DiscoverAsync`。 |
-| `ContentQueryKind` | `Maps`、`Situations`、`Vehicles`、`Repaints`、`Hofs`、`FleetNumbers`、`Registrations`、`Addons`、`Entrypoints`。 | |
+| `ContentQueryKind` | `Maps`、`Situations`、`Vehicles`、`Repaints`、`Hofs`、`FleetNumbers`、`Registrations`、`Addons`、`Entrypoints`、`SessionProfiles`、`RuntimeModules`。 | |
 
 ### `SessionState`
 
@@ -386,8 +425,11 @@ finally
 | `RuntimeCommand` | `(Guid SessionId, ulong RequestId, string Operation, IReadOnlyDictionary<string, string>? Arguments)` | `STABLE_BETA` |
 | `RuntimeCommandResult` | `(Guid SessionId, ulong RequestId, bool Succeeded, string? ErrorCode, IReadOnlyDictionary<string, string>? Values)` | `STABLE_BETA` |
 | `RuntimeCommandWire` | 主機與外掛程式用於信箱封套的靜態編解碼器：magic `0x4F4C5243`（"OLRC"）、版本 1、72 位元組 little-endian 標頭（magic、版本、種類 1 = 要求／2 = 回應、總長度、工作階段 `Guid`、要求 id、承載長度、承載的 SHA-256），後接 UTF-8 JSON 承載。`SerializeRequest`、`SerializeResponse`、`TryDeserializeRequest`、`TryDeserializeResponse`、`TryReadRequestId`。 | `INTERNAL`：因橋接兩端共用而為公開；不屬於整合介面；格式可能隨協定版本變更。 |
-| `StartupHandoff` | `(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity, string SituationIdentity)`——主機在記憶體對應檔案 `OmsiLaunch.Handoff.<sessionId>` 中發佈給外掛程式的內容。 | `INTERNAL` |
-| `StartupHandoffWire` | 編解碼器：magic `0x4F4C5348`、版本 4（可讀取 3 與 4）、具 SHA-256 承載完整性的 64 位元組標頭。 | `INTERNAL` |
+| `StartupHandoff` | `(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity, string SituationIdentity, IReadOnlyList<StartupModule>? Modules, bool PluginTrace, bool NativeTrace, StartDateTime? Start)`——主機在記憶體對應檔案 `OmsiLaunch.Handoff.<sessionId>` 中發佈給外掛程式的內容。 | `INTERNAL` |
+| `StartupModule` | `(string RelativeDirectory, string ManifestSha256)`：由 handoff 攜帶的已規劃模組（`StartupHandoff.Modules`）。 | `INTERNAL` |
+| `StartDateTime` | `(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)`、`IsEmpty`：由 handoff 攜帶的 NEW_MAP 工作階段已解析的起始時鐘（`StartupHandoff.Start`）；欄位為 null 時保留 OMSI 自己的值。 | `INTERNAL` |
+| `StartupHandoffWire` | 編解碼器：magic `0x4F4C5348`、版本 7（可讀取 3 至 7；版本 5 附加已規劃的模組，版本 6 附加每個模組的有效設定，版本 7 附加起始日期／時間；旗標位元 0x04 與 0x08 攜帶 `PluginTrace` 與 `NativeTrace`）、具 SHA-256 承載完整性的 64 位元組標頭。 | `INTERNAL` |
+| `TelemetryRingWire` | 外掛程式到主機的事件環狀緩衝區，位於對應 `OMSILAUNCH_TELEMETRY_NAME`：magic `0x52544C4F`（"OLTR"）、版本 1、64 個編號槽位，每個 2048 位元組。`Initialize`、`Write`、`IsRing`、`ReadSince`（回傳某個序號之後的事件以及遺失了多少）。 | `INTERNAL` |
 
 除非 `WorldMode` 為 `NewMap` 或 `SavedSituation`、`HeadlessStart` 為 true、`PlayerVehicleEnabled` 為 false、日期／時間兩種模式皆為 `Unset`，且已儲存情境具有非空的識別，否則外掛程式會拒絕交接（`plugin.request.unsupported` → `OL_E_CAPABILITY_UNAVAILABLE`）。規劃器會更早強制執行相同的限制，因此可執行的計畫永遠不會觸發此情況。
 
@@ -396,8 +438,11 @@ finally
 
 | 型別 | 用途 |
 | --- | --- |
-| `PublicCapabilityRegistry` | `ProtocolVersion`（`"0.1"`）、`All`（36 個 `PublicCapabilityDescriptor` 項目）、`PublicRuntimeOperationIds`（前端可轉送的 48 個具體操作 id）、`IsPublicRuntimeOperation`、`GetRuntimeArguments`、`ValidateRuntimeArguments`（回傳 `PublicRuntimeArgumentValidation`）、`IsInternalResultKey`。由 `ExecuteRuntimeAsync`、CLI 與本機控制平面強制執行。 |
-| `PublicCapabilityDescriptor` | `Id`、`Family`、`Classification`、`Kind`、`RequiresSession`、`RequiresExactProfile`、`ApiRoute`、`CliRoute`、`RuntimeValidation`、`Description`、`HandleTypes`。 |
+| `PublicCapabilityRegistry` | 標準功能目錄。`ProtocolVersion`（`"0.1"`）、`All`（每個 `PublicCapabilityDescriptor`）、`Get`、`TryGet`、`PublicRuntimeOperationIds`（前端可轉送的 48 個具體操作 id）、`RuntimeOperations`、`TryGetOperation`、`NativeCapabilityOf`、`CliRoutes`（命令路由對應操作 id）、`IsPublicRuntimeOperation`、`GetRuntimeArguments`、`ValidateRuntimeArguments`（回傳 `PublicRuntimeArgumentValidation`）、`IsInternalResultKey`。由 `ExecuteRuntimeAsync`、CLI、本機控制平面與外掛程式強制執行。 |
+| `PublicCapabilityDescriptor` | `Id`、`Family`、`Classification`、`Kind`、`RequiresSession`、`RequiresExactProfile`、`ApiRoute`、`CliRoute`、`RuntimeValidation`（`PublicEvidence` 值）、`Description`、`HandleTypes`、`Operations`、`NativeCapability`、`EvidenceNote`；衍生的 `EffectiveOperations`、`NativeCapabilities`。 |
+| `PublicRuntimeOperation` | `Id`、`NativeCapability`、`Arguments`、`CliRoutes`、`Paged`（接受 `cursor`/`limit`，請參閱[分頁](capabilities.md#pagination)）、`MutationPolicy`。 |
+| `PublicMutationPolicy` | 執行階段操作所變更的內容：`None`、`OmsiState`、`SessionResource`、`SessionPolicy`、`All`。 |
+| `PublicEvidence` | 證據詞彙：`RuntimeValidated`、`StaticallyValidated`、`Partial`、`RuntimeValidationRequired`、`Unavailable`、`All`。 |
 | `PublicCapabilityClassification` | `PublicStableBeta`、`PublicExperimental`、`InternalOnly`、`Unsupported`。 |
 | `PublicCapabilityKind` | `Read`、`Write`、`Action`、`Event`。 |
 | `PublicRuntimeArgumentDescriptor` | `Name`、`Required`、`Description`。 |
@@ -420,7 +465,7 @@ finally
 
 型別：`D3DDeviceStatus(Available, State, Generation, LiveTextureCount, ResetHookInstalled, ExecutionThreadId, LastResetThreadId, QueryInterfaceHResult, CooperativeLevelHResult, OwnedDeviceReferences)`；`D3DDeviceState`：`NotReady`、`Ready`、`Lost`、`Resetting`、`Stopping`、`Stopped`；`D3DTextureHandle(Value)`，其中 `Value = "d3dtex-<session id N>-<16 hex>"`；`D3DTextureDescription(Handle, State, DeviceState, Generation, Width, Height, Format, Levels, Level, LevelWidth, LevelHeight, HResult, ExecutionThreadId)`；`D3DTextureResourceState`：`Live`、`Released`、`Stale`；`D3DTextureFormat`：`A8R8G8B8`、`X8R8G8B8`、`R5G6B5`、`X1R5G5B5`、`A1R5G5B5`、`A4R4G4B4`、`A8`、`L8`、`A8L8`。
 
-錯誤：失敗的結果會以 `OmsiRuntimeException(Code, detail)` 重新擲回，其中 `Code` 為結果的 `ErrorCode`（若不存在則為 `OL_E_RUNTIME_OPERATION_FAILED`），訊息為 `"<code>: <Values["detail"]>"`；成功但沒有值的結果，或未知的裝置狀態字串，會擲回 `OmsiRuntimeException("OL_E_RUNTIME_PROTOCOL_MISMATCH", ...)`。`ExecuteRuntimeAsync` 擲回的所有例外都會原封不動地傳遞出來。裝置重設的處理已於執行階段驗證：重設會使裝置經由 `Resetting` 回到 `Ready`，並使每個存活的材質失效（`OL_E_D3D_STALE_RESOURCE_HANDLE`，執行階段驗證收尾 `D01`）；`GetCapabilitiesAsync` 仍將 `runtime.d3d.lifecycle.reset` 回報為 `IMPLEMENTED_NOT_RUNTIME_VALIDATED`（自我回報落後）。`Lost` 轉換無法從產品外部產生，僅以離線方式涵蓋。
+錯誤：失敗的結果會以 `OmsiRuntimeException(Code, detail)` 重新擲回，其中 `Code` 為結果的 `ErrorCode`（若不存在則為 `OL_E_RUNTIME_OPERATION_FAILED`），訊息為 `"<code>: <Values["detail"]>"`；成功但沒有值的結果，或未知的裝置狀態字串，會擲回 `OmsiRuntimeException("OL_E_RUNTIME_PROTOCOL_MISMATCH", ...)`。`ExecuteRuntimeAsync` 擲回的所有例外都會原封不動地傳遞出來。裝置重設的處理已於執行階段驗證：重設會使裝置經由 `Resetting` 回到 `Ready`，並使每個存活的材質失效（`OL_E_D3D_STALE_RESOURCE_HANDLE`，執行階段驗證收尾 `D01`）；目錄項目 `d3d.texture` 記錄了此事。`Lost` 轉換無法從產品外部產生，僅以離線方式涵蓋。
 
 ```csharp
 var status = await launch.GetD3DStatusAsync(session, TimeSpan.FromSeconds(5));
@@ -468,8 +513,8 @@ InstallationPaths.TryGetContainedRelativePath(@"C:\OMSI", @"Sceneryobjects\\x\te
 
 | 成員 | 行為 |
 | --- | --- |
-| `SessionProfileCompiler.Load(string installationRoot, string id, int presetIndex)` → `SessionProfilePackage` | 讀取並驗證套件。`id` 必須是單純的目錄名稱（否則為 `OL_E_SESSION_PROFILE_PATH_ESCAPE`）；`presetIndex` 為 1..5（`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`）。檔案不存在：`OL_E_SESSION_PROFILE_NOT_FOUND`；大於 `MaxBytes`（256 KiB）、無效的 YAML、錨點、未知的鍵，或 `id` 與目錄名稱不同：`OL_E_SESSION_PROFILE_INVALID`；其他 `schema`：`OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED`。資產路徑受限於套件內（`OL_E_SESSION_PROFILE_PATH_ESCAPE`、`OL_E_SESSION_PROFILE_ASSET_MISSING`）。每種失敗都是 `SessionProfileException`。 |
-| `SessionProfileCompiler.Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` → `LaunchSpec` | 回傳套用設定檔後的 `baseline`：對 `NewMap` 套用設定檔的 `new` 區塊（地圖、進入點，以及任何日期／時間／年份／天氣，這些在此組建上會使計畫變成不可執行）；將預設組合（preset）的 `settings` 合併覆蓋到 `Environment.General`；若存在則套用預設組合的 `Presentation`、`InternetTextures` 與 `Behavior`；並設定 `SessionProfile` = `profile.Metadata`。對 `NewMap` 還會依設定檔的 `compatibility` 清單檢查地圖（`OL_E_SESSION_PROFILE_MAP_MISMATCH`）。 |
+| `SessionProfileCompiler.Load(string installationRoot, string id, int presetIndex)` → `SessionProfilePackage` | 讀取並驗證套件。`id` 必須是單純的目錄名稱（否則為 `OL_E_SESSION_PROFILE_PATH_ESCAPE`）；`presetIndex` 為 1..99（`MinPresetIndex`..`MaxPresetIndex`；否則為 `OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`）。檔案不存在：`OL_E_SESSION_PROFILE_NOT_FOUND`；大於 `MaxBytes`（256 KiB）、無效的 YAML、錨點、未知的鍵，或 `id` 與目錄名稱不同：`OL_E_SESSION_PROFILE_INVALID`；其他 `schema`：`OL_E_SESSION_PROFILE_SCHEMA_UNSUPPORTED`。資產路徑受限於套件內（`OL_E_SESSION_PROFILE_PATH_ESCAPE`、`OL_E_SESSION_PROFILE_ASSET_MISSING`）。每種失敗都是 `SessionProfileException`。 |
+| `SessionProfileCompiler.Apply(SessionProfilePackage profile, LaunchSpec baseline, WorldMode selectedWorldMode)` → `LaunchSpec` | 回傳套用設定檔後的 `baseline`：對 `NewMap` 套用設定檔的 `new` 區塊（地圖、進入點，以及任何日期／時間／年份／天氣）；將預設組合（preset）的 `settings` 合併覆蓋到 `Environment.General`；若存在則套用預設組合的 `Presentation`、`InternetTextures` 與 `Behavior`；並設定 `SessionProfile` = `profile.Metadata`。對 `NewMap` 還會依設定檔的 `compatibility` 清單檢查地圖（`OL_E_SESSION_PROFILE_MAP_MISMATCH`）。 |
 | `SessionProfileCompiler.ValidateCompatibility(SessionProfilePackage, string installationRoot, WorldSpec world, WorldMode mode)` | 其他模式的相容性檢查（對 `SavedSituation`，地圖是從 `.osn` 讀取）。CLI 在建構最終的 `WorldSpec` 之後呼叫它。 |
 | `SessionProfileCompiler.Schema`、`MaxBytes`、`SchemaKeys` | `"omsilaunch.session-profile/v1"`、`262144`，以及每個 YAML 對應中接受的鍵。 |
 | `SessionProfilePackage(RootPath, Metadata, CompatibleMaps, New, Preset)`、`ProfileNew`、`ProfilePreset` | 已載入的套件；`Preset` 僅為所選的預設組合。 |
@@ -512,7 +557,7 @@ static async Task<SessionPlan> PlanProfileAsync(IOmsiLaunch launch, LaunchSpec b
 - 沒有 `internal.*` 執行階段操作：`internal.road-vehicles.make-basic` 在登錄中為 `InternalOnly`，並會從 API 與 CLI 回傳 `OL_E_RUNTIME_OPERATION_UNKNOWN`。
 - 沒有原始的 OMSI 記憶體讀寫，除 `LaunchSpec` 宣告的內容外，也沒有對安裝的檔案層級存取。
 - 沒有跨處理程序的 handle：[本機控制平面](local-control.md)是唯一的跨處理程序途徑，且只接受 `session.status`、`session.events`、`session.stop` 與 `runtime.execute`。
-- 在此組建上，沒有協同式的 OMSI 關閉、沒有 `LAST_MAP_STATE`、不套用日期／時間／天氣／玩家車輛，也沒有鍵盤／控制器文件 overlay。
+- 啟動時不套用玩家車輛。協同式關閉、`LAST_MAP_STATE`、起始日期／時間／天氣，以及鍵盤／控制器文件 overlay 皆為 `EXPERIMENTAL`。
 
 <a id="stability-summary"></a>
 ## 穩定性摘要
@@ -523,6 +568,7 @@ static async Task<SessionPlan> PlanProfileAsync(IOmsiLaunch launch, LaunchSpec b
 | `PlanSessionAsync`、`StartSessionAsync`（NEW_MAP、SAVED_SITUATION）、`GetStatusAsync`、`WaitForAsync`、`StopAsync`、`CloseAsync` | `STABLE_BETA` |
 | `ExecuteRuntimeAsync` 傳輸；`PublicStableBeta` 操作 | `STABLE_BETA` |
 | `PublicExperimental` 操作、`D3DRuntimeApi`、`camera.lock` | `EXPERIMENTAL` |
-| `GetCapabilitiesAsync` 清單內容、日期／時間／天氣／玩家車輛／輸入的 spec 成員、`DiagnosticsSpec`、`ExpectedExecutableSha256`、`RestoreConfiguration`、`ShutdownTimeoutSeconds` | `PARTIAL` |
-| `RuntimeCommandWire`、`StartupHandoff`、`StartupHandoffWire`、`IRuntimePlatform` 實作、所有實作組件 | `INTERNAL` |
-| `WorldMode.LastMapState` / `LastSituation`、`weather.set`、`internal.*` 操作 | `UNAVAILABLE` |
+| 日期／時間／天氣／輸入的 spec 成員、`DiagnosticsSpec`、`ExpectedExecutableSha256`、`RestoreConfiguration`、`ShutdownTimeoutSeconds`、`CooperativeShutdown` | `EXPERIMENTAL` |
+| 玩家車輛的 spec 成員 | `PARTIAL` |
+| `RuntimeCommandWire`、`StartupHandoff`、`StartupHandoffWire`、`StartupModule`、`StartDateTime`、`StartWeather`、`TelemetryRingWire`、`IRuntimePlatform` 實作、所有實作組件 | `INTERNAL` |
+| `WorldMode.LastSituation`、`internal.*` 操作 | `UNAVAILABLE` |

@@ -1,6 +1,6 @@
 # 本地控制平面
 
-<!-- l10n: source=reference/local-control.md -->
+<!-- l10n: source=reference/local-control.md source-sha256=9bb135c4d6ffae86153c3c841d540c56f4d4304c6727f1ad142c02d2b30a3f86 -->
 > 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/local-control.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本地控制平面是一个命名管道端点：正在运行的 OmsiLaunch 所有者（启动会话的进程）通过它接受同一台计算机上其他进程发来的语义化会话命令，包括状态、事件、停止以及公开运行时操作。本页按照 `tools\OmsiLaunch.Cli\LocalControlPlane.cs` 中的实现以及 `OwnerSession.RunAsync`（`tools\OmsiLaunch.Cli\Program.cs`）中的请求处理程序来规定该端点：管道命名、分帧、协议版本、命令、会话绑定、错误码、信任模型、可用时间窗口，以及如何从其他工具与之通信。CLI 客户端命令（`session status`、`session stop`、`events read`、`events watch`，以及 `time get` 等路由）只是该协议的薄封装；见 [CLI 参考](cli.md)。运行时操作本身在[运行时控制](runtime-control.md)中规定；面向集成方的进程内替代方案是[公共 API](public-api.md)。

@@ -1,7 +1,7 @@
 # Windows Tray Indicator
 
-<!-- l10n: source=reference/windows-tray.md -->
-> British English edition of the [canonical page](../../../reference/windows-tray.md) for OmsiLaunch 0.1.0-beta3. The US English page is normative: where the two differ, it and the code take precedence.
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> British English edition of the [canonical page](../../../reference/windows-tray.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 Every standalone owner session (started with `OmsiLaunch.exe` or `OmsiLaunchW.exe`) shows a notification-area icon that reports the session and lets the user end it. This page specifies the indicator as implemented by `SessionTrayIndicator`, `StatusWindow` and `StopConfirmationWindow` in `tools\OmsiLaunch.Cli\WindowsHost.cs`, the read-only presenter `SessionStatusPresenter` (`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`) and the string registry `WindowsUiStrings` (`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`), together with the `OmsiLaunchW.exe` failure dialogues of `WindowsHost`. The tray is a presentation adapter only: it owns neither OMSI nor recovery, and its stop action signals the same canonical owner stop path as `session stop` (see [CLI reference](cli.md) and [local control](local-control.md)).
 
@@ -56,7 +56,7 @@ Sections appear in this order, and a section is omitted when it has no fields. E
 | `Presentation` | `Splash` | always | `Managed` or `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | always | `Original OMSI` (`Native`), `Disabled`, `Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-The `Environment` and `Vehicle` sections can never appear in a running Beta 3 session: requesting a date, time, year, weather or any player-vehicle field makes the plan not runnable, so no such session starts (see [known limitations](known-limitations.md)). They exist for future builds and are covered by the offline presenter test.
+The `Environment` section appears in a running Beta 4 session when a date, time, year or weather was requested (those requests are experimental, see [known limitations](known-limitations.md)). The `Vehicle` section can never appear in a running session: requesting any player-vehicle field makes the plan not runnable, so no such session starts. It exists for a future build and is covered by the offline presenter test.
 
 Runtime evidence (pt-BR UI, runtime closure `T01`): a NEW_MAP Grundorf session showed `Sessão em execução`; `Sessão`: `Modo: Nova sessão`, `Mapa: Grundorf`, `Ponto de entrada: 1`; `Apresentação`: `Splash: Gerenciado`, `Texturas da internet: OMSI original`.
 

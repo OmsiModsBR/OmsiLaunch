@@ -1,9 +1,9 @@
 # CLI の使用例
 
-<!-- l10n: source=reference/cli-examples.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../reference/cli-examples.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=reference/cli-examples.md source-sha256=0b65dcecbe06ebef6e07dfc05ef1c1b5b95788ef6a892ebb05b51509ebb86733 -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/cli-examples.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
-OmsiLaunch `0.1.0-beta3` 向けの、最小限かつ正しい `OmsiLaunch.exe` の呼び出し例です。各例には、期待されるプロセスの終了コードと、何が変更され何が復元されるかの注記を付けています。特に断りがない限り、すべての例は OMSI のインストールルート（`<OMSI_PATH>`）から実行します。構文は [CLI リファレンス](cli.md)で、終了コードは[終了コード](exit-codes.md)で定義されています。構造化されたエンベロープを得るには、任意のコマンドに `--json` を追加できます。
+OmsiLaunch `0.1.0-beta4` 向けの、最小限かつ正しい `OmsiLaunch.exe` の呼び出し例です。各例には、期待されるプロセスの終了コードと、何が変更され何が復元されるかの注記を付けています。特に断りがない限り、すべての例は OMSI のインストールルート（`<OMSI_PATH>`）から実行します。構文は [CLI リファレンス](cli.md)で、終了コードは[終了コード](exit-codes.md)で定義されています。構造化されたエンベロープを得るには、任意のコマンドに `--json` を追加できます。
 
 <a id="conventions"></a>
 ## 表記規則
@@ -21,7 +21,7 @@ OmsiLaunch `0.1.0-beta3` 向けの、最小限かつ正しい `OmsiLaunch.exe` �
 ```text
 OmsiLaunch.exe /version
 ```
-終了コード `0`。`product`、`version`（`0.1.0-beta3`）、`protocol_version`（`0.1`）、`supported_family` を出力します。何も変更しません。
+終了コード `0`。`product`、`version`（`0.1.0-beta4`）、`protocol_version`（`0.1`）、`supported_family` を出力します。何も変更しません。
 
 ```text
 OmsiLaunch.exe profiles --json
@@ -256,9 +256,22 @@ OmsiLaunch.exe scripts variable set --handle=rv-000001 --name=Refresh_Strings --
 終了コード `0`（`handle`、`name`、`value` のいずれかがない場合は `2`）。その車両の数値スクリプト変数を 1 つ変更します。元に戻されることはありません。
 
 ```text
-OmsiLaunch.exe weather set --wind_speed=1
+OmsiLaunch.exe weather set --wind_speed=5 --temperature=12 --cloud_type="Cumulus 1"
 ```
-終了コード `7`。常に `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` で拒否されます。何も変更されません。
+終了コード `0`。OMSI のソース天候レコードを書き込み、ライブ METAR の更新を停止します。OMSI は次の（一時停止されていない）天候ティックで、霧、光、実際の風、湿度をそこから導出します。何かを書き込む前にすべての値が検査されます（`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`、終了コード `7`）。`relative_humidity` のような導出キーは `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` を返し、代わりに設定すべきキーが示されます。元に戻されません。EXPERIMENTAL: ランタイム検証は保留中です。
+
+```text
+OmsiLaunch.exe weather metar set --icao=EDDF
+```
+終了コード `0`。その観測所のライブ METAR 天候に切り替えます。OMSI は次の天候更新でそれをダウンロードします。EXPERIMENTAL: ランタイム検証は保留中です。
+
+```text
+OmsiLaunch.exe scripts string set --handle=rv-000001 --name=act_route --value=110
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=1
+OmsiLaunch.exe scripts trigger --handle=rv-000001 --name=bus_doorfront0 --value=0
+OmsiLaunch.exe scripts sound-trigger --handle=rv-000001 --trigger=ticket_print
+```
+終了コード `0`。`scripts string set` は OMSI 自身の `SetStringVariable` を通じて書き込み、読み戻した値を返します。車両スクリプトが宣言していない名前は `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND`（終了コード `7`）を返します。`scripts trigger` は OMSI の入力ハンドラーと同じようにトリガーを発生させ（`1` 押下、`0` 解放）、車両スクリプトは直ちにそれを実行します。トリガー名と変数名は各車両モデルが定義するもので、上記は例です。元に戻されません。EXPERIMENTAL: ランタイム検証は保留中です。
 
 <a id="spawn"></a>
 ## スポーン

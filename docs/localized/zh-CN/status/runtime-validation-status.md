@@ -1,9 +1,9 @@
 # 运行时验证状态
 
-<!-- l10n: source=status/runtime-validation-status.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../status/runtime-validation-status.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=status/runtime-validation-status.md source-sha256=87cfe5eca3645bba4beefa62ea72d3bda5ef7a9f355158a7ea38eb1b61d8376d -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../status/runtime-validation-status.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
-本页是 OmsiLaunch 0.1.0-beta3 唯一的证据表。每一行列出一项能力或功能及其证据状态。`RUNTIME_VALIDATED` 可以引用 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（矩阵编号 RV-nnn、阻塞项 BI-nnn，以及其 2026-09-20 执行表中的会话 ID），也可以引用 Fable 之后的 Round A 报告 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）；其余所有内容均由代码和离线测试套件推导得出。2026-09-21 的加固轮次（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`，发现项 S-01 至 S-34）改变了还原、恢复、控制平面和边界行为；这些更改当时只有离线证据。2026-09-23 的最终运行时收尾轮次（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`，场景编号如 `F01`、`S05`、`T01`，候选版本 2 和 3）在已授权的安装实例上以真实会话运行了这些更改；由该轮次提升状态的行会引用其场景编号和会话 ID。因此，`RUNTIME_VALIDATED` 也可以引用该报告。
+本页是 OmsiLaunch 0.1.0-beta4 唯一的证据表。每一行列出一项能力或功能及其证据状态。`RUNTIME_VALIDATED` 可以引用 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（矩阵编号 RV-nnn、阻塞项 BI-nnn，以及其 2026-09-20 执行表中的会话 ID），也可以引用 Fable 之后的 Round A 报告 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）；其余所有内容均由代码和离线测试套件推导得出。2026-09-21 的加固轮次（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`，发现项 S-01 至 S-34）改变了还原、恢复、控制平面和边界行为；这些更改当时只有离线证据。2026-09-23 的最终运行时收尾轮次（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`，场景编号如 `F01`、`S05`、`T01`，候选版本 2 和 3）在已授权的安装实例上以真实会话运行了这些更改；由该轮次提升状态的行会引用其场景编号和会话 ID。因此，`RUNTIME_VALIDATED` 也可以引用该报告。
 
 证据状态：
 
@@ -115,9 +115,9 @@
 | 网络纹理 `Disabled`（进程内下载器抑制） | STATICALLY_VALIDATED | `internet-textures.suppressed` 遥测路径；矩阵中未引用 |
 | 网络纹理 `.itx` 目标防护（Round A RA-011/RA-012，修正轮次 CP-05，附录 E）：规范根目录、规范目标、相对路径、路径段规则；只有根目录之下名为 `texture` 的目录段才符合条件（`mytexture`、`texture_backup`、`texture2` 以及位于绝对根路径中的 `texture` 均不符合）；遍历、绝对、相对根和联接点目标均被拒绝；不同写法会归并为同一个规范事务路径 | STATICALLY_VALIDATED | `presentation.itx-target-root-normalization`、`presentation.itx-target-guard-rejections` |
 | 网络纹理 `Override` | RUNTIME_VALIDATED | 运行时收尾轮次（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`）：`I01` 会话 `6eac2dac-c7e9-49a1-acbf-2a5d59c1c0d3`：OMSI 的下载器针对一个已存在的目标和一个原本不存在的目标向环回服务器发送了 `HEAD` 和 `GET`，写入了两者；规范停止之后，原本不存在的目标被移除，已存在的目标被逐字节精确还原；`I02` 会话 `a8f2b720-e41a-4e34-86bf-125bf519a5bd`：在所有者和 OMSI 都被终止之后，通过 `/recover` 得到相同结果。 |
-| `/date`、`/time`、`/year`、天气参数、玩家车辆参数（`STATICALLY_PARTIAL`） | UNAVAILABLE | 规划器将计划标记为不可运行（`OL_E_CAPABILITY_UNAVAILABLE`）；插件拒绝非 `Unset` 的日期/时间模式 |
-| `/entrypoint:<identity>`（BI-001） | PARTIAL | 计划不可运行（`RUNTIME_PARTIAL`） |
-| `/last`（`LastMapState`，BI-006） | UNAVAILABLE | `UNSUPPORTED_FOR_CURRENT_PROFILE` |
+| `/date`、`/time`、`/year`、天气参数、玩家车辆参数 | UNAVAILABLE | 规划器将计划标记为不可运行（`OL_E_CAPABILITY_UNAVAILABLE`）；插件拒绝非 `Unset` 的日期/时间模式 |
+| `/entrypoint:<identity>`（BI-001） | PARTIAL | 计划不可运行（计划证据 `PARTIAL`） |
+| `/last`（`LastMapState`，BI-006） | UNAVAILABLE | 计划不可运行；没有 `.osn` 回退 |
 | `InputSpec` 键盘/控制器覆盖层（BI-005） | UNAVAILABLE | 解析器已存在；但不会应用 |
 | 无界面 PlayerVehicle 分配（BI-007）、`SetActualDateTime`（BI-002）、ICAO 天气控制（BI-003）、字符串变量写入（BI-004）、跨地块重新定位（BI-008） | UNAVAILABLE | 在实现完成之前处于阻塞状态 |
 | `/list` 发现（`content.*`） | STATICALLY_VALIDATED；已在运行时观察到 | `discovery.fixture`；运行时收尾对已授权安装实例使用了 `/list:situations`（标识中包括非 ASCII 的 `situations\Nur für Fortgeschrittene.osn`） |
@@ -144,6 +144,37 @@
 | 公布的 CLI 路由是真实语法（BUG-07） | RUNTIME_VALIDATED | 已安装的 `help --json` 和 `capabilities --json` 输出的每个客户端路由备选写法（32 个描述符）都被已安装的解析器接受；没有任何一个输出用法说明（`doc-bug07-routes.json`；已安装包 `9f8cc87b...`） |
 | CLI 示例页面中的每一条命令行 | RUNTIME_VALIDATED | 针对所有者会话 `08df97b8-06cc-4faa-be8b-f49ca1538dce`（已保存情景；跳过了 `events watch`，因为它会一直运行直到 Ctrl+C）执行了 43 条客户端命令行，最后执行该页面自己的 `session stop`（所有者退出码 0）。除 `vehicle.constant.get` 使用 `name=max_speed` 外，所有结果都与页面一致；该常量在那辆巴士上并不存在，页面现已改用 `antrieb_getr_version`。`grundorf-quick` 配置档示例未能完成规划（普通 YAML 标量中的反斜杠被重复书写），已予以更正；所有无会话的命令行均从安装根目录运行，启动命令行使用 `/plan`（`doc-client-examples.json`、`doc-examples-no-session.json`、`doc-profile-example.json`） |
 | 在最终包上使用 `/observe-seconds` 的 NEW_MAP 冒烟测试 | RUNTIME_VALIDATED | `R01` 会话 `08570134-cfd8-4726-a472-5f6dd2f04c8f`，结束状态干净（`research/reports/runtime-closure/doc-R01-*`） |
+
+<a id="beta-4-development-round-a-2026-09-28"></a>
+## Beta 4 开发（A 轮，2026-09-28）
+
+已知布局 `Omsi23004` 上的开发候选版本 `4AF6A180…`（`research/reports/beta4-runtime/ROUND-A-REPORT.md`）。
+
+| 功能 | 状态 | 证据 |
+| --- | --- | --- |
+| 进程内按能力的原生解析、无地址的原生边界（已知布局） | RUNTIME_VALIDATED | A02 会话 `088f0491-114a-4841-afc0-e5ba483364b5`：headless 启动、NEW_MAP、43 个客户端示例中的 40 个（2 个失败是有记录的 `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE` 和 `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`）、通过原生 `SetTime` 执行 `time set`、通过原生 `MakeVehicle` 执行 `vehicles spawn`；A03 会话 `cf49d2c1-ca69-41e2-af0c-c4b08fa083c3`：已保存情景 `Linie 5`。会话拥有的文件被精确还原。 |
+| 在没有已知布局的 OMSI 2 版本上进行与版本无关的解析 | STATICALLY_VALIDATED | 离线：隐去其代码标识的参考可执行文件将 82 个非布局目标中的 81 个解析为参考值（`build-detection.reference-executable`、`native-resolution.per-capability`）。没有其他 OMSI 2 版本可用于会话。 |
+| OMSI 2 检测、计划证据、`profiles` 报告 | RUNTIME_VALIDATED | 已安装候选版本 `4af6a180` 上的 A01：`is_omsi2`，标识 `known`，`build_id` 为 `Omsi23004`；会话 `088f0491` 和 `cf49d2c1` 的计划接受了该安装。 |
+| 带类型的运行时错误码保留至 CLI | RUNTIME_VALIDATED | A02 会话 `088f0491-114a-4841-afc0-e5ba483364b5`（上述错误码原样到达 CLI）。 |
+| HOF 管理（镜像、精确还原） | RUNTIME_VALIDATED | C01 会话 `e37318a2-73b3-4fb3-be11-b0225f15226d`：会话期间 `Vehicles\MB_O305` 恰好包含 `Vehicles\MAN_SD202` 的 14 个 HOF，并按字节还原，包括时间戳和属性。 |
+| HOF 管理（崩溃恢复） | RUNTIME_VALIDATED | C02 会话 `02568113-3f28-4e31-958b-23eac83d7b0b`：在 `Running` 时终止了所有者和 OMSI；`/recover` 精确还原了 `Vehicles\MAN_SD200` 并删除了事务日志。 |
+| 会话配置档 1..99 与发现 | STATICALLY_VALIDATED | 离线门禁 `session-profiles.preset-range-1-99`、`session-profiles.discovery`、`session-profiles.hofs`。 |
+| 网络纹理（Internet Textures）`Disabled` | STATICALLY_VALIDATED | A04 在该模式下正常启动并结束；Beta 3 的最新值槽无法观察到 `PluginStart` 遥测。已被 B 轮取代（见下文）。 |
+
+<a id="beta-4-development-round-b-2026-09-29"></a>
+## Beta 4 开发（B 轮，2026-09-29）
+
+已知布局 `Omsi23004` 上的开发候选版本 `beta4-b2` 至 `beta4-b5`（`research/reports/beta4-runtime/ROUND-B-REPORT.md`）。
+
+| 功能 | 状态 | 证据 |
+| --- | --- | --- |
+| 遥测事件环（插件的每个事件按顺序送达；单调的会话 tick） | RUNTIME_VALIDATED | B03 会话 `0c5ae237-c587-47b4-a409-a55989e7e38b`：按顺序收到全部 `PluginStart` 事件，包括 `native.capabilities` 和 `internet-textures.suppressed`，没有 `telemetry.lost`；B06 会话 `f231ab2a-5b0d-40e6-a21d-085e061f1de8`：事件 tick 单调。 |
+| 规范能力目录与安装上的 `GetCapabilitiesAsync` | RUNTIME_VALIDATED | B 轮，已安装候选版本 `1355c928` 上的 B01：53 个目录条目，带有操作、原生能力、分页和修改策略；`GetCapabilitiesAsync` 评估了 68 个条目（`time.read`：`native: RESOLVED_KNOWN_LAYOUT`）；B02 会话 `d875a24e-8154-4774-93b3-83567a90dbf1` 通过派生的 CLI 路由运行了每个客户端示例。 |
+| 运行时模块 v1：信任、规划、内容激活、生命周期、操作、`disable-module` | RUNTIME_VALIDATED | B05（安装上的信任与计划）；B06 会话 `f231ab2a-5b0d-40e6-a21d-085e061f1de8` 和 `227d35a3-7e3d-4fcb-9013-f129840c49a7`：三个模块已加载、已就绪并处于待命状态（其中一个通过内容激活），通过 CLI 执行操作并返回带类型的错误，一个失败的模块被禁用并释放，而 OMSI 继续运行。 |
+| 运行时模块 v1：`fail-session` | RUNTIME_VALIDATED | B07 会话 `59324c59-c3bc-4118-9fe9-57fbdc26f353`：一次操作失败使会话在 185 ms 后以 `OL_E_MODULE_SESSION_FAILED` 结束，OMSI 停止且文件被还原；加载时的情形见会话 `8b1d392f-4453-4e88-9231-d41a8fff1829`。 |
+| 原生模块组件与钩子注册表 | PARTIAL | 会话 `f231ab2a-5b0d-40e6-a21d-085e061f1de8`、`227d35a3-7e3d-4fcb-9013-f129840c49a7` 和 `dfbd70a5-11a9-401d-967c-a9d154e15129`：已安装、链接并移除对 `Omsi.exe` 某个导入的 IAT 钩子；未知目标被拒绝；已安装设备的 `Present` 和 `Reset` 钩子（`Reset` 叠加在产品自己的钩子之上）。未决：在该安装上，注册表之外的某个组件在游戏开始后不久把运行时原始的 `Present` 和 `Reset` 写回了设备的 vtable，因此设备钩子没有持续生效（该模块的 `Present` 绕行从未运行）；注册表报告这两处均已被更改（`OL_E_MODULE_CLEANUP_INCOMPLETE`），且没有覆盖它们。属于 E 阶段事项。 |
+| 运行时列表的统一分页 | RUNTIME_VALIDATED | B04 会话 `8a45e79c-37c2-4f66-a3a3-b536a00a2421`（Berlin-Spandau）：20 个列表被分页到恰好等于其计数，没有重复行，其中包括按邮箱容量分页的 4747 个班次条目和 825 个线路轨迹条目；游标和限制错误均带类型。 |
+| 网络纹理（Internet Textures）`Disabled` | RUNTIME_VALIDATED | B03 会话 `0c5ae237-c587-47b4-a409-a55989e7e38b`：已应用原生抑制（`internet-textures.suppressed`，没有 `internet-textures.suppression.failed`），会话正常运行并结束。 |
 
 <a id="consolidated-runtime_validation_required-list"></a>
 ## 汇总的 RUNTIME_VALIDATION_REQUIRED 列表

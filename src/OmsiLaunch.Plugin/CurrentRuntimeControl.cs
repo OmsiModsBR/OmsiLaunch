@@ -10,6 +10,9 @@ public interface IPluginRuntimeControl
 {
     RuntimeCommandResult Execute(RuntimeCommand command);
     IReadOnlyList<PluginRuntimeEvent> PollLifecycle() => Array.Empty<PluginRuntimeEvent>();
+    // Starts observing the Direct3D device (acquires it, queues d3d.ready);
+    // used before a module that hooks the device hears gameplay-ready.
+    void ActivateDirect3D() { }
     void Shutdown() { }
 }
 
@@ -37,26 +40,62 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
     {
         sessionTag = Guid.TryParse(Environment.GetEnvironmentVariable("OMSILAUNCH_SESSION_ID"), out var sessionId)
             ? sessionId.ToString("N") : "unbound";
-        time = new OmsiTimeAdapter(memory, new OmsiTimeLayout(
-        Omsi23004.Profile.Globals["TimeHour"], Omsi23004.Profile.Globals["TimeMinute"], Omsi23004.Profile.Globals["TimeSecond"],
-        Omsi23004.Profile.Globals["TimeDay"], Omsi23004.Profile.Globals["TimeMonth"], Omsi23004.Profile.Globals["TimeYear"]));
-        readers = new OmsiRuntimeReaders(memory, Omsi23004.Profile.Globals, Omsi23004.Profile.ObjectLayouts);
-        weather = new OmsiWeatherWriter(memory, Omsi23004.Profile.Globals, Omsi23004.Profile.ObjectLayouts);
-        camera = new OmsiCameraWriter(memory, Omsi23004.Profile.Globals, Omsi23004.Profile.ObjectLayouts);
-        cameraLock = new OmsiCameraLockWriter(memory, Omsi23004.Profile.Globals, Omsi23004.Profile.ObjectLayouts);
+        // Addresses come from the in-process resolution of the build catalog,
+        // never from fixed profile constants. A global or layout that is not
+        // verified is absent; Execute rejects every operation whose native
+        // capability is unavailable before any reader or writer is reached.
+        var globals = PluginNativeTargets.Globals();
+        var layouts = PluginNativeTargets.Layouts();
+        uint G(string name) => globals.TryGetValue(name, out var address) ? address : 0;
+        time = new OmsiTimeAdapter(memory, new OmsiTimeLayout(G("TimeHour"), G("TimeMinute"), G("TimeSecond"), G("TimeDay"), G("TimeMonth"), G("TimeYear")));
+        readers = new OmsiRuntimeReaders(memory, globals, layouts);
+        weather = layouts.ContainsKey("Weather") ? new OmsiWeatherWriter(memory, globals, layouts) : null!;
+        camera = layouts.ContainsKey("Camera") ? new OmsiCameraWriter(memory, globals, layouts) : null!;
+        cameraLock = new OmsiCameraLockWriter(memory, globals, layouts);
     }
 
     public RuntimeCommandResult Execute(RuntimeCommand command)
     {
+        if (!PluginDiagnostics.PluginTrace) return ExecuteOperation(command);
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var result = ExecuteOperation(command);
+        var elapsed = (System.Diagnostics.Stopwatch.GetTimestamp() - started) * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
+        PluginDiagnostics.Operation(command.Operation, result.Succeeded, result.ErrorCode, elapsed);
+        return result;
+    }
+
+    // OMSI's own exit routine runs from a native one-shot timer after this
+    // answer is sent (it unloads the plugin on the way out).
+    private static IReadOnlyDictionary<string, string> RequestCooperativeExit()
+    {
+        if (!PluginNativeTargets.IsAvailable("session.cooperative-exit")) throw new InvalidOperationException(PublicErrorCodes.CAPABILITY_UNRESOLVED);
+        if (NativeRequestCooperativeExit() != 1) throw new InvalidOperationException("OL_E_RUNTIME_OPERATION_UNAVAILABLE");
+        return new Dictionary<string, string>(StringComparer.Ordinal) { ["scheduled"] = "true" };
+    }
+
+    [System.Runtime.InteropServices.DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
+    private static extern int NativeRequestCooperativeExit();
+
+    private RuntimeCommandResult ExecuteOperation(RuntimeCommand command)
+    {
+        // Per-capability gate: an operation whose native targets were not
+        // resolved and verified on this build never touches OMSI memory.
+        if (PublicCapabilityRegistry.NativeCapabilityOf(command.Operation) is { } capability && !PluginNativeTargets.IsAvailable(capability))
+            return new RuntimeCommandResult(command.SessionId, command.RequestId, false, PublicErrorCodes.CAPABILITY_UNRESOLVED,
+                new Dictionary<string, string> { ["detail"] = "The native capability '" + capability + "' is not resolved on this OMSI build.", ["capability"] = capability });
         try
         {
             IReadOnlyDictionary<string, string> values = command.Operation switch
             {
+                // Internal (not a public operation): the host's cooperative exit.
+                "session.close" => RequestCooperativeExit(),
                 "time.read" => ReadTime(),
                 "time.set" => SetTime(command.Arguments),
                 "map.read" => readers.ReadMapAsync().AsTask().GetAwaiter().GetResult(),
+                "map.tiles.list" => readers.ListMapTilesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
                 "weather.read" => readers.ReadWeatherAsync().AsTask().GetAwaiter().GetResult(),
                 "weather.set" => SetWeather(command.Arguments),
+                "weather.metar.set" => SetMetarWeather(command.Arguments),
                 "weather.actual.read" => readers.ReadActualWeatherAsync().AsTask().GetAwaiter().GetResult(),
                 "camera.read" => readers.ReadCameraAsync().AsTask().GetAwaiter().GetResult(),
                 "camera.set" => SetCamera(command.Arguments),
@@ -68,7 +107,7 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
                 "d3d.texture.update" => UpdateD3DTexture(command.Arguments),
                 "d3d.texture.release" => ReleaseD3DTexture(command.Arguments),
                 "road-vehicles.read" => readers.ReadRoadVehiclesAsync().AsTask().GetAwaiter().GetResult(),
-                "road-vehicles.list" => readers.ListRoadVehiclesAsync().AsTask().GetAwaiter().GetResult(),
+                "road-vehicles.list" => readers.ListRoadVehiclesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
                 // The internal route retains its native diagnostic address for
                 // research. The public spawn route projects only an opaque,
                 // session-scoped RoadVehicle handle.
@@ -80,6 +119,9 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
                 "vehicle.variable.set" => WriteRoadVehicleVariable(command.Arguments),
                 "vehicle.variables.list" => ListRoadVehicleVariables(command.Arguments, false),
                 "vehicle.string-variable.get" => ReadRoadVehicleStringVariable(command.Arguments),
+                "vehicle.string-variable.set" => WriteRoadVehicleStringVariable(command.Arguments),
+                "vehicle.trigger" => TriggerRoadVehicle(command.Arguments),
+                "vehicle.sound-trigger" => SoundTriggerRoadVehicle(command.Arguments),
                 "vehicle.string-variables.list" => ListRoadVehicleVariables(command.Arguments, true),
                 "vehicle.constant.get" => ReadRoadVehicleConstant(command.Arguments),
                 "vehicle.constants.list" => ListRoadVehicleConstants(command.Arguments, false),
@@ -88,22 +130,23 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
                 "vehicle.hofs.read" => ReadRoadVehicleHofs(command.Arguments),
                 "player-vehicle.read" => readers.ReadPlayerVehicleAsync().AsTask().GetAwaiter().GetResult(),
                 "humans.read" => readers.ReadHumansAsync().AsTask().GetAwaiter().GetResult(),
-                "humans.list" => readers.ListHumansAsync().AsTask().GetAwaiter().GetResult(),
+                "humans.list" => readers.ListHumansAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
                 "human.read" => ReadHuman(command.Arguments),
                 "timetable.read" => readers.ReadTimeTableAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.tracks.list" => readers.ListTimeTableTracksAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.trips.list" => readers.ListTimeTableTripsAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.lines.list" => readers.ListTimeTableLinesAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.rv-files.list" => readers.ListTimeTableRvFilesAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.track-entries.list" => readers.ListTimeTableTrackEntriesAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.bus-stops.list" => readers.ListTimeTableBusStopsAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.station-links.list" => readers.ListTimeTableStationLinksAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.tours.list" => readers.ListTimeTableToursAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.profiles.list" => readers.ListTimeTableProfilesAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.tour-entries.list" => readers.ListTimeTableTourEntriesAsync().AsTask().GetAwaiter().GetResult(),
-                "drivers.read" => readers.ReadDriversAsync().AsTask().GetAwaiter().GetResult(),
-                "tickets.read" => readers.ReadTicketPackAsync().AsTask().GetAwaiter().GetResult(),
-                "timetable.logs.read" => readers.ReadTimeTableLogsAsync().AsTask().GetAwaiter().GetResult(),
+                "timetable.no-rv-numbers.list" => readers.ListNoRvNumbersAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.tracks.list" => readers.ListTimeTableTracksAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.trips.list" => readers.ListTimeTableTripsAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.lines.list" => readers.ListTimeTableLinesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.rv-files.list" => readers.ListTimeTableRvFilesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.track-entries.list" => readers.ListTimeTableTrackEntriesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.bus-stops.list" => readers.ListTimeTableBusStopsAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.station-links.list" => readers.ListTimeTableStationLinksAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.tours.list" => readers.ListTimeTableToursAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.profiles.list" => readers.ListTimeTableProfilesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.tour-entries.list" => readers.ListTimeTableTourEntriesAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "drivers.read" => readers.ReadDriversAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "tickets.read" => readers.ReadTicketPackAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
+                "timetable.logs.read" => readers.ReadTimeTableLogsAsync(ListPage.From(command.Arguments)).AsTask().GetAwaiter().GetResult(),
                 _ => throw new InvalidOperationException("OL_E_RUNTIME_OPERATION_UNAVAILABLE")
             };
             return new RuntimeCommandResult(command.SessionId, command.RequestId, true, Values: values);
@@ -120,7 +163,10 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
         }
         catch (Exception exception)
         {
-            return new RuntimeCommandResult(command.SessionId, command.RequestId, false, "OL_E_RUNTIME_OPERATION_FAILED", new Dictionary<string, string> { ["detail"] = exception.Message, ["exception"] = exception.GetType().Name });
+            // A typed public code carried by any exception survives to the
+            // caller (R4); only an untyped failure becomes OPERATION_FAILED.
+            var code = PublicErrorCodes.FromMessage(exception.Message) ?? "OL_E_RUNTIME_OPERATION_FAILED";
+            return new RuntimeCommandResult(command.SessionId, command.RequestId, false, code, new Dictionary<string, string> { ["detail"] = exception.Message, ["exception"] = exception.GetType().Name });
         }
     }
 
@@ -156,8 +202,8 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
             return events;
         }
         if (now < Interlocked.Read(ref nextD3DPoll)) return events;
-        // Host telemetry is a latest-value mailbox sampled every 100 ms. Keep
-        // lifecycle transitions visible across at least two host samples.
+        // The native device probe runs at most every 250 ms; events reach
+        // the host through the telemetry ring whatever their spacing.
         Interlocked.Exchange(ref nextD3DPoll, now + 250);
         NativeD3DProbe(out var status);
         var name = status.LifecycleTransition switch
@@ -180,6 +226,7 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
         return events;
     }
 
+    public void ActivateDirect3D() => ActivateD3D();
     public void Shutdown() => NativeD3DShutdown();
     private IReadOnlyDictionary<string, string> ReadTime()
     {
@@ -199,18 +246,51 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
         return ReadTime();
     }
 
+    // Manual weather: every value is validated before anything is written;
+    // live METAR updates stop first, otherwise OMSI replaces the record on its
+    // next download. OMSI derives the per-tick values (fog, light, actual
+    // wind, humidity) from the record on its next unpaused weather tick.
     private IReadOnlyDictionary<string, string> SetWeather(IReadOnlyDictionary<string, string>? arguments)
     {
-        if (arguments is null) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
-        if (arguments.Count == 0) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
-        // Direct writes to both the derived wind projection and ActWeather's
-        // source record were overwritten by the next normal OMSI weather tick
-        // on the exact profiled build. Do not report an ephemeral mutation as
-        // a semantic runtime weather change until the native apply lifecycle
-        // is reconciled.
-        throw new RuntimeOperationException("OL_E_RUNTIME_SETTING_NOT_PERSISTENT",
-            "Direct weather scalar writes are unavailable until OMSI's native weather apply lifecycle is profiled.");
+        if (arguments is null || arguments.Count == 0) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
+        if (weather is null || !PluginNativeTargets.IsAvailable("weather.set")) throw new InvalidOperationException(PublicErrorCodes.CAPABILITY_UNRESOLVED);
+        arguments.TryGetValue("cloud_type", out var cloudType);
+        var values = weather.Prepare(arguments.Where(pair => pair.Key != "cloud_type").ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal));
+        if (cloudType is not null && (cloudType.Length is 0 or > 64 || cloudType.Any(char.IsControl))) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", "cloud_type");
+        weather.WriteAsync(values).AsTask().GetAwaiter().GetResult();
+        var result = new Dictionary<string, string>(readers.ReadWeatherAsync().AsTask().GetAwaiter().GetResult(), StringComparer.Ordinal);
+        if (cloudType is not null)
+        {
+            var status = NativeSetWeatherCloudType(cloudType);
+            if (status == 3) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", "cloud_type");
+            if (status == 0) throw new InvalidOperationException("OL_E_RUNTIME_OPERATION_UNAVAILABLE");
+            result["cloud_type_name"] = cloudType;
+            // "-1" is OMSI's own "no clouds"; any other unknown name is drawn as none.
+            result["cloud_type_resolved"] = status == 1 ? "true" : "false";
+        }
+        return result;
     }
+
+    // Live METAR weather for an ICAO station, as OMSI's weather dialog sets it:
+    // OMSI downloads and applies it on its next weather update.
+    private IReadOnlyDictionary<string, string> SetMetarWeather(IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (arguments is null || !arguments.TryGetValue("icao", out var icao) || arguments.Count != 1) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
+        if (weather is null || !PluginNativeTargets.IsAvailable("weather.metar.set")) throw new InvalidOperationException(PublicErrorCodes.CAPABILITY_UNRESOLVED);
+        icao = icao.ToUpperInvariant();
+        if (icao.Length != 4 || !icao.All(character => character is >= 'A' and <= 'Z' or >= '0' and <= '9')) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", "icao");
+        var status = NativeSetMetarIcao(icao);
+        if (status == 3) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", "icao");
+        if (status != 1) throw new InvalidOperationException("OL_E_RUNTIME_OPERATION_UNAVAILABLE");
+        weather.RequestMetarAsync().AsTask().GetAwaiter().GetResult();
+        return readers.ReadActualWeatherAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private static extern int NativeSetWeatherCloudType(string name);
+
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private static extern int NativeSetMetarIcao(string icao);
 
     private IReadOnlyDictionary<string, string> SetCamera(IReadOnlyDictionary<string, string>? arguments)
     {
@@ -510,6 +590,70 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
         return readers.ReadRoadVehicleStringVariableAsync(handle, name).AsTask().GetAwaiter().GetResult();
     }
 
+    // OMSI's own SetStringVariable (it assigns a copy; the vehicle script reads
+    // the new value on its next frame).
+    private IReadOnlyDictionary<string, string> WriteRoadVehicleStringVariable(IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (arguments is null || !arguments.TryGetValue("handle", out var handle) || !arguments.TryGetValue("name", out var name) || !arguments.TryGetValue("value", out var value))
+            throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
+        if (!PluginNativeTargets.IsAvailable("scripts.string.write")) throw new InvalidOperationException(PublicErrorCodes.CAPABILITY_UNRESOLVED);
+        if (name.Length is 0 or > 128 || value.Length > 1024 || value.Contains('\0')) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", nameof(value));
+        var address = readers.ResolveScriptTargetAsync(handle, stringVariable: name).AsTask().GetAwaiter().GetResult();
+        NativeScriptStatus(NativeSetScriptStringVariable((nint)address, name, value));
+        return readers.ReadRoadVehicleStringVariableAsync(handle, name).AsTask().GetAwaiter().GetResult();
+    }
+
+    // A named script trigger, as OMSI's input handlers raise it: value 1
+    // presses (runs "name"), 0 releases ("name_off"), 2 drags ("name_drag").
+    // A press is normally followed by a release. Unknown trigger names do
+    // nothing in OMSI.
+    private IReadOnlyDictionary<string, string> TriggerRoadVehicle(IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (arguments is null || !arguments.TryGetValue("handle", out var handle) || !arguments.TryGetValue("name", out var name) || !arguments.TryGetValue("value", out var rawValue))
+            throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
+        if (!PluginNativeTargets.IsAvailable("scripts.trigger")) throw new InvalidOperationException(PublicErrorCodes.CAPABILITY_UNRESOLVED);
+        if (!int.TryParse(rawValue, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value) || value is < 0 or > 2)
+            throw new ArgumentOutOfRangeException("value", "OL_E_RUNTIME_VALUE_OUT_OF_RANGE");
+        if (name.Length is 0 or > 128) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", nameof(name));
+        var address = readers.ResolveScriptTargetAsync(handle).AsTask().GetAwaiter().GetResult();
+        NativeScriptStatus(NativeScriptTrigger((nint)address, name, value));
+        return new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["name"] = name, ["value"] = rawValue, ["dispatched"] = "true" };
+    }
+
+    private IReadOnlyDictionary<string, string> SoundTriggerRoadVehicle(IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (arguments is null || !arguments.TryGetValue("handle", out var handle) || !arguments.TryGetValue("trigger", out var trigger))
+            throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
+        if (!PluginNativeTargets.IsAvailable("scripts.trigger")) throw new InvalidOperationException(PublicErrorCodes.CAPABILITY_UNRESOLVED);
+        // OMSI's own callers pass an empty file name for "the trigger's sounds".
+        arguments.TryGetValue("file", out var file);
+        file ??= "";
+        if (trigger.Length is 0 or > 128 || file.Length > 260) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", nameof(trigger));
+        var address = readers.ResolveScriptTargetAsync(handle, requireSounds: true).AsTask().GetAwaiter().GetResult();
+        NativeScriptStatus(NativeScriptSoundTrigger((nint)address, trigger, file));
+        return new Dictionary<string, string>(StringComparer.Ordinal) { ["handle"] = handle, ["trigger"] = trigger, ["file"] = file, ["dispatched"] = "true" };
+    }
+
+    private static void NativeScriptStatus(int status)
+    {
+        switch (status)
+        {
+            case 1: return;
+            case 3: throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID: not representable in OMSI's string encoding");
+            case 4: throw new InvalidOperationException("OL_E_RUNTIME_OPERATION_UNAVAILABLE: the vehicle's script method is not the profiled one");
+            default: throw new InvalidOperationException("OL_E_RUNTIME_OPERATION_UNAVAILABLE");
+        }
+    }
+
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private static extern int NativeSetScriptStringVariable(nint instance, string name, string value);
+
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private static extern int NativeScriptTrigger(nint instance, string name, int value);
+
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private static extern int NativeScriptSoundTrigger(nint instance, string trigger, string filename);
+
     private IReadOnlyDictionary<string, string> ReadRoadVehicleConstant(IReadOnlyDictionary<string, string>? arguments)
     {
         if (arguments is null || !arguments.TryGetValue("handle", out var handle) || !arguments.TryGetValue("name", out var name)) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
@@ -519,7 +663,7 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
     private IReadOnlyDictionary<string, string> ListRoadVehicleConstants(IReadOnlyDictionary<string, string>? arguments, bool curves)
     {
         if (arguments is null || !arguments.TryGetValue("handle", out var handle)) throw new InvalidOperationException("OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED");
-        return readers.ListRoadVehicleConstantsAsync(handle, curves).AsTask().GetAwaiter().GetResult();
+        return readers.ListRoadVehicleConstantsAsync(handle, curves, ListPage.From(arguments)).AsTask().GetAwaiter().GetResult();
     }
 
     private IReadOnlyDictionary<string, string> EvaluateRoadVehicleCurve(IReadOnlyDictionary<string, string>? arguments)
@@ -532,13 +676,13 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
     private IReadOnlyDictionary<string, string> ReadRoadVehicleHofs(IReadOnlyDictionary<string, string>? arguments)
     {
         if (arguments is null || !arguments.TryGetValue("handle", out var handle)) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
-        return readers.ReadRoadVehicleHofsAsync(handle).AsTask().GetAwaiter().GetResult();
+        return readers.ReadRoadVehicleHofsAsync(handle, ListPage.From(arguments)).AsTask().GetAwaiter().GetResult();
     }
 
     private IReadOnlyDictionary<string, string> ListRoadVehicleVariables(IReadOnlyDictionary<string, string>? arguments, bool stringVariables)
     {
         if (arguments is null || !arguments.TryGetValue("handle", out var handle)) throw new InvalidOperationException("OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED");
-        return readers.ListRoadVehicleVariablesAsync(handle, stringVariables).AsTask().GetAwaiter().GetResult();
+        return readers.ListRoadVehicleVariablesAsync(handle, stringVariables, ListPage.From(arguments)).AsTask().GetAwaiter().GetResult();
     }
 
     private IReadOnlyDictionary<string, string> ReadHuman(IReadOnlyDictionary<string, string>? arguments)
@@ -718,12 +862,16 @@ internal sealed class CurrentRuntimeCommandMailbox
 
     private static byte[] Error(RuntimeCommand command, string code) => RuntimeCommandWire.SerializeResponse(new RuntimeCommandResult(command.SessionId, command.RequestId, false, code));
 
-    // A bounded list result (it carries returned_count and truncated) with rows
-    // keyed "<row>.<n>.<field>" is shrunk by dropping its highest-numbered rows
-    // until the serialized response fits. Returns null for any other result.
+    // An index-paged list result (it carries returned_count and truncated) with
+    // rows keyed "<row>.<n>.<field>" by absolute record index is shrunk by
+    // dropping its highest-numbered rows until the serialized response fits;
+    // next_cursor then starts at the first dropped row, so no record is lost.
+    // Returns null for any other result (handle lists page by handle order and
+    // are bounded to fit).
     internal static byte[]? FitBoundedList(RuntimeCommandResult result, int capacity)
     {
         if (!result.Succeeded || result.Values is not { } values || !values.ContainsKey("returned_count") || !values.ContainsKey("truncated")) return null;
+        if (values.Keys.Any(key => key.EndsWith(".handle", StringComparison.Ordinal) && key.Count(c => c == '.') == 2)) return null;
         static int? RowOf(string key)
         {
             var first = key.IndexOf('.'); if (first < 0) return null;
@@ -733,11 +881,14 @@ internal sealed class CurrentRuntimeCommandMailbox
         var rows = values.Keys.Select(RowOf).Where(row => row is not null).Select(row => row!.Value).Distinct().OrderBy(row => row).ToList();
         while (rows.Count > 0)
         {
-            rows.RemoveRange(rows.Count - Math.Max(1, rows.Count / 8), Math.Max(1, rows.Count / 8));
+            var dropped = rows.Count - Math.Max(1, rows.Count / 8);
+            var firstDropped = rows[dropped];
+            rows.RemoveRange(dropped, rows.Count - dropped);
             var keep = rows.ToHashSet();
             var trimmed = values.Where(pair => RowOf(pair.Key) is not { } row || keep.Contains(row)).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
             trimmed["returned_count"] = keep.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
             trimmed["truncated"] = "true";
+            trimmed["next_cursor"] = "i:" + firstDropped.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var bytes = RuntimeCommandWire.SerializeResponse(result with { Values = trimmed });
             if (bytes.Length <= capacity) return bytes;
         }

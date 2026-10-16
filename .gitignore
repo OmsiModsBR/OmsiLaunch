@@ -19,3 +19,7 @@ obj/
 *.rc.tmp
 signing/
 certificates/
+
+# Python bytecode caches (tools/Localization).
+__pycache__/
+*.pyc

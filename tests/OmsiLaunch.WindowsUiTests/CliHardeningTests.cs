@@ -8,6 +8,7 @@ internal static class CliHardeningTests
     public static void Run()
     {
         ParseErrors(); Console.WriteLine("PASS cli.parse-errors");
+        ModuleFlags(); Console.WriteLine("PASS cli.module-flags");
         SpecTimeoutsAndUnknownProperties(); Console.WriteLine("PASS cli.spec-strict-loading");
         ExitCodeClassification(); Console.WriteLine("PASS cli.exit-code-classification");
         ControlPlane(); Console.WriteLine("PASS control-plane.binding-and-typed-errors");
@@ -106,7 +107,7 @@ internal static class CliHardeningTests
     // overflow crashes, and ranges are enforced at parse time.
     private static void ParseErrors()
     {
-        foreach (var arguments in new[] { new[] { "/set" }, new[] { "/runtime-arg" }, new[] { "/entrypoint-index:abc" }, new[] { "/entrypoint-index:99999999999" }, new[] { "/predefined-profile-index:9" }, new[] { "/observe-seconds:-1" }, new[] { "/startup-timeout:0" }, new[] { "/map" }, new[] { "/saved" }, new[] { "/unknown-flag" } })
+        foreach (var arguments in new[] { new[] { "/set" }, new[] { "/runtime-arg" }, new[] { "/entrypoint-index:abc" }, new[] { "/entrypoint-index:99999999999" }, new[] { "/predefined-profile-index:0" }, new[] { "/predefined-profile-index:100" }, new[] { "/observe-seconds:-1" }, new[] { "/startup-timeout:0" }, new[] { "/map" }, new[] { "/saved" }, new[] { "/module-setting:noid=1" }, new[] { "/no-module" }, new[] { "/unknown flag" } })
         {
             try { CliInput.Parse(arguments); throw new InvalidOperationException("accepted " + string.Join(' ', arguments)); }
             catch (ArgumentException) { }
@@ -115,6 +116,34 @@ internal static class CliHardeningTests
         Assert(parsed.StartupTimeout == 120 && parsed.ShutdownTimeout is null && parsed.JsonOutput && parsed.Installation == "C:\\OMSI", "parse regression");
         Assert(CliInput.Parse(new[] { "vehicles", "summary" }).RuntimeOperation == "road-vehicles.read" && CliInput.Parse(new[] { "humans", "summary" }).RuntimeOperation == "humans.read", "summary routes regression");
         Assert(CliInput.Parse(Array.Empty<string>()).StartupTimeout is null, "timeouts must stay unset by default");
+        Assert(CliInput.Parse(new[] { "/predefined-profile:x", "/predefined-profile-index:99" }).PredefinedProfileIndex == 99 && CliInput.Parse(new[] { "/predefined-profile:x", "/predefined-profile-index:1" }).PredefinedProfileIndex == 1, "preset indexes 1 and 99 must parse");
+    }
+
+    // Runtime module flags: /no-module, /module-setting and the flags installed
+    // modules declare. A flag no built-in knows is kept until a session is
+    // planned, resolved against the installed modules there, and refused
+    // anywhere else.
+    private static void ModuleFlags()
+    {
+        var unknown = CliInput.Parse(new[] { "/unknown-flag" });
+        Assert(unknown.UnresolvedFlags.SequenceEqual(new[] { "/unknown-flag" }), "an unknown flag is kept for module resolution");
+        try { unknown.RejectUnresolvedFlags(); throw new InvalidOperationException("accepted /unknown-flag outside a session"); } catch (ArgumentException) { }
+        var install = Path.Combine(Path.GetTempPath(), "OmsiLaunch-CliModules-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var module = Path.Combine(install, "plugins", "OmsiLaunch.Modules", "flagged");
+            Directory.CreateDirectory(module);
+            File.WriteAllText(Path.Combine(module, "module.json"), "{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"flagged\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 2, \"max\": 2 }, " +
+                "\"components\": [ { \"kind\": \"managed\", \"path\": \"flagged.dll\", \"sha256\": \"" + new string('A', 64) + "\", \"entry\": \"Flagged.Module\" } ], \"failure_policy\": \"degrade\", " +
+                "\"settings\": [ { \"key\": \"ram_mb\", \"type\": \"integer\", \"default\": \"auto\", \"auto\": true, \"flag\": \"flagged-ram\" }, { \"key\": \"monitor\", \"type\": \"boolean\", \"default\": false, \"flag\": \"flagged-monitor\" } ] }");
+            var spec = CliInput.Parse(new[] { install, "/new", "/map:maps\\X\\global.cfg", "/flagged-ram:4096", "/flagged-monitor", "/no-module:other", "/module-setting:flagged.mode=fast", "/module:flagged" }).BuildSpecAsync().GetAwaiter().GetResult();
+            var modules = spec.EffectiveModules;
+            Assert(modules.EffectiveSettings["flagged.ram_mb"] == "4096" && modules.EffectiveSettings["flagged.monitor"] == "true" && modules.EffectiveSettings["flagged.mode"] == "fast", "module flags and /module-setting reach LaunchSpec.Modules.Settings");
+            Assert(modules.Enable.SequenceEqual(new[] { "flagged" }) && modules.EffectiveDisable.SequenceEqual(new[] { "other" }), "/module and /no-module");
+            try { CliInput.Parse(new[] { install, "/new", "/no-such-flag:1" }).BuildSpecAsync().GetAwaiter().GetResult(); throw new InvalidOperationException("accepted a flag no module declares"); } catch (ArgumentException) { }
+            try { CliInput.Parse(new[] { install, "/new", "/flagged-ram" }).BuildSpecAsync().GetAwaiter().GetResult(); throw new InvalidOperationException("accepted an integer module flag without a value"); } catch (ArgumentException) { }
+        }
+        finally { try { Directory.Delete(install, recursive: true); } catch (IOException) { } }
     }
 
     // S-20: /spec values are honoured unless the command line overrides them,
@@ -148,6 +177,40 @@ internal static class CliHardeningTests
             catch (InvalidDataException error) when (error.Message.StartsWith("OL_E_SPEC_TOO_LARGE", StringComparison.Ordinal)) { }
             try { CliInput.Parse(new[] { "/spec:" + Path.Combine(root, "missing.json") }).BuildSpecAsync().GetAwaiter().GetResult(); throw new InvalidOperationException("missing spec was accepted"); }
             catch (FileNotFoundException) { }
+
+            // Beta 4 HOF management: /spec arrays of records are strict, and
+            // command-line HOF flags replace the spec's operations.
+            var hofSpec = Path.Combine(root, "hof.json");
+            File.WriteAllText(hofSpec, File.ReadAllText(spec).TrimEnd().TrimEnd('}') + ", \"HofManagement\": { \"Operations\": [ { \"SourceKind\": 0, \"Source\": \"berlin\", \"TargetVehicles\": [ \"Vehicles\\\\B\\\\b.bus\" ], \"Mode\": 1 } ] } }");
+            var withHof = CliInput.Parse(new[] { "/spec:" + hofSpec }).BuildSpecAsync().GetAwaiter().GetResult();
+            Assert(withHof.EffectiveHofManagement.Operations.Single() is { SourceKind: HofSourceKind.Collection, Source: "berlin", Mode: HofApplyMode.Mirror } op && op.TargetVehicles.Single() == "Vehicles\\B\\b.bus", "spec HOF operation was not loaded");
+            var hofTypo = Path.Combine(root, "hof-typo.json");
+            File.WriteAllText(hofTypo, File.ReadAllText(hofSpec).Replace("\"TargetVehicles\"", "\"TargetVehicle\""));
+            try { CliInput.Parse(new[] { "/spec:" + hofTypo }).BuildSpecAsync().GetAwaiter().GetResult(); throw new InvalidOperationException("unknown property inside a spec array was accepted"); }
+            catch (InvalidDataException error) when (error.Message.Contains("$.HofManagement.Operations[0].TargetVehicle", StringComparison.Ordinal)) { }
+            var fromFlags = CliInput.Parse(new[] { "/spec:" + hofSpec, "/hof-source:vehicle:Vehicles\\A\\a.bus", "/hof-target:Vehicles\\C", "/hof-target:Vehicles\\D\\d.ovh", "/hof-file:x.hof" }).BuildSpecAsync().GetAwaiter().GetResult();
+            Assert(fromFlags.EffectiveHofManagement.Operations.Single() is { SourceKind: HofSourceKind.Vehicle, Source: "Vehicles\\A\\a.bus", Mode: HofApplyMode.Add } flagOp && flagOp.TargetVehicles.Count == 2 && flagOp.Files!.Single() == "x.hof", "HOF flags did not replace the spec operations");
+            foreach (var arguments in new[] { new[] { "/hof-target:Vehicles\\C" }, new[] { "/hof-source:collection:berlin" }, new[] { "/hof-mode:mirror" } })
+            {
+                try { CliInput.Parse(arguments).BuildSpecAsync().GetAwaiter().GetResult(); throw new InvalidOperationException("incomplete HOF flags were accepted: " + string.Join(' ', arguments)); }
+                catch (ArgumentException) { }
+            }
+            foreach (var bad in new[] { "/hof-source:berlin", "/hof-source:unknown:x", "/hof-source:0:x", "/hof-source:collection:", "/hof-mode:replace" })
+            {
+                try { CliInput.Parse(new[] { bad }); throw new InvalidOperationException("malformed HOF flag was accepted: " + bad); }
+                catch (ArgumentException) { }
+            }
+
+            // Beta 4 Runtime Modules: /module adds to the spec's modules; a
+            // module operation passes the frontend check (the session decides).
+            var moduleSpec = Path.Combine(root, "modules.json");
+            File.WriteAllText(moduleSpec, File.ReadAllText(spec).TrimEnd().TrimEnd('}') + ", \"Modules\": { \"Enable\": [ \"preloader\" ] } }");
+            var withModules = CliInput.Parse(new[] { "/spec:" + moduleSpec, "/module:null-test", "/module:preloader" }).BuildSpecAsync().GetAwaiter().GetResult();
+            Assert(withModules.EffectiveModules.Enable.SequenceEqual(new[] { "preloader", "null-test" }), "/module did not add to the spec's modules: " + string.Join(",", withModules.EffectiveModules.Enable));
+            try { CliInput.Parse(new[] { "/module" }); throw new InvalidOperationException("/module without a value was accepted"); }
+            catch (ArgumentException) { }
+            Assert(CliInput.Parse(new[] { "/runtime:module.null-test.ping" }).RuntimeOperation == "module.null-test.ping" && PublicCapabilityRegistry.ValidateRuntimeArguments("module.null-test.ping", null).Accepted, "a module operation was not accepted by the frontend");
+            Assert(!PublicCapabilityRegistry.ValidateRuntimeArguments("module.Bad.ping", null).Accepted, "a malformed module operation was accepted");
         }
         finally { Directory.Delete(root, true); }
     }
@@ -336,6 +399,8 @@ internal static class CliHardeningTests
         public bool StopRequested { get; private set; }
         private SessionState state = SessionState.Created;
         public Task<SessionPlan> PlanSessionAsync(LaunchSpec spec, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SessionProfileSummary>> ListSessionProfilesAsync(InstallationSpec installation, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<RuntimeModuleSummary>> ListRuntimeModulesAsync(InstallationSpec installation, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<SessionHandle> StartSessionAsync(SessionPlan plan, CancellationToken cancellationToken = default) { state = RunningState; return Task.FromResult(new SessionHandle(plan.SessionId)); }
         public Task<SessionStatus> GetStatusAsync(SessionHandle session, CancellationToken cancellationToken = default) => Task.FromResult(new SessionStatus(session.SessionId, state, Array.Empty<LaunchDiagnostic>()));
         public async Task<SessionStatus> WaitForAsync(SessionHandle session, SessionState target, TimeSpan timeout, CancellationToken cancellationToken = default)

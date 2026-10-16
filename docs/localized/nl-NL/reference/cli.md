@@ -1,9 +1,9 @@
 # CLI-referentie
 
-<!-- l10n: source=reference/cli.md -->
-> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/cli.md) voor OmsiLaunch 0.1.0-beta3. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
+<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+> Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/cli.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
-Deze pagina is de volledige, normatieve referentie voor de opdrachtregel van OmsiLaunch `0.1.0-beta3`: de drie uitvoerbare bestanden, de argumentgrammatica, de dispatchvolgorde, elk opdrachtwoord, elke hiërarchische route, elke vlag, de uitvoer-envelopes en het foutgedrag van elke opdracht. De pagina is gegenereerd uit `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` en de twee native shims onder `tools\OmsiLaunch.Bootstrapper`. Procesresultaten staan in [exitcodes](exit-codes.md), foutcodes in [fouten](errors.md) en uitgewerkte aanroepen in [CLI-voorbeelden](cli-examples.md).
+Deze pagina is de volledige, normatieve referentie voor de opdrachtregel van OmsiLaunch `0.1.0-beta4`: de drie uitvoerbare bestanden, de argumentgrammatica, de dispatchvolgorde, elk opdrachtwoord, elke hiërarchische route, elke vlag, de uitvoer-envelopes en het foutgedrag van elke opdracht. De pagina is gegenereerd uit `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` en de twee native shims onder `tools\OmsiLaunch.Bootstrapper`. Procesresultaten staan in [exitcodes](exit-codes.md), foutcodes in [fouten](errors.md) en uitgewerkte aanroepen in [CLI-voorbeelden](cli-examples.md).
 
 <a id="executables"></a>
 ## Uitvoerbare bestanden
@@ -49,17 +49,17 @@ Gevolgen: een hiërarchische route (`time get`) kan niet worden gecombineerd met
 ### Dispatchvolgorde (`CliProgram.RunAsync`)
 
 1. `/silent` (als het proces nog niet onder `OmsiLaunchW.exe` draait): start `OmsiLaunchW.exe` vanuit de map van het uitvoerbare bestand via `ShellExecute` (zonder overerving van handles) met dezelfde argumenten zonder `/silent`/`--silent`, schrijf de envelope `silent` (`delegated`, `host_process_id`) en retourneer `0`. Het consoleproces wacht niet op de sessie; zie [OmsiLaunchW.exe](omsilaunchw.md#silent-delegation). `OL_E_WINDOWS_HOST_MISSING` / `OL_E_WINDOWS_HOST_START_FAILED` retourneren `7`.
-2. `/version`: envelope `version` met `product`, `version` (informatieve assemblyversie, gestempeld vanuit `OmsiLaunch.Version.props`, `0.1.0-beta3`), `protocol_version` (`0.1`), `supported_family` (`OMSI_2_3_004_COMMON`); exit `0`.
-3. `capabilities`: envelope met elke `PublicStableBeta`- of `PublicExperimental`-descriptor van `PublicCapabilityRegistry`; exit `0`.
+2. `/version`: envelope `version` met `product`, `version` (informatieve assemblyversie, gestempeld vanuit `OmsiLaunch.Version.props`, `0.1.0-beta4`), `protocol_version` (`0.1`), `supported_family` (`OMSI_2_3_004_COMMON`); exit `0`.
+3. `capabilities`: envelope met elke `PublicStableBeta`- of `PublicExperimental`-descriptor van de canonieke catalogus `PublicCapabilityRegistry` (met zijn operaties, native capabilities, bewijs en toelichting); exit `0`.
 4. `help [family]`: envelope `help` met `usage`, `product_version`, `protocol_version`, `family` en de openbare `commands` (`CliRoute`, `Description`, `Classification`, `RuntimeValidation`), optioneel gefilterd op familie; exit `0`.
-5. `profiles`: envelope met `family` en de `supported` varianten van het uitvoerbare bestand (`ALTERNATE_LAA` `692EBFBF...`, `runtime_validated=true`; de Steam-LAA-hash `7DAB063D...` met `validation_status=pending_beta_field_validation`); exit `0`.
+5. `profiles`: envelope met `requirement` (`OMSI 2`), het rapport `installation` van de doelmap (`is_omsi2`, `reason`, `build_id`, `identity` `known`/`unknown`, `file_sha256`, `file_version`, `code_sha256`, `file_variant`), de `known_layouts` en de `predicted_capabilities`, bepaald aan de hand van het uitvoerbare bestand (de oplossing in het proces bij de start is gezaghebbend); exit `0`.
 6. Runtime-operatie als client (geen installatieargument en een route of `/runtime:`): argumenten worden gevalideerd tegen `PublicCapabilityRegistry.ValidateRuntimeArguments` (`OL_E_RUNTIME_OPERATION_UNKNOWN`, `OL_E_RUNTIME_ARGUMENT_REQUIRED`, exit `2`), waarna `runtime.execute` wordt doorgestuurd met een timeout van 8 s (30 s voor `road-vehicles.spawn`).
 7. Client-`session status` (750 ms), `session stop` (gebonden aan de actieve sessie-id, 750 ms), `events read` (750 ms), `events watch` (pollt elke 250 ms tot Ctrl+C).
 8. `detect`, of **helemaal geen argumenten** (geen installatie, geen opdracht, geen `/?`, geen `/spec`, geen startvlag, geen recoveryvlag, geen `/list`): somt `Omsi`-processen op en test het control-endpoint (250 ms); envelope `detect`; exit `0`.
 9. `/?` of `/help`: druk de gebruikstekst af, exit `0`. Elke andere aanroep met een opdrachtwoord maar zonder dispatchbare route (bijvoorbeeld `d3d` alleen of `session status D:\OMSI`) drukt de gebruikstekst af en eindigt met exit `2`.
 10. Eigenaarmodus. Voorwaarden: `plugins\OmsiLaunch.Plugin.opl` en `plugins\OmsiLaunch.Native.x86.dll` moeten naast het uitvoerbare bestand staan (`OL_E_RUNTIME_INSTALLATION_INCOMPLETE`, exit `7`). `release-manifest.json` naast het uitvoerbare bestand levert, indien aanwezig, de verwachte plugin-hashes.
 11. `/recovery-status` / `/recover`: `RecoverPendingAsync`; envelope `recover` met `pending`, `recovered`, `diagnostics`; exit `8` alleen als een herstel is aangevraagd en niet is voltooid, anders `0`.
-12. `/list:<category>`: `DiscoverAsync`; envelope `content.list`; exit `0`.
+12. `/list:<category>`: `DiscoverAsync`; envelope `content.list`; exit `0`. `/list:SessionProfiles` gebruikt in plaats daarvan `ListSessionProfilesAsync`; envelope `session-profiles.list`.
 13. Bouw de `LaunchSpec` (`BuildSpecAsync`), plan deze (`PlanSessionAsync`) en druk het plan af. `/plan` of `/validate`: exit `0` als `IsRunnable`, anders `1`. Een niet-uitvoerbaar plan start OMSI nooit (exit `1`); onder `OmsiLaunchW.exe` toont een start met een niet-uitvoerbaar plan de laatste `OL_E_`-diagnose in een berichtvenster (documentatie-audit BUG-06). Tijdens het plannen wordt ook de geïnstalleerde permanente plugin-closure gecontroleerd tegen `release-manifest.json`, zodat een ontbrekende of gewijzigde plugin het plan niet uitvoerbaar maakt (`OL_E_PERMANENT_PLUGIN_*`).
 14. Test of er al een eigenaar is (`OL_E_SESSION_ALREADY_ACTIVE`, exit `7`) en voer daarna `OwnerSession.RunAsync` uit.
 
@@ -91,14 +91,14 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `session` | `session status`, `session stop` | Client | Precies één volgend woord; al het andere drukt de gebruikstekst af, exit `2`. `session plan`/`session start` zijn API-routenamen, geen CLI-woorden: gebruik `/plan` en `/new`. |
 | `events` | `events read`, `events watch` | Client | `read` retourneert de begrensde lijst met events één keer; `watch` drukt elk nieuw event (op `Sequence`) elke 250 ms af als `events.watch`-envelope tot Ctrl+C (exit `0`), `4` als geen eigenaar antwoordt, `7` bij een control-fout. |
 | `time` | `time get`, `time set` | Clientroute | |
-| `weather` | `weather get`, `weather set`, `weather actual get` | Clientroute | |
+| `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Clientroute | |
 | `map` | `map get` | Clientroute | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Clientroute | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Clientroute | |
 | `player` | `player get` | Clientroute | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Clientroute | |
 | `timetable` | `timetable get`, `timetable <table> list`, `timetable logs list` | Clientroute | |
-| `scripts` | `scripts variable list|get|set`, `scripts string list|get` | Clientroute | |
+| `scripts` | `scripts variable list|get|set`, `scripts string list|get|set`, `scripts trigger`, `scripts sound-trigger` | Clientroute | |
 | `constants` | `constants list`, `constants get` | Clientroute | |
 | `curves` | `curves list`, `curves evaluate` | Clientroute | |
 | `hof` | `hof get` | Clientroute | |
@@ -116,7 +116,8 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `time get` | `time.read` | Read | Ja | Nee | Geen | STABLE_BETA | Klok- en kalendervelden. |
 | `time set` | `time.set` | Write | Ja | Ja (klok in het geheugen) | Geen, niet teruggedraaid | EXPERIMENTAL | Bijvoorbeeld `--minute=<0..59>`; schrijven, teruglezen en herstel gevalideerd op 2026-09-20. |
 | `weather get` | `weather.read` | Read | Ja | Nee | Geen | STABLE_BETA | |
-| `weather set` | `weather.set` | Write | Ja | Nee (altijd geweigerd) | Geen | UNAVAILABLE | Retourneert `OL_E_RUNTIME_SETTING_NOT_PERSISTENT`; OMSI overschrijft de waarde bij zijn volgende weertick. |
+| `weather set` | `weather.set` | Write | Ja | Ja (weer in het geheugen) | Geen, niet teruggedraaid | EXPERIMENTAL | Bijvoorbeeld `--wind_speed=5 --cloud_type="Cumulus 1"`. Handmatig weer: live METAR-updates stoppen. Runtimevalidatie in afwachting. |
+| `weather metar set` | `weather.metar.set` | Write | Ja | Ja (weer in het geheugen; OMSI slaat de ICAO op in `options.cfg`, wat de sessie herstelt) | Geen, niet teruggedraaid | EXPERIMENTAL | `--icao=<ICAO>`. Live METAR-weer, zoals het weerdialoogvenster van OMSI het instelt. Runtimevalidatie in afwachting. |
 | `weather actual get` | `weather.actual.read` | Read | Ja | Nee | Geen | EXPERIMENTAL | Toestand van de actual/ICAO-controller. |
 | `map get` | `map.read` | Read | Ja | Nee | Geen | STABLE_BETA | Kaartnaam, bestand, beschrijving, aantal tegels, jaarbereik en rijzijde; opnieuw runtime-gevalideerd op het gecorrigeerde kaartslot. |
 | `camera get` | `camera.read` | Read | Ja | Nee | Geen | STABLE_BETA | |
@@ -126,7 +127,7 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `vehicles list` | `road-vehicles.list` | Read | Ja | Nee | Geen | STABLE_BETA | Retourneert `rv-NNNNNN`-handles binnen de sessie. |
 | `vehicles get` | `road-vehicle.read` | Read | Ja | Nee | Geen | STABLE_BETA | Vereist `--handle=`. Verouderde handle: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Ja | Nee | Geen | STABLE_BETA | Aantallen en spelerstoestand, geen handles. |
-| `vehicles spawn` | `road-vehicles.spawn` | Action | Ja | Ja (voegt één RoadVehicle toe) | Geen, niet verwijderd | EXPERIMENTAL | Vereist `--model=Vehicles\...\*.bus`. Timeout van 30 s voor de client, 15 s voor de eigenaar. Wijst het spelersvoertuig niet toe. RV-003 `RUNTIME_PASS`. |
+| `vehicles spawn` | `road-vehicles.spawn` | Action | Ja | Ja (voegt één RoadVehicle toe) | Geen, niet verwijderd | EXPERIMENTAL | Vereist `--model=Vehicles\...\*.bus`. Timeout van 30 s voor de client, 15 s voor de eigenaar. Wijst het spelersvoertuig niet toe. RV-003 `RUNTIME_VALIDATED`. |
 | `vehicles place-random` | `road-vehicles.place-random` | Action | Ja | Ja | Geen | EXPERIMENTAL | Geprofileerde `PlaceRandomBus`. |
 | `player get` | `player-vehicle.read` | Read | Ja | Nee | Geen | STABLE_BETA | Semantische null als er geen spelersvoertuig is. |
 | `humans list` | `humans.list` | Read | Ja | Nee | Geen | EXPERIMENTAL | Retourneert `hb-NNNNNN`-handles. |
@@ -141,6 +142,8 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `timetable bus-stops list` | `timetable.bus-stops.list` | Read | Ja | Nee | Geen | STABLE_BETA | Zoals hierboven. |
 | `timetable station-links list` | `timetable.station-links.list` | Read | Ja | Nee | Geen | STABLE_BETA | Zoals hierboven. |
 | `timetable logs list` | `timetable.logs.read` | Read | Ja | Nee | Geen | STABLE_BETA | Zoals hierboven. |
+| `timetable no-rv-numbers list` | `timetable.no-rv-numbers.list` | Read | Ja | Nee | Geen | EXPERIMENTAL | Voertuignummers die OMSI buiten het vrije AI-gebruik houdt (gereserveerd door omlopen van de dienstregeling of vaste AI-lijsten). Gepagineerd (`cursor`, `limit`, hoogstens 256 per pagina). |
+| `map tiles list` | `map.tiles.list` | Read | Ja | Nee | Geen | EXPERIMENTAL | De tiles van de kaart: rasterpositie, eigen index, bestand en laadtoestand, aantallen objecten, paden en splines. Gepagineerd (`cursor`, `limit`, hoogstens 256 per pagina). |
 | `drivers list` | `drivers.read` | Read | Ja | Nee | Geen | EXPERIMENTAL | Chauffeursrecords. |
 | `tickets get` | `tickets.read` | Read | Ja | Nee | Geen | EXPERIMENTAL | Records van kaartjespakketten. |
 | `hof get` | `vehicle.hofs.read` | Read | Ja | Nee | Geen | STABLE_BETA | Vereist `--handle=`. |
@@ -153,6 +156,9 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `scripts variable set` | `vehicle.variable.set` | Write | Ja | Ja (scriptvariabele) | Geen, niet teruggedraaid | EXPERIMENTAL | Vereist `--handle=`, `--name=`, `--value=` (eindig getal). |
 | `scripts string list` | `vehicle.string-variables.list` | Read | Ja | Nee | Geen | EXPERIMENTAL | Vereist `--handle=`. |
 | `scripts string get` | `vehicle.string-variable.get` | Read | Ja | Nee | Geen | EXPERIMENTAL | Vereist `--handle=`, `--name=`. |
+| `scripts string set` | `vehicle.string-variable.set` | Write | Ja | Ja (scripttoestand in het geheugen) | Geen, niet teruggedraaid | EXPERIMENTAL | Vereist `--handle=`, `--name=`, `--value=`. Het eigen `SetStringVariable` van OMSI. Runtimevalidatie in afwachting. |
+| `scripts trigger` | `vehicle.trigger` | Action | Ja | Ja (voert voertuigscriptcode uit) | Geen, niet teruggedraaid | EXPERIMENTAL | Vereist `--handle=`, `--name=`, `--value=` (`1` indrukken, `0` loslaten, `2` slepen). Runtimevalidatie in afwachting. |
+| `scripts sound-trigger` | `vehicle.sound-trigger` | Action | Ja | Ja (speelt voertuiggeluiden af) | Geen, niet teruggedraaid | EXPERIMENTAL | Vereist `--handle=`, `--trigger=`; optioneel `--file=`. Runtimevalidatie in afwachting. |
 
 <a id="operations-without-a-route"></a>
 ### Operaties zonder route
@@ -173,17 +179,17 @@ Elke vlag van `CliInput.KnownFlags`. "Fase" is *starttijd* (bepaalt de `LaunchSp
 | `/help` | `/help` | uit | control | STABLE_BETA | Hetzelfde als `/?`. (Het losse woord `help` retourneert in plaats daarvan de gestructureerde catalogus.) |
 | `/version` | `/version` | uit | control | STABLE_BETA | Envelope `version`, exit `0`. Wordt vóór elke andere opdracht geëvalueerd, behalve `/silent`. |
 | `/json` | `/json` of `--json` | uit | control | STABLE_BETA | Geef JSON-envelopes uit; forceert ook console-uitvoer, zelfs onder `OmsiLaunchW.exe`. |
-| `/quiet` | `/quiet` | uit | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Stelt `CliInput.Quiet` in; niets leest deze waarde. |
+| `/quiet` | `/quiet` | uit | control | STABLE_BETA | Onderdrukt de voor mensen leesbare succesuitvoer. JSON-uitvoer (`/json`) en fouten worden nog steeds geschreven; de exitcode verandert niet. |
 | `/silent` | `/silent` (ook `--silent`) | uit | control | EXPERIMENTAL | Delegeer de volledige opdrachtregel aan `OmsiLaunchW.exe` en retourneer `0` zodra het hostproces is gestart. De uitkomst van de sessie wordt gerapporteerd door `OmsiLaunchW.exe` (berichtvensters, systeemvakpictogram), `.omsilaunch\diagnostics` en het lokale control-endpoint. De delegatie en de foutdialoogvensters zijn runtime-gevalideerd (runtime-closure `T04`); zie [OmsiLaunchW.exe](omsilaunchw.md). |
-| `/serve` | `/serve` | uit | control | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Stelt `CliInput.Serve` in; niets leest deze waarde. Het control-endpoint wordt altijd door een eigenaar gestart. |
+| `/serve` | `/serve` | — | control | REMOVED | Verwijderd in 0.1.0-beta4: geweigerd met `OL_E_INVALID_ARGUMENT` (exitcode `2`). De sessie-eigenaar serveert het lokale control-endpoint altijd. |
 | `/verbose` | `/verbose` | uit | starttijd | PARTIAL | `DiagnosticsSpec.Verbose`. Waarden worden in de spec meegenomen; hun effect is beperkt tot de host-trace onder `.omsilaunch\diagnostics`. |
 | `/log` | `/log` | aan (`DiagnosticsSpec.Log` staat standaard op `true`) | starttijd | PARTIAL | `DiagnosticsSpec.Log`. In de praktijk altijd aan. |
 | `/logall` | `/logall` | uit | starttijd | PARTIAL | Stelt `Verbose`, `ProcessTrace`, `PluginTrace` en `NativeTrace` tegelijk in. |
 | `/omsi-logall` | `/omsi-logall` | uit | starttijd | PARTIAL | `DiagnosticsSpec.OmsiLogAll`. |
 | `/trace` | `/trace` | uit | starttijd | PARTIAL | Alias van `/trace-process`. |
 | `/trace-process` | `/trace-process` | uit | starttijd | PARTIAL | `DiagnosticsSpec.ProcessTrace`. |
-| `/trace-plugin` | `/trace-plugin` | uit | starttijd | PARTIAL | `DiagnosticsSpec.PluginTrace`. |
-| `/trace-native` | `/trace-native` | uit | starttijd | PARTIAL | `DiagnosticsSpec.NativeTrace`. |
+| `/trace-plugin` | `/trace-plugin` | uit | starttijd | EXPERIMENTAL | `DiagnosticsSpec.PluginTrace`: de plugin meldt elke runtime-operatie (`plugin.trace.operation`: operatie, uitkomst, code, duur) aan de hosttrace van de sessie. |
+| `/trace-native` | `/trace-native` | uit | starttijd | EXPERIMENTAL | `DiagnosticsSpec.NativeTrace`: de native laag meldt elke installatie en verwijdering van een hook (`native.trace`) aan de hosttrace van de sessie. |
 
 <a id="planning-validation-and-harnesses"></a>
 ### Plannen, validatie en harnassen
@@ -205,35 +211,43 @@ Elke vlag van `CliInput.KnownFlags`. "Fase" is *starttijd* (bepaalt de `LaunchSp
 |---|---|---|---|---|---|
 | `/new` | `/new` | `WorldMode.NewMap` is de standaardmodus, maar een start wordt alleen aangevraagd als een van `/new`, `/saved`, `/last`, `/spec` aanwezig is | starttijd | STABLE_BETA | NEW_MAP. Vereist `/map` en `/entrypoint-index` (een plan zonder index van een gepresenteerd instappunt meldt `OL_E_ENTRYPOINT_REQUIRED`; zonder `/map` wordt geen kaart bepaald). `/new` selecteert nooit stilzwijgend een kaart. |
 | `/saved` | `/saved:<file.osn>` | geen | starttijd | STABLE_BETA | SAVED_SITUATION. Kaart en positie komen uit het `.osn`-bestand; `/map`, `/entrypoint`, `/entrypoint-index` worden in combinatie met `/saved` geweigerd (exit `2`). Ontbrekende situatie: `OL_E_SITUATION_NOT_FOUND`; ontbrekende kaart van de situatie: `OL_E_SITUATION_MAP_NOT_FOUND`. |
-| `/last` | `/last` | geen | starttijd | UNAVAILABLE | LAST_MAP_STATE. Levert op dit profiel altijd `OL_E_CAPABILITY_UNAVAILABLE` op (niet uitvoerbaar, exit `1`); er wordt geen terugval op een `.osn` op basis van tijdstempels uitgevoerd. |
+| `/last` | `/last /map:<identity>` | geen | starttijd | EXPERIMENTAL | LAST_MAP_STATE: laadt de eigen `laststn.osn` van de kaart (door OMSI geschreven toen de kaart werd gesloten) via de last-state-tak van het Start-formulier. Vereist `/map`; een kaart zonder `laststn.osn` is `OL_E_SITUATION_NOT_FOUND`. Nooit een heuristiek op de nieuwste `.osn`. Runtimevalidatie in afwachting. |
 | `/map` | `/map:<identity>` (bijvoorbeeld `maps\Grundorf\global.cfg`) | geen | starttijd | STABLE_BETA | Kaartidentiteit voor `/new`, of het bereik voor `/list:Entrypoints`. Onbekend: `OL_E_MAP_NOT_FOUND`. |
-| `/entrypoint` | `/entrypoint:<identity>` | geen | starttijd | UNAVAILABLE | Instappunt op label. Afgeschermd: het plan registreert `world.entrypoint-identity` als `RUNTIME_PARTIAL` en wordt niet uitvoerbaar (`OL_E_CAPABILITY_UNAVAILABLE`). Sluit `/entrypoint-index` uit (de identiteit heeft voorrang en wist de index). |
+| `/entrypoint` | `/entrypoint:<identity>` | geen | starttijd | EXPERIMENTAL | Instappunt op zijn exacte (hoofdlettergevoelige) label of op een identiteit uit `/list:entrypoints`. OMSI toont alleen het eerste record van elk label; een later record met hetzelfde label wordt geweigerd (`OL_E_ENTRYPOINT_NOT_PRESENTED`), een onbekend record ook (`OL_E_ENTRYPOINT_NOT_FOUND`). Runtimevalidatie in afwachting. Sluit `/entrypoint-index` uit (de identiteit heeft voorrang en wist de index). |
 | `/entrypoint-index` | `/entrypoint-index:<n>`, `0..2147483647` | geen | starttijd | STABLE_BETA | Index van het instappunt in de gepresenteerde lijst (op 1 gebaseerd, zoals OMSI de lijst presenteert). Vereist voor een uitvoerbaar NEW_MAP-plan. |
 
 <a id="date-time-and-weather"></a>
 ### Datum, tijd en weer
 
-Alle vier worden geaccepteerd en in de `LaunchSpec` meegenomen, maar het native startpad past ze niet toe: de planner registreert ze als `STATICALLY_PARTIAL` **en voegt `OL_E_CAPABILITY_UNAVAILABLE` toe, zodat het plan NIET UITVOERBAAR is (exit `1`)**. Een `/spec`-bestand of sessieprofiel dat ze instelt, heeft hetzelfde effect.
+Deze vlaggen worden geaccepteerd en in de `LaunchSpec` meegenomen. De startdatum, starttijd en het startjaar gelden alleen voor NEW_MAP-sessies: bij `/saved` of `/last` registreert de planner ze als `UNAVAILABLE` **en voegt `OL_E_CAPABILITY_UNAVAILABLE` toe, zodat het plan NIET UITVOERBAAR is (exit `1`)**, omdat een opgeslagen situatie haar eigen klok behoudt. Het weer geldt voor elke wereldmodus. Alle vlaggen zijn `EXPERIMENTAL`: het native startpad is statisch afgesloten en de runtimevalidatie is in afwachting. Een `/spec`-bestand of sessieprofiel dat ze instelt, heeft hetzelfde effect.
 
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
-| `/date` | `/date:<yyyy-mm-dd>` of `/date:system` | niet ingesteld | starttijd | UNAVAILABLE | `DateSpec` expliciet/systeem. Niet-parseerbare waarde: `OL_E_INVALID_ARGUMENT`, exit `2`. |
-| `/time` | `/time:<hh:mm[:ss]>` of `/time:system` | niet ingesteld | starttijd | UNAVAILABLE | `TimeSpec` expliciet/systeem. |
-| `/year` | `/year:<n>` of `/year:system` | niet ingesteld | starttijd | UNAVAILABLE | `YearSpec`. |
-| `/weather` | `/weather:<preset>` | niet ingesteld | starttijd | UNAVAILABLE | `WeatherMode.Preset`. |
-| `/weather-icao` | `/weather-icao:<code>` | niet ingesteld | starttijd | UNAVAILABLE | `WeatherMode.Icao`. |
-| `/weather-real` | `/weather-real` | niet ingesteld | starttijd | UNAVAILABLE | `WeatherMode.RealCurrent`. De laatste van `/weather`, `/weather-icao`, `/weather-real` heeft voorrang. |
+| `/date` | `/date:<yyyy-mm-dd>` of `/date:system` | niet ingesteld | starttijd | EXPERIMENTAL | `DateSpec` expliciet/systeem: de startdatum van een NEW_MAP-sessie (zie [launchspec](launchspec.md#datespec-timespec-yearspec)). Niet-parseerbare waarde: `OL_E_INVALID_ARGUMENT`, exit `2`; een onmogelijke datum: `OL_E_DATE_TIME_APPLY_FAILED`. |
+| `/time` | `/time:<hh:mm[:ss]>` of `/time:system` | niet ingesteld | starttijd | EXPERIMENTAL | `TimeSpec` expliciet/systeem: de starttijd van een NEW_MAP-sessie. |
+| `/year` | `/year:<n>` of `/year:system` | niet ingesteld | starttijd | EXPERIMENTAL | `YearSpec`: het startjaar van een NEW_MAP-sessie (1900..2200). |
+| `/weather` | `/weather:<preset>` | niet ingesteld | starttijd | EXPERIMENTAL | `WeatherMode.Preset`: een bestand in de map `weather` van de installatie, op naam (`Regen`) of pad (`weather\Regen.owt`); een ontbrekend bestand is `OL_E_WEATHER_INVALID` bij het plannen. Geladen via het eigen `loadWeather` van OMSI direct nadat de wereld start; live METAR blijft uit. Runtimevalidatie in afwachting. |
+| `/weather-icao` | `/weather-icao:<code>` | niet ingesteld | starttijd | EXPERIMENTAL | `WeatherMode.Icao`: live METAR-weer voor een ICAO-station van vier tekens (anders `OL_E_WEATHER_INVALID`). OMSI slaat het station op in `options.cfg`, wat de sessie herstelt. Runtimevalidatie in afwachting. |
+| `/weather-real` | `/weather-real` | niet ingesteld | starttijd | EXPERIMENTAL | `WeatherMode.RealCurrent`: live METAR-weer voor het station dat OMSI al heeft ingesteld; zonder station mislukt de start met `OL_E_WEATHER_APPLY_FAILED`. De laatste van `/weather`, `/weather-icao`, `/weather-real` heeft voorrang. Elk startweer overschrijft het weer van een opgeslagen situatie. |
 
 <a id="player-vehicle"></a>
 ### Spelersvoertuig
 
-Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door de runtime: elk ingesteld veld is `STATICALLY_PARTIAL` en voegt `OL_E_CAPABILITY_UNAVAILABLE` toe (plan NIET UITVOERBAAR, exit `1`).
+Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door de runtime: elk ingesteld veld is `UNAVAILABLE` en voegt `OL_E_CAPABILITY_UNAVAILABLE` toe (plan NIET UITVOERBAAR, exit `1`).
 
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
 | `/vehicle` | `/vehicle:<identity>` (`Vehicles\...\*.bus`) | niet ingesteld | starttijd | UNAVAILABLE | Wordt als eerste bepaald (`OL_E_VEHICLE_NOT_FOUND` als onbekend). |
 | `/repaint` | `/repaint:<id>` | niet ingesteld | starttijd | UNAVAILABLE | Wordt alleen samen met `/vehicle` bepaald (`OL_E_REPAINT_NOT_FOUND`). |
 | `/hof` | `/hof:<id>` | niet ingesteld | starttijd | UNAVAILABLE | `OL_E_HOF_NOT_FOUND` als onbekend. |
+| `/hof-source` | `/hof-source:<collection\|directory\|vehicle\|file>:<value>` | geen | starttijd | STABLE_BETA | Eén sessiebewerking voor [HOF-beheer](hof-management.md): `HofSourceKind` en `Source`. Vereist minstens één `/hof-target`. Vervangt de `HofManagement` van een `/spec`; met een sessieprofielpreset die `hofs` heeft: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Onjuist gevormd: exit `2`. |
+| `/hof-target` | `/hof-target:<vehicle identity or folder>` (herhaalbaar) | geen | starttijd | STABLE_BETA | Een doelvoertuig onder `Vehicles\`. Zonder `/hof-source`: exit `2`. |
+| `/hof-file` | `/hof-file:<name.hof>` (herhaalbaar) | alle bestanden | starttijd | STABLE_BETA | Beperkt de bron tot deze bestandsnamen. Zonder `/hof-source`: exit `2`. |
+| `/hof-mode` | `/hof-mode:add\|mirror` | `add` | starttijd | STABLE_BETA | `HofApplyMode`. Zonder `/hof-source`: exit `2`. |
+| `/module` | `/module:<id>` (herhaalbaar) | geen | starttijd | EXPERIMENTAL | Vraagt een [runtimemodule](../../../reference/runtime-modules.md) aan voor de sessie (`LaunchSpec.Modules.Enable`, toegevoegd aan de modules van een `/spec`-bestand). Een aangevraagde module die niet kan worden geladen, maakt het plan niet uitvoerbaar met zijn `OL_E_MODULE_*`-code (exit `1`). De operaties ervan worden bereikt met `/runtime:module.<id>.<operation>` en `/runtime-arg`. Met een sessieprofielpreset die er `enabled: false` voor instelt: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
+| `/no-module` | `/no-module:<id>` (herhaalbaar) | geen | starttijd | EXPERIMENTAL | Houdt een module buiten de sessie, ook een module die standaard, door zijn kaart of door het instellingenbestand wordt geladen (`LaunchSpec.Modules.Disable`). Met een preset die er `enabled: true` voor instelt: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Zonder waarde: exit `2`. |
+| `/module-setting` | `/module-setting:<module id>.<key>=<value>` (herhaalbaar) | geen | starttijd | EXPERIMENTAL | Stelt een moduleinstelling in (`LaunchSpec.Modules.Settings`); heeft voorrang op het `/spec`-bestand, het instellingenbestand en de standaardwaarde. Een sleutel die ook de geselecteerde preset instelt: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. Niet van de vorm `<id>.<key>=<value>`: exit `2`. Ongeldige waarde of niet gedeclareerde sleutel: plandiagnose `OL_E_MODULE_SETTING_INVALID` (exit `1`). |
+| `/<module flag>` | `/<flag>:<value>`; `/<flag>` alleen betekent `true` voor een booleaanse instelling | geen | starttijd | EXPERIMENTAL | Een vlag die een geïnstalleerde module declareert voor een van zijn instellingen (`flag` in zijn manifest; weergegeven door `/list:RuntimeModules`). Hij wordt bepaald wanneer een sessie wordt gepland en is gelijk aan `/module-setting:<id>.<key>=<value>`. Een vlag die geen geïnstalleerde module declareert, of een vlag buiten een start: `Unknown argument`, exit `2`. Een vlag die twee modules declareren: `OL_E_MODULE_SETTING_INVALID`, exit `2`. Een modulevlag vervangt nooit een ingebouwde vlag. |
 | `/fleet` | `/fleet:<n>` | niet ingesteld | starttijd | UNAVAILABLE | Wagennummer. |
 | `/registration` | `/registration:<text>` | niet ingesteld | starttijd | UNAVAILABLE | Kenteken. |
 | `/no-vehicle` | `/no-vehicle` | uit | starttijd | STABLE_BETA | Wist elk spelersvoertuig uit de basis (`/spec` of profiel). Onschadelijk. |
@@ -243,14 +257,14 @@ Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door
 
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
-| `/set` | `/set:<key>=<value>` (herhaalbaar; sleutels niet hoofdlettergevoelig) | geen | starttijd | STABLE_BETA | Semantische `options.cfg`-overlay uit `ConfigurationCatalog` (bijvoorbeeld `graphics.maxFPS=60`, `traffic.randomVehicles=150`). Onbekende sleutel: `OL_E_UNKNOWN_SETTING` (exit `2`); alleen-lezen sleutel (`advanced.multithreadingCalculate`, `advanced.multithreadingTextureLoad`, `graphics.texture`, `graphics.textureFilter`): `OL_E_SETTING_NOT_WRITABLE` (exit `2`); waarde buiten bereik of ongeldig gevormd: `OL_E_INVALID_SETTING_VALUE` bij het opbouwen van de overlay. De overlay is een sessiewijziging: er wordt een snapshot van gemaakt, hij wordt toegepast voordat OMSI start en bij de stop byte voor byte hersteld (RV-005 `RUNTIME_PASS`). Conflicten met een sleutel die eigendom is van een preset van een geselecteerd profiel: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
+| `/set` | `/set:<key>=<value>` (herhaalbaar; sleutels niet hoofdlettergevoelig) | geen | starttijd | STABLE_BETA | Semantische `options.cfg`-overlay uit `ConfigurationCatalog` (bijvoorbeeld `graphics.maxFPS=60`, `traffic.randomVehicles=150`). Onbekende sleutel: `OL_E_UNKNOWN_SETTING` (exit `2`); alleen-lezen sleutel (`advanced.multithreadingCalculate`, `advanced.multithreadingTextureLoad`, `graphics.texture`, `graphics.textureFilter`): `OL_E_SETTING_NOT_WRITABLE` (exit `2`); waarde buiten bereik of ongeldig gevormd: `OL_E_INVALID_SETTING_VALUE` bij het opbouwen van de overlay. De overlay is een sessiewijziging: er wordt een snapshot van gemaakt, hij wordt toegepast voordat OMSI start en bij de stop byte voor byte hersteld (RV-005 `RUNTIME_VALIDATED`). Conflicten met een sleutel die eigendom is van een preset van een geselecteerd profiel: `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT`. |
 
 <a id="splash-presentation"></a>
 ### Presentatie van het opstartscherm
 
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
-| `/splash` | `/splash:Managed`, `/splash:Native`, `/splash:Unset` (niet hoofdlettergevoelig) | `Managed` | starttijd | STABLE_BETA | `Managed`: de meegeleverde 24-bits BMP's van 640x480 worden één keer gekopieerd naar `<root>\.omsilaunch\assets\splash`, en `GUI\NewSplashscreen_ENG.bmp` plus `GUI\NewSplashscreen_<lang>.bmp` worden transactioneel als overlay aangebracht en exact hersteld (RV-006 `RUNTIME_PASS`). `Native`/`Unset` (aliassen): OMSI-bestanden blijven onaangeroerd. Ontbrekende waarde: `/splash requires Unset, Native, or Managed`, exit `2`. |
+| `/splash` | `/splash:Managed`, `/splash:Native`, `/splash:Unset` (niet hoofdlettergevoelig) | `Managed` | starttijd | STABLE_BETA | `Managed`: de meegeleverde 24-bits BMP's van 640x480 worden één keer gekopieerd naar `<root>\.omsilaunch\assets\splash`, en `GUI\NewSplashscreen_ENG.bmp` plus `GUI\NewSplashscreen_<lang>.bmp` worden transactioneel als overlay aangebracht en exact hersteld (RV-006 `RUNTIME_VALIDATED`). `Native`/`Unset` (aliassen): OMSI-bestanden blijven onaangeroerd. Ontbrekende waarde: `/splash requires Unset, Native, or Managed`, exit `2`. |
 | `/splash-language` | `/splash-language:PTB|ENG|DEU|FRA` (ook `pt-BR`, `de`, `fr`, `en`; al het andere valt terug op `ENG`) | `[language]` uit `options.cfg`, anders `ENG` | starttijd | STABLE_BETA | Selecteert het gelokaliseerde doelbestand. |
 | `/splash-assets` | `/splash-assets:<directory>` (relatieve paden worden onder de installatiemap bepaald) | `<root>\.omsilaunch\assets\splash`, anders de meegeleverde set | starttijd | STABLE_BETA | Aangepaste assetmap; moet `ENG.bmp` bevatten en, voor een niet-Engelse taal, `<lang>.bmp`. Fouten: `OL_E_SPLASH_ASSET_DIRECTORY_MISSING`, `OL_E_SPLASH_ASSET_MISSING`, `OL_E_SPLASH_FORMAT_UNSUPPORTED` (in het plan gemeld als `OL_E_SESSION_PRESENTATION_INVALID`; niet uitvoerbaar). |
 
@@ -268,7 +282,7 @@ Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
 | `/predefined-profile` | `/predefined-profile:<id>` | geen | starttijd | STABLE_BETA (compilatie; offline `OmsiLaunch.ProfileTests`) | Laadt `<root>\.omsilaunch\session-profiles\<id>\profile.yaml` (zie [sessieprofielen](session-profiles.md)). Vereist `/predefined-profile-index` (`OL_E_SESSION_PROFILE_PRESET_NOT_FOUND`, exit `2`). Het `new:`-blok geldt alleen met `/new`; `compatibility.maps` wordt afgedwongen voor `/new` en `/saved` (`OL_E_SESSION_PROFILE_MAP_MISMATCH`). Expliciete vlaggen die botsen met een veld dat eigendom is van het profiel, worden geweigerd met `OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT` (`CliInput.RejectProfileConflicts`): kaart/instappunt/datum/tijd/jaar/weer wanneer het `new:`-blok die bezit, `/set`-sleutels die eigendom zijn van de preset, opstartschermvlaggen wanneer de preset `presentation` heeft, internettexturevlaggen wanneer hij `internet-textures` heeft, timeouts wanneer hij `behavior` heeft. |
-| `/predefined-profile-index` | `/predefined-profile-index:<1..5>` | geen | starttijd | STABLE_BETA | Selecteert de preset op `index`. Buiten bereik: exit `2`. |
+| `/predefined-profile-index` | `/predefined-profile-index:<1..99>` | geen | starttijd | STABLE_BETA | Selecteert de preset op `index`. Buiten bereik: exit `2`. |
 
 <a id="launchspec-file"></a>
 ### LaunchSpec-bestand
@@ -284,7 +298,7 @@ Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door
 
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
-| `/list` | `/list:<category>`; categorieën zijn de `ContentQueryKind`-waarden `Maps`, `Situations`, `Vehicles`, `Repaints`, `Hofs`, `FleetNumbers`, `Registrations`, `Addons`, `Entrypoints` (niet hoofdlettergevoelig) | geen | lokaal, geen sessie | STABLE_BETA | `DiscoverAsync` over de installatie; envelope `content.list` met items `Identity`, `Kind`, `DisplayName`; exit `0`. Onbekende categorie: `Unknown discovery category`, exit `2`. Reparse points (junctions/symlinks) worden overgeslagen, OMSI-bestanden worden gelezen als Windows-1252. |
+| `/list` | `/list:<category>`; categorieën zijn de `ContentQueryKind`-waarden `Maps`, `Situations`, `Vehicles`, `Repaints`, `Hofs`, `FleetNumbers`, `Registrations`, `Addons`, `Entrypoints`, `SessionProfiles`, `RuntimeModules` (niet hoofdlettergevoelig) | geen | lokaal, geen sessie | STABLE_BETA | `DiscoverAsync` over de installatie; envelope `content.list` met items `Identity`, `Kind`, `DisplayName`; exit `0`. `SessionProfiles` antwoordt met `ListSessionProfilesAsync` (envelope `session-profiles.list`) en `RuntimeModules` met `ListRuntimeModulesAsync` (envelope `runtime-modules.list`: id, versie, activering, operaties en geldigheid van elke module en zijn instellingen met type, standaardwaarde en vlag). Onbekende categorie: `Unknown discovery category`, exit `2`. Reparse points (junctions/symlinks) worden overgeslagen, OMSI-bestanden worden gelezen als Windows-1252. |
 | `/vehicle-scope` | `/vehicle-scope:<vehicle identity>` | geen | lokaal | STABLE_BETA | Bereik dat wordt doorgegeven voor elke categorie behalve `Entrypoints`, die `/map` als bereik gebruikt. |
 
 <a id="timeouts-and-observation"></a>
@@ -293,7 +307,8 @@ Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door
 | Vlag | Syntaxis en waarden | Standaard | Fase | Stabiliteit | Gedrag |
 |---|---|---|---|---|---|
 | `/startup-timeout` | `/startup-timeout:<1..600>` seconden | waarde uit spec/profiel, anders `180` | starttijd | STABLE_BETA | `Behavior.StartupTimeoutSeconds`. De eigenaar wacht deze waarde plus 5 s op `Running`; `OL_E_STARTUP_TIMEOUT` beëindigt de sessie met exit `1`. |
-| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` seconden | waarde uit spec/profiel, anders `30` | starttijd | ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT | Wordt meegenomen in `Behavior.ShutdownTimeoutSeconds`; de supervisor gebruikt deze waarde in deze build niet (OMSI wordt beëindigd, niet gevraagd om af te sluiten). |
+| `/shutdown-timeout` | `/shutdown-timeout:<1..600>` seconden | waarde uit spec/profiel, anders `30` | starttijd | EXPERIMENTAL | `Behavior.ShutdownTimeoutSeconds`: met `/cooperative-shutdown` hoe lang de supervisor wacht tot OMSI afsluit voordat het wordt beëindigd; zonder die vlag wordt OMSI direct beëindigd en heeft de waarde geen effect. |
+| `/cooperative-shutdown` | `/cooperative-shutdown` | uit | starttijd | EXPERIMENTAL | `Behavior.CooperativeShutdown`: het beëindigen van een actieve sessie vraagt OMSI af te sluiten via zijn eigen afsluitroutine (die na bevestiging van de gebruiker draait: ze slaat `options.cfg` en de `laststn.osn` van de kaart op en sluit dan af) en wacht `ShutdownTimeoutSeconds` voordat OMSI wordt beëindigd. Opt-in totdat het runtime-gevalideerd is; `OL_W_COOPERATIVE_SHUTDOWN_UNAVAILABLE` wanneer OMSI moest worden beëindigd. De bestanden van de sessie worden in beide gevallen na het afsluiten hersteld. |
 | `/observe-seconds` | `/observe-seconds:<0..2147483647>` | geen (actief tot OMSI afsluit of een stop wordt aangevraagd) | runtime (eigenaar) | STABLE_BETA | Bovengrens voor de actieve fase: na `n` seconden in `Running` wordt de canonieke stop aangevraagd. Een stop via systeemvak of pipe, of het afsluiten van OMSI, beëindigt de fase eerder. `0` stopt direct na `Running`. |
 
 ### Recovery
@@ -302,6 +317,7 @@ Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door
 |---|---|---|---|---|---|
 | `/recovery-status` | `/recovery-status` | uit | lokaal | STABLE_BETA | Rapporteert of `<root>\.omsilaunch\journal.json` openstaat (`pending`), herstelt nooit; exit `0`. Neemt de installatielease: `OL_E_INSTALLATION_BUSY` (exit `7`) zolang een eigenaar die vasthoudt. |
 | `/recover` | `/recover` | uit | lokaal | STABLE_BETA | Herstelt een openstaand journal (back-ups worden eerst gecontroleerd tegen de SHA-256 van de snapshot; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` worden gemeld in `diagnostics`). Exit `0` als er niets openstond of het herstel is voltooid; `8` als er een journal openstond en dat blijft openstaan. Geweigerd met `OL_E_INSTALLATION_BUSY` zolang het in het journal vastgelegde OMSI-proces (PID, aanmaaktijd, exe-pad) actief is, of, voor een journal voorbij `HandoffCreated` zonder PID, zolang enige `Omsi.exe` uit die root actief is. Elke sessiestart voert dezelfde recovery automatisch uit voordat de installatie wordt gelezen. |
+| `/clear-module-data` | `/clear-module-data:<module id>` | geen | lokaal, geen sessie | EXPERIMENTAL | Verwijdert de gegevensmap van de module `<root>\.omsilaunch\module-data\<id>` en niets anders; envelope `module-data.clear` met `module` en `cleared` (`false` als er niets te verwijderen was); exit `0`. Neemt de installatielease: `OL_E_INSTALLATION_BUSY` (exit `7`) zolang een sessie de installatie bezit. Een gegevensmap van een module die via een link wordt bereikt, wordt geweigerd (`OL_E_MODULE_INTEGRITY`); een link erin wordt als link verwijderd. |
 
 <a id="output-formats"></a>
 ## Uitvoerformaten

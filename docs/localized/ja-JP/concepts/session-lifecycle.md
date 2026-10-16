@@ -1,7 +1,7 @@
 # セッションのライフサイクル
 
-<!-- l10n: source=concepts/session-lifecycle.md -->
-> このページは OmsiLaunch 0.1.0-beta3 の[英語版の原文ページ](../../../concepts/session-lifecycle.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
+<!-- l10n: source=concepts/session-lifecycle.md source-sha256=17700c9e44da7c288003c88f490d16d8ac191c8a4a16db97cb4cfd74d6f5930b -->
+> このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../concepts/session-lifecycle.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページでは、OmsiLaunch のセッションが `SessionState` 上で `Created` から `Completed` または `Failed` へどのように遷移するかを説明します。具体的には、各状態をどのコンポーネントが設定するか、どのプラグインテレメトリイベントが遷移を駆動するか、起動タイムアウトの仕組み、停止が何を意味するか（強制終了）、`WaitForAsync` が何を返すか、どの状態が終端状態か、どの状態がまったく（またはほとんど）観測できないか、そして CLI オーナーがどのような保証を提供するかを扱います。ここに記載する内容はすべて `OmsiLaunchService.StartAsync`、`SuperviseAsync` および `ApplyTelemetry`（`src/OmsiLaunch.Core/OmsiLaunchService.cs`）、`PluginRuntime`（`src/OmsiLaunch.Plugin/PluginRuntime.cs`）、`OwnerSession`（`tools/OmsiLaunch.Cli/Program.cs`）に基づいています。
 
@@ -80,7 +80,7 @@ SuperviseAsync ─ background task ───────────────
 
 スーパーバイザーはスレッドプールのタスク上で動作し、OMSI が終了するか停止が要求されるまで 100 ms ごとにループします。
 
-1. 最新のテレメトリサンプルを読み取ります（プロデューサーのシーケンス番号を持つ最新値スロットです。書き込み途中で読み取られたサンプルはスキップされます。シーケンス番号が異なるため、同一のイベントが連続しても別々のイベントとして扱われます）。新しいサンプルはすべて `RuntimeEvents` に追加され、`ApplyTelemetry` によってマッピングされます。
+1. プラグインが前回の読み取り以降にコミットしたテレメトリイベントをすべて順番に読み取ります（イベントリングです。遅れた読み取り側には、件数を伴う `telemetry.lost` が渡されます）。イベントはすべて `RuntimeEvents` に追加され、`ApplyTelemetry` によってマッピングされます。
 2. セッションが `Failed` であれば、ループを抜けます。
 3. セッションがまだ `Running` ではなく、期限（スーパーバイザー開始から `StartupTimeoutSeconds` 後）を過ぎている場合: `PluginBootstrap` に到達していれば `OL_E_STARTUP_TIMEOUT`、そうでなければ `OL_E_PLUGIN_NOT_LOADED` で `Fail` し、ループを抜けます。
 

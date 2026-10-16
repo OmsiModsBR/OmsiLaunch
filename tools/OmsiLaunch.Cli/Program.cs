@@ -5,6 +5,7 @@ using OmsiLaunch.Api;
 using OmsiLaunch.Configuration;
 using OmsiLaunch.Core;
 using OmsiLaunch.Process;
+using OmsiLaunch.Runtime.Modules;
 
 var jsonRequested = args.Any(argument => argument.Equals("--json", StringComparison.OrdinalIgnoreCase) || argument.Equals("/json", StringComparison.OrdinalIgnoreCase));
 CliInput input;
@@ -28,7 +29,7 @@ internal static class CliProgram
 {
     // Identity comes from the assembly the build stamped from OmsiLaunch.Version.props.
     public static string ProductVersion { get; } = typeof(CliProgram).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
-    public const string SupportedFamily = "OMSI_2_3_004_COMMON";
+    public const string SupportedFamily = "OMSI_2";
 
     // The delegated host must not inherit this process's handles: with
     // CreateProcess inheritance it kept the caller's stdout pipe open for the
@@ -54,10 +55,29 @@ internal static class CliProgram
             CliInput.WriteEnvelope("silent", new { delegated = true, host_process_id = host.Id }, input.JsonOutput);
             return (int)PublicExitCode.Success;
         }
+        // A flag only an installed module declares is valid where a session is planned.
+        input.RejectUnresolvedFlags();
+        // /quiet: only JSON output and errors reach the console.
+        CliInput.QuietOutput = input.Quiet;
+        if (input.Serve) { CliInput.WriteError("serve", PublicErrorCodes.INVALID_ARGUMENT, "/serve was removed in 0.1.0-beta4: the session owner always serves the local control endpoint.", input.JsonOutput, PublicErrorCategory.InvalidArgument); return (int)PublicExitCode.InvalidArguments; }
         if (input.Version) { CliInput.WriteEnvelope("version", new { product = "OmsiLaunch", version = ProductVersion, protocol_version = PublicCapabilityRegistry.ProtocolVersion, supported_family = SupportedFamily }, input.JsonOutput); return (int)PublicExitCode.Success; }
         if (input.Command is "capabilities") { CliInput.WriteEnvelope("capabilities", PublicCapabilityRegistry.All.Where(x => x.Classification is PublicCapabilityClassification.PublicStableBeta or PublicCapabilityClassification.PublicExperimental), input.JsonOutput); return (int)PublicExitCode.Success; }
         if (input.Command is "help") { CliInput.WriteEnvelope("help", CliInput.HelpFor(input.CommandWords.SingleOrDefault()), input.JsonOutput); return (int)PublicExitCode.Success; }
-        if (input.Command is "profiles") { CliInput.WriteEnvelope("profiles", new { family = SupportedFamily, supported = new object[] { new { variant = "ALTERNATE_LAA", sha256 = OmsiLaunch.Builds.Omsi23004.Omsi23004.Profile.Executable.Sha256, runtime_validated = true, validation_status = "runtime_validated" } }.Concat(OmsiLaunch.Builds.Omsi23004.Omsi23004.Profile.CompatibleExecutableHashes.Select(pair => (object)new { variant = pair.Value.Replace(' ', '_').ToUpperInvariant(), sha256 = pair.Key, runtime_validated = false, validation_status = "pending_beta_field_validation" })).ToArray() }, input.JsonOutput); return (int)PublicExitCode.Success; }
+        if (input.Command is "profiles")
+        {
+            // Compatibility is "OMSI 2 installed"; hashes are diagnostics and
+            // select a known layout. Capabilities are predicted from the file
+            // and decided in process at start.
+            var build = OmsiLaunch.Builds.Omsi23004.OmsiBuildDetection.Detect(CliInput.ResolveInstallationRoot(input.Installation));
+            CliInput.WriteEnvelope("profiles", new
+            {
+                requirement = "OMSI 2",
+                installation = new { is_omsi2 = build.IsOmsi2, reason = build.Reason, build_id = build.BuildId, identity = build.KnownIdentity ? "known" : "unknown", file_sha256 = build.FileSha256, file_version = build.FileVersion, code_sha256 = build.CodeSha256, file_variant = build.KnownFileVariant },
+                known_layouts = OmsiLaunch.Builds.Omsi23004.NativeTargetCatalog.KnownCodeSha256.Select(code => new { build_id = OmsiLaunch.Builds.Omsi23004.NativeTargetCatalog.PackName, code_sha256 = code, runtime_validated = true }),
+                predicted_capabilities = build.StaticCapabilities
+            }, input.JsonOutput);
+            return (int)PublicExitCode.Success;
+        }
 
         // Client mode: no installation argument, an owner is addressed through
         // the local control plane of the installation this executable lives in.
@@ -126,9 +146,28 @@ internal static class CliProgram
             return recovery.Pending && input.Recover && !recovery.Recovered ? (int)PublicExitCode.TransactionRecoveryFailed : (int)PublicExitCode.Success;
         }
 
+        if (input.ClearModuleData is not null)
+        {
+            // A module's data (.omsilaunch\module-data\<id>) belongs to the module;
+            // only this explicit request deletes it, and never during a session.
+            var cleared = ModuleDataStore.Clear(installationRoot, input.ClearModuleData);
+            CliInput.WriteEnvelope("module-data.clear", new { module = input.ClearModuleData, cleared }, input.JsonOutput);
+            return (int)PublicExitCode.Success;
+        }
+
         if (input.List is not null)
         {
             if (!Enum.TryParse<ContentQueryKind>(input.List, true, out var kind)) throw new ArgumentException("Unknown discovery category: " + input.List);
+            if (kind == ContentQueryKind.RuntimeModules)
+            {
+                CliInput.WriteEnvelope("runtime-modules.list", await launch.ListRuntimeModulesAsync(new InstallationSpec(installationRoot)), input.JsonOutput);
+                return (int)PublicExitCode.Success;
+            }
+            if (kind == ContentQueryKind.SessionProfiles)
+            {
+                CliInput.WriteEnvelope("session-profiles.list", await launch.ListSessionProfilesAsync(new InstallationSpec(installationRoot)), input.JsonOutput);
+                return (int)PublicExitCode.Success;
+            }
             var scope = kind == ContentQueryKind.Entrypoints ? input.Map : input.VehicleScope;
             var result = await launch.DiscoverAsync(new InstallationSpec(installationRoot), kind, scope is null ? OptionalValue<string>.Unset : OptionalValue<string>.Set(scope));
             CliInput.WriteEnvelope("content.list", result, input.JsonOutput);
@@ -315,7 +354,7 @@ internal static class OwnerSession
 
 internal sealed class CliInput
 {
-    internal const string Usage = "OmsiLaunch.exe [detect|capabilities|profiles|help [family]] | [session status|stop] | [events read|watch] | [<family> <verb> [--key=value ...]]\n           [<installation>] [/silent] [/predefined-profile:<id> /predefined-profile-index:<1..5>] [/new|/saved:<file.osn>|/last] [/map:<identity>] [/entrypoint:<identity>|/entrypoint-index:<n>] [/date:<yyyy-mm-dd|system> /time:<hh:mm[:ss]|system> /year:<n|system>] [/weather:<preset>|/weather-icao:<code>|/weather-real] [/vehicle:<identity> /repaint:<id> /hof:<id> /fleet:<n> /registration:<r>|/no-vehicle] [/set:<key>=<value> ...] [/splash:Managed|Native|Unset /splash-language:PTB|ENG|FRA|DEU /splash-assets:<directory>] [/internet-textures:Native|Disabled|Override /internet-textures-profile:<file.itx>] [/spec:<path-to-json>] [/plan|/validate|/runtime:<operation> /runtime-arg:<key=value>] [/startup-timeout:<1..600>] [/observe-seconds:<n>] [/list:<category> [/vehicle-scope:<bus>]] [/recovery-status|/recover] [/version] [--json]\n\nExamples: OmsiLaunch.exe /predefined-profile:rmg-leste /predefined-profile-index:1 /new; OmsiLaunch.exe /silent /predefined-profile:rmg-leste /predefined-profile-index:1 /new; OmsiLaunch.exe session status; OmsiLaunch.exe time get. A normal launch remains active until OMSI exits, the tray ends the session, or a client sends session stop. Full reference: .omsilaunch\\docs\\reference\\cli.md";
+    internal const string Usage = "OmsiLaunch.exe [detect|capabilities|profiles|help [family]] | [session status|stop] | [events read|watch] | [<family> <verb> [--key=value ...]]\n           [<installation>] [/silent] [/predefined-profile:<id> /predefined-profile-index:<1..99>] [/hof-source:<collection|directory|vehicle|file>:<value> /hof-target:<vehicle> ... [/hof-file:<name.hof> ...] [/hof-mode:add|mirror]] [/module:<id> ... /no-module:<id> ... /module-setting:<id>.<key>=<value> ... /<module flag>[:<value>]] [/new|/saved:<file.osn>|/last] [/map:<identity>] [/entrypoint:<identity>|/entrypoint-index:<n>] [/date:<yyyy-mm-dd|system> /time:<hh:mm[:ss]|system> /year:<n|system>] [/weather:<preset>|/weather-icao:<code>|/weather-real] [/vehicle:<identity> /repaint:<id> /hof:<id> /fleet:<n> /registration:<r>|/no-vehicle] [/set:<key>=<value> ...] [/splash:Managed|Native|Unset /splash-language:PTB|ENG|FRA|DEU /splash-assets:<directory>] [/internet-textures:Native|Disabled|Override /internet-textures-profile:<file.itx>] [/spec:<path-to-json>] [/plan|/validate|/runtime:<operation> /runtime-arg:<key=value>] [/startup-timeout:<1..600>] [/observe-seconds:<n>] [/list:<category> [/vehicle-scope:<bus>]] [/recovery-status|/recover] [/clear-module-data:<id>] [/version] [--json]\n\nExamples: OmsiLaunch.exe /predefined-profile:rmg-leste /predefined-profile-index:1 /new; OmsiLaunch.exe /silent /predefined-profile:rmg-leste /predefined-profile-index:1 /new; OmsiLaunch.exe session status; OmsiLaunch.exe time get. A normal launch remains active until OMSI exits, the tray ends the session, or a client sends session stop. Full reference: .omsilaunch\\docs\\reference\\cli.md";
     internal static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
     public string? Installation { get; private set; } public string? Command { get; private set; } public List<string> CommandWords { get; } = new(); public bool Help { get; private set; } public bool Version { get; private set; } public bool JsonOutput { get; private set; } public bool Quiet { get; private set; } public bool Verbose { get; private set; } public bool Log { get; private set; } public bool LogAll { get; private set; } public bool OmsiLogAll { get; private set; } public bool TraceProcess { get; private set; } public bool TracePlugin { get; private set; } public bool TraceNative { get; private set; } public bool PlanOnly { get; private set; } public bool ValidateOnly { get; private set; } public bool Serve { get; private set; } public bool LaunchRequested { get; private set; } public bool Silent { get; private set; }
     public SplashMode Splash { get; private set; } = SplashMode.Managed; public bool SplashSpecified { get; private set; } public string? SplashLanguage { get; private set; } public string? SplashAssets { get; private set; } public InternetTexturesMode InternetTextures { get; private set; } = InternetTexturesMode.Native; public bool InternetTexturesSpecified { get; private set; } public string? InternetTexturesProfile { get; private set; } public string? PredefinedProfile { get; private set; } public int? PredefinedProfileIndex { get; private set; }
@@ -325,61 +364,27 @@ internal sealed class CliInput
     public bool NoVehicle { get; private set; } public string? Vehicle { get; private set; } public string? Repaint { get; private set; } public string? Hof { get; private set; } public string? Fleet { get; private set; } public string? Registration { get; private set; }
     // Timeouts stay unset unless given on the command line so that a /spec or
     // session-profile value is not silently overridden by a CLI default.
-    public int? StartupTimeout { get; private set; } public int? ShutdownTimeout { get; private set; } public int? ObserveSeconds { get; private set; } public Dictionary<string, string> Settings { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public int? StartupTimeout { get; private set; } public int? ShutdownTimeout { get; private set; } public bool CooperativeShutdown { get; private set; } public int? ObserveSeconds { get; private set; } public Dictionary<string, string> Settings { get; } = new(StringComparer.OrdinalIgnoreCase);
+    // One HOF operation from the command line; several operations need /spec
+    // or a session profile.
+    public HofSourceKind? HofSourceKind { get; private set; } public string? HofSource { get; private set; } public List<string> HofTargets { get; } = new(); public List<string> Modules { get; } = new(); public List<string> HofFiles { get; } = new(); public HofApplyMode? HofMode { get; private set; }
+    // Runtime modules: /no-module, /module-setting and /clear-module-data. A
+    // flag no built-in knows is kept here and resolved against the flags the
+    // installed modules declare when a session is planned.
+    public List<string> DisabledModules { get; } = new(); public Dictionary<string, string> ModuleSettings { get; } = new(StringComparer.Ordinal); public string? ClearModuleData { get; private set; } public List<string> UnresolvedFlags { get; } = new();
     public bool HasAutomaticStopPolicy => ObserveSeconds.HasValue;
 
     // Every accepted hierarchical command route and the runtime operation it
     // maps to. The documentation gate reads this table.
-    internal static readonly IReadOnlyDictionary<string, string> HierarchicalRoutes = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["time get"] = "time.read",
-        ["time set"] = "time.set",
-        ["weather get"] = "weather.read",
-        ["weather set"] = "weather.set",
-        ["weather actual get"] = "weather.actual.read",
-        ["map get"] = "map.read",
-        ["camera get"] = "camera.read",
-        ["camera set"] = "camera.set",
-        ["camera lock"] = "camera.lock",
-        ["camera unlock"] = "camera.unlock",
-        ["vehicles list"] = "road-vehicles.list",
-        ["vehicles get"] = "road-vehicle.read",
-        ["vehicles summary"] = "road-vehicles.read",
-        ["vehicles spawn"] = "road-vehicles.spawn",
-        ["vehicles place-random"] = "road-vehicles.place-random",
-        ["player get"] = "player-vehicle.read",
-        ["humans list"] = "humans.list",
-        ["humans get"] = "human.read",
-        ["humans summary"] = "humans.read",
-        ["timetable get"] = "timetable.read",
-        ["timetable tracks list"] = "timetable.tracks.list",
-        ["timetable trips list"] = "timetable.trips.list",
-        ["timetable lines list"] = "timetable.lines.list",
-        ["timetable tours list"] = "timetable.tours.list",
-        ["timetable profiles list"] = "timetable.profiles.list",
-        ["timetable bus-stops list"] = "timetable.bus-stops.list",
-        ["timetable station-links list"] = "timetable.station-links.list",
-        ["timetable logs list"] = "timetable.logs.read",
-        ["drivers list"] = "drivers.read",
-        ["tickets get"] = "tickets.read",
-        ["hof get"] = "vehicle.hofs.read",
-        ["constants list"] = "vehicle.constants.list",
-        ["constants get"] = "vehicle.constant.get",
-        ["curves list"] = "vehicle.curves.list",
-        ["curves evaluate"] = "vehicle.curve.evaluate",
-        ["scripts variable list"] = "vehicle.variables.list",
-        ["scripts variable get"] = "vehicle.variable.get",
-        ["scripts variable set"] = "vehicle.variable.set",
-        ["scripts string list"] = "vehicle.string-variables.list",
-        ["scripts string get"] = "vehicle.string-variable.get",
-    };
+    // Command route ("time get") -> runtime operation, from the canonical catalog.
+    internal static readonly IReadOnlyDictionary<string, string> HierarchicalRoutes = PublicCapabilityRegistry.CliRoutes;
     // Every command word the parser accepts in the first position.
     internal static readonly IReadOnlyList<string> CommandWordsAccepted = new[] { "capabilities", "profiles", "detect", "help", "session", "events", "time", "weather", "map", "camera", "vehicles", "player", "humans", "timetable", "scripts", "constants", "curves", "hof", "drivers", "tickets", "d3d" };
     // Every slash/dash flag the parser accepts (without value suffix), including
     // the compatibility flags that currently have no effect.
-    internal static readonly IReadOnlyList<string> KnownFlags = new[] { "?", "help", "version", "json", "quiet", "silent", "verbose", "serve", "log", "logall", "omsi-logall", "trace", "trace-process", "trace-plugin", "trace-native", "plan", "validate", "runtime-batch", "runtime-write-batch", "splash", "splash-language", "splash-assets", "internet-textures", "internet-textures-profile", "d3d-batch", "runtime", "runtime-arg", "new", "saved", "last", "map", "entrypoint", "entrypoint-index", "date", "time", "year", "weather", "weather-icao", "weather-real", "vehicle", "repaint", "hof", "fleet", "registration", "no-vehicle", "set", "predefined-profile", "predefined-profile-index", "spec", "list", "vehicle-scope", "startup-timeout", "shutdown-timeout", "observe-seconds", "recovery-status", "recover" };
+    internal static readonly IReadOnlyList<string> KnownFlags = new[] { "?", "help", "version", "json", "quiet", "silent", "verbose", "serve", "log", "logall", "omsi-logall", "trace", "trace-process", "trace-plugin", "trace-native", "plan", "validate", "runtime-batch", "runtime-write-batch", "splash", "splash-language", "splash-assets", "internet-textures", "internet-textures-profile", "d3d-batch", "runtime", "runtime-arg", "new", "saved", "last", "map", "entrypoint", "entrypoint-index", "date", "time", "year", "weather", "weather-icao", "weather-real", "vehicle", "repaint", "hof", "fleet", "registration", "no-vehicle", "set", "predefined-profile", "predefined-profile-index", "hof-source", "hof-target", "hof-file", "hof-mode", "module", "no-module", "module-setting", "clear-module-data", "spec", "list", "vehicle-scope", "startup-timeout", "shutdown-timeout", "cooperative-shutdown", "observe-seconds", "recovery-status", "recover" };
     // Flags that are parsed for compatibility but have no effect in this build.
-    internal static readonly IReadOnlyList<string> AcceptedNoEffectFlags = new[] { "quiet", "serve" };
+    internal static readonly IReadOnlyList<string> AcceptedNoEffectFlags = Array.Empty<string>();
 
     public static CliInput Parse(string[] args)
     {
@@ -419,10 +424,26 @@ internal sealed class CliInput
                 case "weather": output.WeatherMode = WeatherMode.Preset; output.Weather = value; break; case "weather-icao": output.WeatherMode = WeatherMode.Icao; output.Icao = value; break; case "weather-real": output.WeatherMode = WeatherMode.RealCurrent; break;
                 case "vehicle": output.Vehicle = value; break; case "repaint": output.Repaint = value; break; case "hof": output.Hof = value; break; case "fleet": output.Fleet = value; break; case "registration": output.Registration = value; break; case "no-vehicle": output.NoVehicle = true; break;
                 case "set": var setting = RequireValue(raw, value).Split('=', 2); if (setting.Length != 2) throw new ArgumentException("/set requires key=value"); output.Settings[setting[0]] = setting[1]; break;
-                case "predefined-profile": output.PredefinedProfile = value ?? throw new ArgumentException("/predefined-profile requires an id"); break; case "predefined-profile-index": output.PredefinedProfileIndex = ParseInt(raw, value, 1, 5); break;
+                case "predefined-profile": output.PredefinedProfile = value ?? throw new ArgumentException("/predefined-profile requires an id"); break; case "predefined-profile-index": output.PredefinedProfileIndex = ParseInt(raw, value, SessionProfileCompiler.MinPresetIndex, SessionProfileCompiler.MaxPresetIndex); break;
+                case "hof-source":
+                    var hofSource = RequireValue(raw, value).Split(':', 2);
+                    if (hofSource.Length != 2 || string.IsNullOrWhiteSpace(hofSource[1]) || !Enum.TryParse<HofSourceKind>(hofSource[0], true, out var hofKind) || !Enum.IsDefined(hofKind) || int.TryParse(hofSource[0], out _)) throw new ArgumentException("/hof-source requires collection:<name>, directory:<path>, vehicle:<identity> or file:<path.hof>");
+                    output.HofSourceKind = hofKind; output.HofSource = hofSource[1]; break;
+                case "hof-target": output.HofTargets.Add(RequireValue(raw, value)); break;
+                case "module": output.Modules.Add(RequireValue(raw, value)); break;
+                case "no-module": output.DisabledModules.Add(RequireValue(raw, value)); break;
+                case "module-setting":
+                    var moduleSetting = RequireValue(raw, value).Split('=', 2);
+                    if (moduleSetting.Length != 2 || moduleSetting[0].IndexOf('.') <= 0) throw new ArgumentException("/module-setting requires <module-id>.<key>=<value>");
+                    output.ModuleSettings[moduleSetting[0]] = moduleSetting[1]; break;
+                case "clear-module-data": output.ClearModuleData = RequireValue(raw, value); break;
+                case "hof-file": output.HofFiles.Add(RequireValue(raw, value)); break;
+                case "hof-mode": output.HofMode = RequireValue(raw, value).ToLowerInvariant() switch { "add" => HofApplyMode.Add, "mirror" => HofApplyMode.Mirror, _ => throw new ArgumentException("/hof-mode requires add or mirror") }; break;
                 case "spec": output.SpecFile = RequireValue(raw, value); output.LaunchRequested = true; break; case "list": output.List = RequireValue(raw, value); break; case "vehicle-scope": output.VehicleScope = RequireValue(raw, value); break;
-                case "startup-timeout": output.StartupTimeout = ParseInt(raw, value, 1, 600); break; case "shutdown-timeout": output.ShutdownTimeout = ParseInt(raw, value, 1, 600); break; case "observe-seconds": output.ObserveSeconds = ParseInt(raw, value, 0, int.MaxValue); break;
-                case "recovery-status": output.Recovery = true; break; case "recover": output.Recovery = true; output.Recover = true; break; default: throw new ArgumentException("Unknown argument: " + raw);
+                case "startup-timeout": output.StartupTimeout = ParseInt(raw, value, 1, 600); break; case "shutdown-timeout": output.ShutdownTimeout = ParseInt(raw, value, 1, 600); break; case "cooperative-shutdown": output.CooperativeShutdown = true; break; case "observe-seconds": output.ObserveSeconds = ParseInt(raw, value, 0, int.MaxValue); break;
+                case "recovery-status": output.Recovery = true; break; case "recover": output.Recovery = true; output.Recover = true; break;
+                // A flag an installed module may declare (resolved in BuildSpecAsync).
+                default: if (RuntimeModuleProtocol.IsFlagName(key) && raw.StartsWith('/')) { output.UnresolvedFlags.Add(raw); break; } throw new ArgumentException("Unknown argument: " + raw);
             }
         }
         output.ResolveHierarchicalCommand();
@@ -455,18 +476,50 @@ internal sealed class CliInput
         RuntimeOperation = HierarchicalRoutes.TryGetValue(route, out var operation) ? operation : throw new ArgumentException("Unknown public command route: " + route);
     }
 
+    // True when the command plans a session, the only place module flags are
+    // resolved; anywhere else an unknown flag is an error.
+    public bool PlansSession => !Version && !Help && Command is null && RuntimeOperation is null && !Recovery && List is null && ClearModuleData is null && (LaunchRequested || SpecFile is not null || !string.IsNullOrWhiteSpace(Installation));
+
+    public void RejectUnresolvedFlags()
+    {
+        if (UnresolvedFlags.Count != 0 && !PlansSession) throw new ArgumentException("Unknown argument: " + UnresolvedFlags[0]);
+    }
+
+    // /<flag>[:<value>] -> "<module-id>.<key>" for a flag a module declares.
+    // A boolean setting's flag without a value means true.
+    private Dictionary<string, string> ResolveModuleFlags(string installationRoot)
+    {
+        var settings = new Dictionary<string, string>(ModuleSettings, StringComparer.Ordinal);
+        if (UnresolvedFlags.Count == 0) return settings;
+        var declared = ModuleCatalog.ReadDeclarations(installationRoot)
+            .SelectMany(module => module.EffectiveSettings.Where(setting => setting.Flag is not null).Select(setting => (Module: module, Setting: setting))).ToArray();
+        foreach (var raw in UnresolvedFlags)
+        {
+            var pair = raw.TrimStart('/').Split(':', 2);
+            var flag = pair[0].ToLowerInvariant();
+            var matches = declared.Where(x => x.Setting.Flag == flag).ToArray();
+            if (matches.Length == 0) throw new ArgumentException("Unknown argument: " + raw);
+            if (matches.Length > 1) throw new ArgumentException(PublicErrorCodes.MODULE_SETTING_INVALID + ": /" + flag + " is declared by several modules: " + string.Join(", ", matches.Select(x => x.Module.Id)));
+            var (module, setting) = matches[0];
+            var value = pair.Length == 2 ? pair[1] : setting.Type == ModuleSettingType.Boolean ? "true" : throw new ArgumentException("/" + flag + " requires a value");
+            settings[module.Id + "." + setting.Key] = value;
+        }
+        return settings;
+    }
+
     public async Task<LaunchSpec> BuildSpecAsync()
     {
         LaunchSpec seed = Defaults(Installation ?? AppContext.BaseDirectory);
         if (SpecFile is not null) seed = await LaunchSpecJson.LoadAsync(SpecFile);
         // An explicit installation argument wins over the spec's RootPath.
         var installationRoot = ResolveInstallationRoot(Installation ?? seed.Installation.RootPath);
+        var moduleSettings = ResolveModuleFlags(installationRoot);
         SessionProfilePackage? selectedProfile = null;
         if (PredefinedProfile is not null)
         {
             if (PredefinedProfileIndex is null) throw new ArgumentException("OL_E_SESSION_PROFILE_PRESET_NOT_FOUND: /predefined-profile-index is required.");
             var package = SessionProfileCompiler.Load(installationRoot, PredefinedProfile, PredefinedProfileIndex.Value);
-            RejectProfileConflicts(package);
+            RejectProfileConflicts(package, moduleSettings);
             selectedProfile = package;
             seed = seed with { Installation = new InstallationSpec(installationRoot), World = new WorldSpec(WorldMode, OptionalValue<string>.Unset, OptionalValue<string>.Unset, OptionalValue<int>.Unset, OptionalValue<string>.Unset) };
             seed = SessionProfileCompiler.Apply(package, seed, WorldMode);
@@ -487,15 +540,33 @@ internal sealed class CliInput
         var world = WorldMode == WorldMode.SavedSituation
             ? new WorldSpec(WorldMode.SavedSituation, OptionalValue<string>.Unset, Text(Situation, seed.World.SituationIdentity), OptionalValue<int>.Unset, OptionalValue<string>.Unset)
             : new WorldSpec(WorldMode, Text(Map, seed.World.MapIdentity), Text(Situation, seed.World.SituationIdentity), entrypointIndex, entrypointIdentity);
-        var result = seed with { Installation = new InstallationSpec(installationRoot), World = world, Date = ParseDate(Date, seed.Date), Time = ParseTime(Time, seed.Time), Year = ParseYear(Year, seed.EffectiveYear), Weather = new(WeatherMode == WeatherMode.Unset ? seed.EffectiveWeather.Mode : WeatherMode, Text(Weather, seed.EffectiveWeather.Preset), Text(Icao, seed.EffectiveWeather.Icao)), PlayerVehicle = vehicle, Environment = seed.Environment with { General = settings }, Behavior = seed.Behavior with { StartupTimeoutSeconds = StartupTimeout ?? seed.Behavior.StartupTimeoutSeconds, ShutdownTimeoutSeconds = ShutdownTimeout ?? seed.Behavior.ShutdownTimeoutSeconds }, Presentation = new SessionPresentationSpec(SplashSpecified ? Splash : seed.EffectivePresentation.Splash, Text(SplashLanguage, seed.EffectivePresentation.Language), Text(SplashAssets, seed.EffectivePresentation.CustomAssetDirectory), seed.EffectivePresentation.SuppressTrayIcon), InternetTextures = new InternetTexturesSpec(InternetTexturesSpecified ? InternetTextures : seed.EffectiveInternetTextures.Mode, Text(InternetTexturesProfile, seed.EffectiveInternetTextures.OverrideProfilePath)), Diagnostics = new DiagnosticsSpec(Log || seed.EffectiveDiagnostics.Log, Verbose || LogAll || seed.EffectiveDiagnostics.Verbose, OmsiLogAll || seed.EffectiveDiagnostics.OmsiLogAll, TraceProcess || LogAll || seed.EffectiveDiagnostics.ProcessTrace, TracePlugin || LogAll || seed.EffectiveDiagnostics.PluginTrace, TraceNative || LogAll || seed.EffectiveDiagnostics.NativeTrace) };
+        var result = seed with { Installation = new InstallationSpec(installationRoot), World = world, Date = ParseDate(Date, seed.Date), Time = ParseTime(Time, seed.Time), Year = ParseYear(Year, seed.EffectiveYear), Weather = new(WeatherMode == WeatherMode.Unset ? seed.EffectiveWeather.Mode : WeatherMode, Text(Weather, seed.EffectiveWeather.Preset), Text(Icao, seed.EffectiveWeather.Icao)), PlayerVehicle = vehicle, Environment = seed.Environment with { General = settings }, Behavior = seed.Behavior with { StartupTimeoutSeconds = StartupTimeout ?? seed.Behavior.StartupTimeoutSeconds, ShutdownTimeoutSeconds = ShutdownTimeout ?? seed.Behavior.ShutdownTimeoutSeconds, CooperativeShutdown = CooperativeShutdown || seed.Behavior.CooperativeShutdown }, Presentation = new SessionPresentationSpec(SplashSpecified ? Splash : seed.EffectivePresentation.Splash, Text(SplashLanguage, seed.EffectivePresentation.Language), Text(SplashAssets, seed.EffectivePresentation.CustomAssetDirectory), seed.EffectivePresentation.SuppressTrayIcon), InternetTextures = new InternetTexturesSpec(InternetTexturesSpecified ? InternetTextures : seed.EffectiveInternetTextures.Mode, Text(InternetTexturesProfile, seed.EffectiveInternetTextures.OverrideProfilePath)), Diagnostics = new DiagnosticsSpec(Log || seed.EffectiveDiagnostics.Log, Verbose || LogAll || seed.EffectiveDiagnostics.Verbose, OmsiLogAll || seed.EffectiveDiagnostics.OmsiLogAll, TraceProcess || LogAll || seed.EffectiveDiagnostics.ProcessTrace, TracePlugin || LogAll || seed.EffectiveDiagnostics.PluginTrace, TraceNative || LogAll || seed.EffectiveDiagnostics.NativeTrace) };
+        // /module and /no-module add to what a /spec file or profile asked
+        // for; a module setting from the command line wins over the /spec file.
+        if (Modules.Count != 0 || DisabledModules.Count != 0 || moduleSettings.Count != 0)
+        {
+            var current = result.EffectiveModules;
+            var mergedSettings = new Dictionary<string, string>(current.EffectiveSettings, StringComparer.Ordinal);
+            foreach (var pair in moduleSettings) mergedSettings[pair.Key] = pair.Value;
+            result = result with { Modules = new(current.Enable.Concat(Modules).Distinct(StringComparer.Ordinal).ToArray(), current.EffectiveDisable.Concat(DisabledModules).Distinct(StringComparer.Ordinal).ToArray(), mergedSettings) };
+        }
+        if (HofSource is null && (HofTargets.Count != 0 || HofFiles.Count != 0 || HofMode is not null)) throw new ArgumentException("/hof-target, /hof-file and /hof-mode require /hof-source.");
+        if (HofSource is not null)
+        {
+            if (HofTargets.Count == 0) throw new ArgumentException("/hof-source requires at least one /hof-target.");
+            // Command-line HOF flags replace the operations of a /spec file.
+            result = result with { HofManagement = new(new[] { new HofOperationSpec(HofSourceKind!.Value, HofSource, HofTargets.ToArray(), HofMode ?? HofApplyMode.Add, HofFiles.Count == 0 ? null : HofFiles.ToArray()) }) };
+        }
         if (selectedProfile is not null && WorldMode != WorldMode.NewMap) SessionProfileCompiler.ValidateCompatibility(selectedProfile, installationRoot, result.World, WorldMode);
         return result;
     }
 
-    public static void Write<T>(T value, bool json) { if (!WindowsHost.SuppressConsole || json) Console.WriteLine(json ? JsonSerializer.Serialize(value, Json) : value is SessionPlan plan ? $"Plan: {(plan.IsRunnable ? "READY" : "NOT RUNNABLE")} profile={plan.BuildProfileId}" : JsonSerializer.Serialize(value, Json)); }
+    // Set from /quiet: human-readable success output is suppressed; JSON and errors are not.
+    public static bool QuietOutput { get; set; }
+    public static void Write<T>(T value, bool json) { if ((!WindowsHost.SuppressConsole && !QuietOutput) || json) Console.WriteLine(json ? JsonSerializer.Serialize(value, Json) : value is SessionPlan plan ? $"Plan: {(plan.IsRunnable ? "READY" : "NOT RUNNABLE")} profile={plan.BuildProfileId}" : JsonSerializer.Serialize(value, Json)); }
     public static void WriteEnvelope(string command, object result, bool json, IReadOnlyDictionary<string, string>? metadata = null)
     {
-        if (WindowsHost.SuppressConsole && !json) return;
+        if ((WindowsHost.SuppressConsole || QuietOutput) && !json) return;
         if (json) { Console.WriteLine(metadata is null ? JsonSerializer.Serialize(new { ok = true, command, protocol_version = PublicCapabilityRegistry.ProtocolVersion, result }, Json) : JsonSerializer.Serialize(new { ok = true, command, protocol_version = PublicCapabilityRegistry.ProtocolVersion, result, metadata }, Json)); return; }
         Console.WriteLine(JsonSerializer.Serialize(result, Json));
         if (metadata is not null && metadata.TryGetValue("events_dropped_count", out var dropped)) Console.WriteLine("Note: " + dropped + " older events were omitted to fit the control frame.");
@@ -509,11 +580,11 @@ internal sealed class CliInput
         family = string.IsNullOrWhiteSpace(family) ? null : family,
         commands = PublicCapabilityRegistry.All
             .Where(x => x.Classification is PublicCapabilityClassification.PublicStableBeta or PublicCapabilityClassification.PublicExperimental)
-            .Where(x => string.IsNullOrWhiteSpace(family) || x.Family.Equals(family, StringComparison.OrdinalIgnoreCase))
+            .Where(x => x.CliRoute.Length > 0 && (string.IsNullOrWhiteSpace(family) || x.Family.Equals(family, StringComparison.OrdinalIgnoreCase)))
             .Select(x => new { x.CliRoute, x.Description, x.Classification, x.RuntimeValidation })
     };
     private static LaunchSpec Defaults(string root) { var none = new Dictionary<string, OptionalValue<string>>(); return new(new(root), new(WorldMode.NewMap, OptionalValue<string>.Unset, OptionalValue<string>.Unset, OptionalValue<int>.Unset), new(DateTimeMode.Unset, OptionalValue<SemanticDate>.Unset), new(DateTimeMode.Unset, OptionalValue<SemanticTime>.Unset), OptionalValue<PlayerVehicleSpec>.Unset, new(none, none, none, none, none, none, none, none), new()); }
-    private void RejectProfileConflicts(SessionProfilePackage profile)
+    private void RejectProfileConflicts(SessionProfilePackage profile, IReadOnlyDictionary<string, string> moduleSettings)
     {
         var ownsWorld = WorldMode == WorldMode.NewMap;
         var worldConflict = ownsWorld &&
@@ -527,7 +598,13 @@ internal sealed class CliInput
         var presentationConflict = profile.Preset.Presentation is not null && (SplashSpecified || SplashLanguage is not null || SplashAssets is not null);
         var internetConflict = profile.Preset.InternetTextures is not null && (InternetTexturesSpecified || InternetTexturesProfile is not null);
         var behaviorConflict = profile.Preset.Behavior is not null && (StartupTimeout is not null || ShutdownTimeout is not null);
-        if (worldConflict || settingConflict || presentationConflict || internetConflict || behaviorConflict)
+        var hofConflict = profile.Preset.Hofs.Count != 0 && HofSource is not null;
+        // A module the preset switches on or off, or a module setting it sets.
+        var presetModules = profile.Preset.Modules;
+        var moduleConflict = presetModules is not null && (
+            Modules.Any(presetModules.EffectiveDisable.Contains) || DisabledModules.Any(presetModules.Enable.Contains) ||
+            moduleSettings.Keys.Any(presetModules.EffectiveSettings.ContainsKey));
+        if (worldConflict || settingConflict || presentationConflict || internetConflict || behaviorConflict || hofConflict || moduleConflict)
             throw new ArgumentException("OL_E_SESSION_PROFILE_OVERRIDE_CONFLICT: An explicit argument attempts to override a field owned by the selected session profile.");
     }
     private OptionalValue<PlayerVehicleSpec> VehicleSpec(OptionalValue<PlayerVehicleSpec> old) { if (Vehicle is null && Repaint is null && Hof is null && Fleet is null && Registration is null) return old; var current = old.IsSet ? old.Value! : new(OptionalValue<string>.Unset, OptionalValue<string>.Unset, OptionalValue<string>.Unset, OptionalValue<string>.Unset, OptionalValue<string>.Unset); return OptionalValue<PlayerVehicleSpec>.Set(new(Text(Vehicle, current.Model), Text(Repaint, current.Repaint), Text(Hof, current.Hof), Text(Fleet, current.FleetNumber), Text(Registration, current.Registration))); }

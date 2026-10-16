@@ -1,9 +1,9 @@
 # Возможности
 
-<!-- l10n: source=reference/capabilities.md -->
-> Перевод [исходной страницы на английском языке](../../../reference/capabilities.md) для OmsiLaunch 0.1.0-beta3. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
+<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+> Перевод [исходной страницы на английском языке](../../../reference/capabilities.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
-Это канонический перечень того, что умеет OmsiLaunch 0.1.0-beta3. Он составлен на основе `PublicCapabilityRegistry` (`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`), runtime-реализации в плагине (`src/OmsiLaunch.Plugin/CurrentRuntimeControl.cs` и `src/OmsiLaunch.Interop/OmsiRuntimeReaders.cs`) и метода `OmsiLaunchService.GetCapabilitiesAsync`. Для каждой возможности (capability) указаны классификация, уровень стабильности, используемый во всей этой документации, требуется ли сеанс в состоянии `Running`, изменяет ли она состояние OMSI, аргументы и ключи результата, ошибки и подтверждения проверки в runtime. Как вызывать операцию (маршруты CLI, конверт API, тайм-ауты, handle), описано в разделе [runtime-управление](runtime-control.md); таблица подтверждений приведена на странице [статус проверки в runtime](../status/runtime-validation-status.md).
+На этой странице описано, что умеет OmsiLaunch. Её источник — канонический каталог возможностей `PublicCapabilityRegistry` (`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`): там один раз объявлены каждая возможность, каждая публичная runtime-операция с её аргументами, маршрутами CLI и нативной возможностью, а также одно состояние подтверждения для каждой возможности. Набор runtime-операций, проверка аргументов, маршруты команд CLI, нативная проверка каждой операции в плагине, `GetCapabilitiesAsync` и [таблица каталога](#capability-catalog) ниже выводятся из него. Для каждой runtime-операции на странице указаны аргументы, ключи результата и ошибки. Как вызывать операцию (маршруты CLI, конверт API, тайм-ауты, handle), описано в разделе [runtime-управление](runtime-control.md); подтверждения по сеансам приведены на странице [статус проверки в runtime](../status/runtime-validation-status.md).
 
 <a id="classification-and-stability"></a>
 ## Классификация и стабильность
@@ -17,7 +17,7 @@
 | `InternalOnly` | Исследовательский примитив; недоступен через публичный API или CLI | `INTERNAL` |
 | `Unsupported` | Распознаётся для диагностики, отклоняется или отсутствует | `UNAVAILABLE` |
 
-`PublicCapabilityKind` различает `Read`, `Write`, `Action` и `Event`. Каждой runtime-возможности требуется сеанс в состоянии `Running` и точный профиль `Omsi23004_692EBFBF` (`RequiresSession` / `RequiresExactProfile` в реестре); возможностям сеанса, которые создают сеанс, требуется точный профиль, но не сеанс.
+`PublicCapabilityKind` различает `Read`, `Write`, `Action` и `Event`. Каждой runtime-возможности требуется сеанс в состоянии `Running` (`RequiresSession` в реестре) и её нативная возможность, определённая и проверенная на работающей сборке; операция, нативная возможность которой недоступна, отклоняется с `OL_E_CAPABILITY_UNRESOLVED`. `RequiresExactProfile` помечает возможности, которые зависят от нативных целей (см. [совместимость](compatibility.md)).
 
 Результаты runtime-операций — это словари строк. Ключи, которые начинаются с `internal_` или заканчиваются на `_address`, `_pointer` или `_vmt`, удаляются на границе API (`ScrubInternalValues`) и здесь не перечислены. Ключи результата в таблицах операций ниже — это точные наборы ключей, которые возвращает продукт: они были получены выполнением каждой публичной операции в реальном сеансе (снятие данных для документации в раунде runtime closure, сеанс `f51dcb59-a723-4570-b6c5-b61e628a7993`, `situations\Linie 5.osn`; строки списков записываются как `<row>.<n>.<field>`).
 
@@ -26,62 +26,135 @@
 | Ошибка | `ErrorCode` | `Values` |
 | --- | --- | --- |
 | Отклонение реестром (неизвестная операция или операция `internal.*`, отсутствует обязательный аргумент) | `OL_E_RUNTIME_OPERATION_UNKNOWN`, `OL_E_RUNTIME_ARGUMENT_REQUIRED` | нет |
-| Намеренное отклонение продуктом (`weather.set`) | конкретный код (`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`) | `detail` (предложение) |
+| Намеренное отклонение продуктом (производный ключ погоды в `weather.set`) | конкретный код (`OL_E_RUNTIME_SETTING_NOT_PERSISTENT`) | `detail` (предложение) |
 | Сбой D3D | конкретный код `OL_E_D3D_*` | `detail`, `native_status` |
-| Любой другой сбой на стороне плагина (устаревший handle, неизвестное имя, значение вне диапазона, нет транспортного средства игрока, ...) | `OL_E_RUNTIME_OPERATION_FAILED` | `detail` (начинается с конкретного кода, например `OL_E_RUNTIME_OBJECT_HANDLE_STALE` или `OL_E_RUNTIME_VALUE_OUT_OF_RANGE (Parameter 'minute')`), `exception` (имя типа .NET) |
-| Результат, который не помещается в почтовый ящик (mailbox) размером 64 KiB | `OL_E_RUNTIME_RESPONSE_TOO_LARGE` (ограниченные списки вместо этого укорачиваются, см. [Расписание, водители, билеты](#timetable-drivers-tickets)) | нет |
+| Типизированный сбой на стороне плагина (устаревший handle, неизвестное имя, значение вне диапазона, нет транспортного средства игрока, ...) | конкретный код, например `OL_E_RUNTIME_OBJECT_HANDLE_STALE` или `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` | `detail` (сообщение), `exception` (имя типа .NET) |
+| Операция, нативная возможность которой не определена на работающей сборке | `OL_E_CAPABILITY_UNRESOLVED` | `detail`, `capability` (нативная возможность) |
+| Неожиданное исключение на стороне плагина без кода | `OL_E_RUNTIME_OPERATION_FAILED` | `detail`, `exception` |
+| Результат, который не помещается в почтовый ящик (mailbox) размером 64 KiB | `OL_E_RUNTIME_RESPONSE_TOO_LARGE` (постраничные списки вместо этого укорачиваются и продолжаются с `next_cursor`, см. [постраничный вывод](#pagination)) | нет |
 
-В столбце «Ошибки» (`Errors`) каждой таблицы названы конкретные коды; их следует читать из `ErrorCode` или из первого токена `Values.detail`, как описано выше.
+В столбце «Ошибки» (`Errors`) каждой таблицы названы конкретные коды; они доходят в `ErrorCode` через плагин, мост, плоскость управления, API и CLI без изменений.
 
-<a id="session-capabilities"></a>
-## Возможности сеанса
+<a id="capability-catalog"></a>
+## Каталог возможностей
 
-| Возможность | Классификация | Стабильность | Вид | Маршрут API | Маршрут CLI | Изменяет | Проверка |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `session.plan` | `PublicStableBeta` | `STABLE_BETA` | Action | `PlanSessionAsync` | `/plan`, `/validate` | нет | RUNTIME_PASS (каждый проверенный сеанс начинается с плана) |
-| `session.start` | `PublicStableBeta` | `STABLE_BETA` | Action | `StartSessionAsync` | флаги запуска | файловая система (транзакция), процесс | RUNTIME_PASS (NEW_MAP Grundorf, SAVED_SITUATION Berlin-Spandau) |
-| `session.status` | `PublicStableBeta` | `STABLE_BETA` | Read | `GetStatusAsync` | `session status` | нет | RUNTIME_PASS |
-| `session.stop` | `PublicStableBeta` | `STABLE_BETA` | Action | `StopAsync` / `CloseAsync` | `session stop`, трей, Ctrl+C | процесс (`TerminateProcess`), файловая система (восстановление) | RUNTIME_PASS; кооперативное завершение не реализовано |
-| `session.recover` | `PublicStableBeta` | `STABLE_BETA` | Action | `RecoverPendingAsync` | `/recovery-status`, `/recover` | файловая система (восстановление) | RUNTIME_PASS: восстановление после сбоя при раннем выходе (RV-008), принудительно завершённый владелец плюс раннее восстановление после сбоя при следующем запуске (`S05`), неудачное восстановление, затем `/recover` (`F01`), отказ под арендой установки (lease), при осиротевшем процессе OMSI и в окне до получения PID (`S04`, `S04b`) |
-| `events.read` | `PublicExperimental` | `EXPERIMENTAL` | Event | `GetStatusAsync().RuntimeEvents`, команда управления `session.events` | `events read`, `events watch` | нет | RUNTIME_PASS; слот телеметрии, хранящий только последнее значение, может терять всплески событий |
+Одна строка на каждую запись каталога, сгенерирована из `PublicCapabilityRegistry.All` (гейт документации завершается ошибкой, если эта таблица устарела). `Session` равно `Running` для возможностей, которым нужен работающий сеанс. `Operations` — конкретные идентификаторы runtime-операций (строки контракта в разделе [публичные runtime-операции](#public-runtime-operations)). `Native capability` называет записи каталога нативных целей (см. [совместимость](compatibility.md)), которые должны быть определены и проверены на работающей сборке. `Evidence` использует единый словарь:
 
-<a id="runtime-capabilities-registry-entries"></a>
-## Runtime-возможности (записи реестра)
+| Подтверждение | Значение |
+| --- | --- |
+| RUNTIME_VALIDATED | Наблюдалось в реальном сеансе OMSI; идентификаторы сеансов приведены на странице [статус проверки в runtime](../status/runtime-validation-status.md). |
+| STATICALLY_VALIDATED | Реализовано и проверено офлайн; эффект в runtime не наблюдался. |
+| PARTIAL | Работает для части контракта; примечание называет открытую часть. |
+| RUNTIME_VALIDATION_REQUIRED | Реализовано, проверка в runtime ожидается. |
+| UNAVAILABLE | Распознаётся для диагностики и отклоняется либо не реализовано; запрос при запуске делает план неисполнимым. |
 
-| Возможность | Классификация | Стабильность | Вид | Операции | Handle | Проверка |
-| --- | --- | --- | --- | --- | --- | --- |
-| `time.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `time.read` | | RUNTIME_PASS (сеанс `e5454061`) |
-| `time.set` | `PublicExperimental` | `EXPERIMENTAL` | Write | `time.set` | | RUNTIME_PASS (запись, `SetTime`, обратное чтение) |
-| `weather.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `weather.read` | | RUNTIME_PASS |
-| `weather.set` | `Unsupported` | `UNAVAILABLE` | Write | `weather.set` | | RUNTIME_REJECTED: всегда `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` (сеанс `50a1f1ec`) |
-| `weather.actual.read` | `PublicExperimental` | `EXPERIMENTAL` | Read | `weather.actual.read` | | RUNTIME_PASS |
-| `map.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `map.read` | | RUNTIME_PASS: повторно проверено на исправленном слоте карты (сеанс `9dd62626-94c6-4cd7-bb6f-0288327696f4`, Grundorf) и прочитано на Berlin-Spandau при снятии данных для документации |
-| `camera.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `camera.read` | | RUNTIME_PASS |
-| `camera.set` | `PublicExperimental` | `EXPERIMENTAL` | Write | `camera.set` | | RUNTIME_PASS (запись FOV и обратное чтение) |
-| `camera.lock` | `PublicExperimental` | `EXPERIMENTAL` | Action | `camera.lock`, `camera.unlock` | | RUNTIME_PASS с PlayerVehicle из сохранённой ситуации (runtime closure `CAM01`, семейства 0, 2 и 1 с обратным чтением, затем снятие фиксации). Собственная строка `RuntimeValidation` в реестре по-прежнему гласит `STATICALLY_VALIDATED` (самоотчёт продукта, не обновлённый в этом выпуске) |
-| `vehicles.list` | `PublicStableBeta` | `STABLE_BETA` | Read | `road-vehicles.list` | RoadVehicle | RUNTIME_PASS |
-| `vehicles.get` | `PublicStableBeta` | `STABLE_BETA` | Read | `road-vehicle.read` | RoadVehicle | RUNTIME_PASS; для обнаружения устаревших handle после естественного удаления объекта (RV-002) нет безопасного способа воспроизвести ситуацию в runtime, оно проверено офлайн-тестами |
-| `vehicles.summary` | `PublicStableBeta` | `STABLE_BETA` | Read | `road-vehicles.read` | | RUNTIME_PASS |
-| `vehicles.spawn` | `PublicExperimental` | `EXPERIMENTAL` | Action | `road-vehicles.spawn` | RoadVehicle | RUNTIME_PASS RV-003 (сеанс `5f641c8d`, `2 -> 3`, handle `rv-000003`) |
-| `vehicles.place-random` | `PublicExperimental` | `EXPERIMENTAL` | Action | `road-vehicles.place-random` | | RUNTIME_PASS (коллекция `2 -> 4`) |
-| `player.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `player-vehicle.read` | RoadVehicle | RUNTIME_PASS: `present=false` при headless-запуске, полный снимок (snapshot) с сохранённой ситуацией |
-| `humans.list` | `PublicExperimental` | `EXPERIMENTAL` | Read | `humans.list` | Human | RUNTIME_PASS |
-| `humans.get` | `PublicExperimental` | `EXPERIMENTAL` | Read | `human.read` | Human | RUNTIME_PASS |
-| `humans.summary` | `PublicExperimental` | `EXPERIMENTAL` | Read | `humans.read` | | RUNTIME_PASS |
-| `timetable.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `timetable.read` и семейство `timetable.*.list` / `timetable.logs.read` | | RUNTIME_PASS (записи маршрута (track entries): 91 запись на Grundorf) |
-| `scripts.numeric` | `PublicExperimental` | `EXPERIMENTAL` | Write | `vehicle.variables.list`, `vehicle.variable.get`, `vehicle.variable.set` | RoadVehicle | RUNTIME_PASS (`Refresh_Strings` 0 -> 1 -> 0) |
-| `scripts.string.read` | `PublicExperimental` | `EXPERIMENTAL` | Read | `vehicle.string-variables.list`, `vehicle.string-variable.get` | RoadVehicle | RUNTIME_PASS (только чтение; запись — BI-004) |
-| `constants` | `PublicStableBeta` | `STABLE_BETA` | Read | `vehicle.constants.list`, `vehicle.constant.get` | RoadVehicle | RUNTIME_PASS |
-| `curves` | `PublicStableBeta` | `STABLE_BETA` | Read | `vehicle.curves.list`, `vehicle.curve.evaluate` | RoadVehicle | RUNTIME_PASS |
-| `hof.read` | `PublicStableBeta` | `STABLE_BETA` | Read | `vehicle.hofs.read` | RoadVehicle | RUNTIME_PASS |
-| `drivers.read` | `PublicExperimental` | `EXPERIMENTAL` | Read | `drivers.read` | | RUNTIME_PASS |
-| `tickets.read` | `PublicExperimental` | `EXPERIMENTAL` | Read | `tickets.read` | | RUNTIME_PASS |
-| `d3d.texture` | `PublicExperimental` | `EXPERIMENTAL` | Action | `d3d.status`, `d3d.texture.create`, `d3d.texture.describe`, `d3d.texture.update`, `d3d.texture.release` | D3DTexture | RUNTIME_PASS для create/describe/update/release, отклонения освобождённых и устаревших handle при повторном создании и между сеансами (`H02`), а также сброса устройства (device reset) с инвалидацией поколения (RV-007, `D01`; само состояние `lost` получено не было) |
-| `internal.make-basic` | `InternalOnly` | `INTERNAL` | Action | `internal.road-vehicles.make-basic` | | Не публичная. `ExecuteRuntimeAsync` отклоняет её с кодом `OL_E_RUNTIME_OPERATION_UNKNOWN` до любого поиска сеанса; в CLI для неё нет маршрута. |
-| `calendar.set-actual-date-time` | `Unsupported` | `UNAVAILABLE` | Write | нет | | UNSUPPORTED (BI-002) |
-| `player.assign-headless` | `Unsupported` | `UNAVAILABLE` | Action | нет | | UNSUPPORTED (BI-007) |
+Операция, которая что-либо изменяет, называет свою политику изменений после своего идентификатора (`PublicRuntimeOperation.MutationPolicy`); ни одна runtime-операция не заносится в журнал:
 
-Операция `internal.road-vehicles.make-basic` имеет статус `INTERNAL`: она существует в плагине для исследований (возвращает нативный адрес) и отклоняется на границе API и локальной плоскостью управления, которые обе сначала сверяют имя операции с `PublicRuntimeOperationIds`.
+| Политика изменений | Значение |
+| --- | --- |
+| `none` | Только чтение (не показывается). |
+| `omsi-state` | Изменяет состояние OMSI в памяти; ничто это не отменяет; изменение заканчивается вместе с процессом OMSI. |
+| `session-resource` | Создаёт или изменяет ресурс, которым владеет сеанс, освобождаемый явно или по окончании сеанса. |
+| `session-policy` | Устанавливает политику, которую плагин применяет повторно, пока она не будет снята или сеанс не закончится. |
+
+<!-- generated:capability-catalog:begin -->
+| Возможность | Классификация | Вид | Сеанс | Операции | Нативная возможность | Подтверждение | CLI | Примечание |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `session.plan` | `PublicStableBeta` | Action | no |  |  | RUNTIME_VALIDATED | `/plan` |  |
+| `session.start` | `PublicStableBeta` | Action | no |  |  | RUNTIME_VALIDATED | `/new`, `/saved:<situation.osn>`, `/spec:<spec.json>` |  |
+| `session.status` | `PublicStableBeta` | Read | Running |  |  | RUNTIME_VALIDATED | `session status` |  |
+| `session.stop` | `PublicStableBeta` | Action | Running |  |  | RUNTIME_VALIDATED | `session stop` |  |
+| `session.recover` | `PublicStableBeta` | Action | no |  |  | RUNTIME_VALIDATED | `/recovery-status`, `/recover` |  |
+| `events.read` | `PublicExperimental` | Event | Running |  |  | RUNTIME_VALIDATED | `events read`, `events watch` | Beta 4: события плагина передаются через нумерованное кольцо; читатель, который отстаёт, получает telemetry.lost с количеством. |
+| `runtime.current-windows-x64` | `PublicStableBeta` | Read | no |  |  | RUNTIME_VALIDATED |  |  |
+| `transaction.exact-restore` | `PublicStableBeta` | Action | no |  |  | RUNTIME_VALIDATED |  |  |
+| `omsi.omsi2` | `PublicStableBeta` | Read | no |  |  | RUNTIME_VALIDATED | `profiles` | Beta 4, раунд A: известная раскладка. |
+| `boot.headless-start` | `PublicStableBeta` | Action | no |  | `boot.headless-start` | RUNTIME_VALIDATED |  |  |
+| `world.new-map` | `PublicStableBeta` | Action | no |  | `world.new-map` | RUNTIME_VALIDATED | `/new /map:<identity> /entrypoint-index:<n>` |  |
+| `world.presented-entrypoint` | `PublicStableBeta` | Action | no |  | `world.new-map` | RUNTIME_VALIDATED | `/entrypoint-index:<n>` |  |
+| `world.entrypoint-identity` | `PublicExperimental` | Action | no |  | `world.new-map` | RUNTIME_VALIDATION_REQUIRED | `/entrypoint:<identity>` | Beta 4 (BI-001): OMSI показывает первую запись для каждой точной метки; при запуске она выбирается по этой метке. Закрыто статически; проверка в runtime ожидается. |
+| `world.saved-situation` | `PublicStableBeta` | Action | no |  | `world.saved-situation` | RUNTIME_VALIDATED | `/saved:<situation.osn>` |  |
+| `world.last-map-state` | `PublicExperimental` | Action | no |  | `world.last-map-state` | RUNTIME_VALIDATION_REQUIRED | `/last /map:<identity>` | Beta 4: нативная ветка закрыта статически (BI-006); проверка в runtime ожидается. Никогда не эвристика «самый новый .osn». |
+| `world.explicit-date` | `PublicExperimental` | Action | no |  | `world.start-date-time` | RUNTIME_VALIDATION_REQUIRED | `/date:<yyyy-mm-dd>` | Beta 4: записывается в стартовые часы OMSI перед NewSituation (статический анализ); проверка в runtime ожидается. |
+| `world.explicit-time` | `PublicExperimental` | Action | no |  | `world.start-date-time` | RUNTIME_VALIDATION_REQUIRED | `/time:<hh:mm>` | Beta 4: записывается в стартовые часы OMSI перед NewSituation (статический анализ); проверка в runtime ожидается. |
+| `world.explicit-year` | `PublicExperimental` | Action | no |  | `world.start-date-time` | RUNTIME_VALIDATION_REQUIRED | `/year:<n>` | Beta 4: записывается в стартовые часы OMSI перед NewSituation (статический анализ); проверка в runtime ожидается. |
+| `world.weather` | `PublicExperimental` | Action | no |  | `world.start-weather` | RUNTIME_VALIDATION_REQUIRED | `/weather:<preset>`, `/weather-icao:<code>`, `/weather-real` | Beta 4 (BI-003): применяется сразу после запуска мира через собственный loadWeather OMSI или её флаги METAR; переопределяет погоду сохранённой ситуации. Закрыто статически; проверка в runtime ожидается. |
+| `player-vehicle.model` | `Unsupported` | Action | no |  |  | UNAVAILABLE | `/vehicle:<identity>` | BI-007; разрешается для диагностики, но не применяется. |
+| `player-vehicle.repaint` | `Unsupported` | Action | no |  |  | UNAVAILABLE | `/repaint:<id>` | BI-007. |
+| `player-vehicle.hof` | `Unsupported` | Action | no |  |  | UNAVAILABLE | `/hof:<id>` | BI-007. |
+| `player-vehicle.fleet-number` | `Unsupported` | Action | no |  |  | UNAVAILABLE | `/fleet:<n>` | BI-007. |
+| `player-vehicle.registration` | `Unsupported` | Action | no |  |  | UNAVAILABLE | `/registration:<r>` | BI-007. |
+| `player.read` | `PublicStableBeta` | Read | Running | `player-vehicle.read` | `player.read` | RUNTIME_VALIDATED | `player get` | present=false при headless-запуске; полный снимок с сохранённой ситуацией. |
+| `player.assign-headless` | `Unsupported` | Action | Running |  |  | UNAVAILABLE |  | BI-007: нативная последовательность назначения закрыта статически (research/reports/beta4-static/entrypoint-last-player-vehicle.md, раздел 3), но не реализована до проверки в runtime; запланирована на одну из следующих бета-версий. |
+| `configuration.options.semantic` | `PublicStableBeta` | Write | no |  |  | RUNTIME_VALIDATED | `/set:<key>=<value>` | RV-005. |
+| `input.keyboard` | `PublicExperimental` | Write | no |  |  | STATICALLY_VALIDATED |  | Beta 4: транзакционный overlay, проверено офлайн. |
+| `input.controller` | `PublicExperimental` | Write | no |  |  | STATICALLY_VALIDATED |  | Beta 4: транзакционный overlay, проверено офлайн. |
+| `presentation.splash` | `PublicStableBeta` | Write | no |  |  | RUNTIME_VALIDATED | `/splash:Managed`, `/splash:Unset` |  |
+| `internet-textures.disabled` | `PublicExperimental` | Action | no |  | `internet-textures.disabled` | RUNTIME_VALIDATED | `/internet-textures:Disabled` | Beta 4, раунд B: подавление применяется и сообщается (internet-textures.suppressed) через кольцо телеметрии. |
+| `internet-textures.override` | `PublicExperimental` | Write | no |  |  | RUNTIME_VALIDATED | `/internet-textures:Override` | Runtime closure I01. |
+| `session-profiles` | `PublicStableBeta` | Action | no |  |  | RUNTIME_VALIDATED | `/predefined-profile:<id> /predefined-profile-index:<n> /new`, `/list:SessionProfiles` | RA-009, запуск профиля; 1..99 и обнаружение проверены офлайн. |
+| `hof.management` | `PublicStableBeta` | Write | no |  |  | RUNTIME_VALIDATED | `/hof-source:collection:<name> /hof-target:<vehicle>` | Beta 4, раунд A, C01, C02. |
+| `hof.read` | `PublicStableBeta` | Read | Running | `vehicle.hofs.read` (paged) | `hof.read` | RUNTIME_VALIDATED | `hof get` |  |
+| `content.discovery` | `PublicStableBeta` | Read | no |  |  | RUNTIME_VALIDATED | `/list:<category>` |  |
+| `content.map` | `PublicStableBeta` | Read | no |  |  | RUNTIME_VALIDATED |  |  |
+| `content.situation` | `PublicStableBeta` | Read | no |  |  | RUNTIME_VALIDATED |  |  |
+| `content.situation-map` | `PublicStableBeta` | Read | no |  |  | RUNTIME_VALIDATED |  |  |
+| `content.vehicle` | `PublicStableBeta` | Read | no |  |  | STATICALLY_VALIDATED |  |  |
+| `content.repaint` | `PublicStableBeta` | Read | no |  |  | STATICALLY_VALIDATED |  |  |
+| `content.hof` | `PublicStableBeta` | Read | no |  |  | STATICALLY_VALIDATED |  |  |
+| `time.read` | `PublicStableBeta` | Read | Running | `time.read` | `time.read` | RUNTIME_VALIDATED | `time get` |  |
+| `time.set` | `PublicExperimental` | Write | Running | `time.set` (omsi-state) | `time.set` | RUNTIME_VALIDATED | `time set` |  |
+| `calendar.set-actual-date-time` | `Unsupported` | Write | Running |  |  | UNAVAILABLE |  | BI-002 закрыто статически: SetActualDateTime лишь копирует часы ПК в стартовые часы; даты запуска используют world.explicit-date. Заменено: нативный ABI и постусловия не закрыты. |
+| `weather.read` | `PublicStableBeta` | Read | Running | `weather.read` | `weather.read` | RUNTIME_VALIDATED | `weather get` |  |
+| `weather.set` | `PublicExperimental` | Write | Running | `weather.set` (omsi-state), `weather.metar.set` (omsi-state) | `weather.set`, `weather.metar.set` | RUNTIME_VALIDATION_REQUIRED | `weather set` | Beta 4: записывает actWeather (Weather+0x08) — запись, из которой OMSI выводит значения на такте погоды; закрыто статически. Производные значения (влажность, коэффициенты освещённости, фактический ветер) остаются только для чтения (OL_E_RUNTIME_SETTING_NOT_PERSISTENT). Проверка в runtime ожидается. |
+| `weather.actual.read` | `PublicExperimental` | Read | Running | `weather.actual.read` | `weather.actual.read` | RUNTIME_VALIDATED | `weather actual get` |  |
+| `map.read` | `PublicStableBeta` | Read | Running | `map.read`, `map.tiles.list` (paged) | `map.read` | RUNTIME_VALIDATED | `map get` |  |
+| `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
+| `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
+| `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | Требуется PlayerVehicle (его даёт сохранённая ситуация); при headless NEW_MAP — OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE. |
+| `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` (paged) | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
+| `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | Для обнаружения устаревшего handle после естественного удаления (RV-002) нет безопасного способа воспроизвести в runtime; проверено офлайн-тестами. |
+| `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
+| `vehicles.spawn` | `PublicExperimental` | Action | Running | `road-vehicles.spawn` (omsi-state) | `vehicles.spawn` | RUNTIME_VALIDATED | `vehicles spawn --model=<Vehicles\...\*.bus>` |  |
+| `vehicles.place-random` | `PublicExperimental` | Action | Running | `road-vehicles.place-random` (omsi-state) | `vehicles.place-random` | RUNTIME_VALIDATED | `vehicles place-random` |  |
+| `internal.make-basic` | `InternalOnly` | Action | Running |  |  | RUNTIME_VALIDATED |  |  |
+| `humans.list` | `PublicExperimental` | Read | Running | `humans.list` (paged) | `humans.list` | RUNTIME_VALIDATED | `humans list` |  |
+| `humans.get` | `PublicExperimental` | Read | Running | `human.read` | `humans.get` | RUNTIME_VALIDATED | `humans get` |  |
+| `humans.summary` | `PublicExperimental` | Read | Running | `humans.read` | `humans.summary` | RUNTIME_VALIDATED | `humans summary` |  |
+| `timetable.read` | `PublicStableBeta` | Read | Running | `timetable.read`, `timetable.tracks.list` (paged), `timetable.trips.list` (paged), `timetable.lines.list` (paged), `timetable.rv-files.list` (paged), `timetable.track-entries.list` (paged), `timetable.bus-stops.list` (paged), `timetable.station-links.list` (paged), `timetable.tours.list` (paged), `timetable.profiles.list` (paged), `timetable.tour-entries.list` (paged), `timetable.logs.read` (paged), `timetable.no-rv-numbers.list` (paged) | `timetable.read` | RUNTIME_VALIDATED | `timetable get` |  |
+| `scripts.numeric` | `PublicExperimental` | Write | Running | `vehicle.variables.list` (paged), `vehicle.variable.get`, `vehicle.variable.set` (omsi-state) | `scripts.numeric` | RUNTIME_VALIDATED | `scripts variable list`, `scripts variable get`, `scripts variable set` |  |
+| `scripts.string.read` | `PublicExperimental` | Read | Running | `vehicle.string-variables.list` (paged), `vehicle.string-variable.get` | `scripts.string.read` | RUNTIME_VALIDATED | `scripts string list`, `scripts string get` | Запись: scripts.string.write. |
+| `scripts.string.write` | `PublicExperimental` | Write | Running | `vehicle.string-variable.set` (omsi-state) | `scripts.string.write` | RUNTIME_VALIDATION_REQUIRED | `scripts string set` | Beta 4 (BI-004): OMSI копирует строку в форме константы; закрыто статически. Проверка в runtime ожидается. |
+| `scripts.trigger` | `PublicExperimental` | Action | Running | `vehicle.trigger` (omsi-state), `vehicle.sound-trigger` (omsi-state) | `scripts.trigger` | RUNTIME_VALIDATION_REQUIRED | `scripts trigger`, `scripts sound-trigger` | Beta 4 (BI-004): виртуальные TriggerXML/SoundTrigger через профилированные слоты VMT; закрыто статически. Проверка в runtime ожидается. |
+| `constants` | `PublicStableBeta` | Read | Running | `vehicle.constants.list` (paged), `vehicle.constant.get` | `constants` | RUNTIME_VALIDATED | `constants list`, `constants get` |  |
+| `curves` | `PublicStableBeta` | Read | Running | `vehicle.curves.list` (paged), `vehicle.curve.evaluate` | `curves` | RUNTIME_VALIDATED | `curves list`, `curves evaluate` |  |
+| `drivers.read` | `PublicExperimental` | Read | Running | `drivers.read` (paged) | `drivers.read` | RUNTIME_VALIDATED | `drivers list` |  |
+| `tickets.read` | `PublicExperimental` | Read | Running | `tickets.read` (paged) | `tickets.read` | RUNTIME_VALIDATED | `tickets get` |  |
+| `d3d.texture` | `PublicExperimental` | Action | Running | `d3d.status`, `d3d.texture.create` (session-resource), `d3d.texture.describe`, `d3d.texture.update` (session-resource), `d3d.texture.release` (session-resource) | `d3d.texture` | RUNTIME_VALIDATED | `/runtime:d3d.status`, `/runtime:d3d.texture.create`, `/runtime:d3d.texture.describe`, `/runtime:d3d.texture.update`, `/runtime:d3d.texture.release` | Сброс устройства (Device Reset) наблюдался (resetting, restored, инвалидация поколения); отдельный переход lost не воспроизведён (RV-007). |
+<!-- generated:capability-catalog:end -->
+
+`internal.make-basic` имеет классификацию `InternalOnly`: она существует в плагине для исследований (возвращает нативный адрес) и отклоняется на границе API и локальной плоскостью управления, которые сначала проверяют имя операции по `PublicRuntimeOperationIds`; у CLI для неё нет маршрута. `session.stop` принудительно завершает OMSI; кооперативное завершение не реализовано.
+
+<a id="pagination"></a>
+## Постраничный вывод
+
+Каждая операция со списком (в [каталоге возможностей](#capability-catalog) помечена как "(paged)") принимает два необязательных аргумента и отвечает четырьмя полями страницы:
+
+| Аргумент | Значение |
+| --- | --- |
+| `cursor` | С чего начинается страница: `next_cursor` предыдущей страницы. Опущен: первая страница. Курсор из другого списка или с неверным форматом — `OL_E_RUNTIME_CURSOR_INVALID`. |
+| `limit` | Сколько строк нужно (положительное целое). Больше максимальной страницы списка: используется максимум. Не положительное целое: `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`. |
+
+| Ключ результата | Значение |
+| --- | --- |
+| `count` | Все записи, которые хранит OMSI. |
+| `returned_count` | Строки в этом ответе. |
+| `truncated` | `true`, если после этой страницы есть ещё записи. |
+| `next_cursor` | Присутствует, только если есть ещё записи: передайте его как `cursor` для следующей страницы. |
+
+Курсор — это устойчивый ключ, а не позиция. Для массивов записей (расписание, имена скриптов, константы, кривые, HOF, водители, билеты, логи) строки получают ключи `<row>.<n>.<field>` (или `name.<n>`) по абсолютному индексу записи, а курсор называет следующий индекс, так что первая страница совпадает с ответом Beta 3. Для коллекций handle (`road-vehicles.list`, `humans.list`) строки возвращаются в порядке handle, а курсор называет последний возвращённый handle: объект, появившийся между двумя страницами, получает более поздний handle и попадает на более позднюю страницу; повторов нет. Значения курсора следует считать непрозрачными.
+
+Максимальные размеры страниц: 1000 для `road-vehicles.list` и `humans.list`; 512 для `timetable.track-entries.list`, `vehicle.variables.list`, `vehicle.string-variables.list`, `vehicle.constants.list` и `vehicle.curves.list`; 256 для `timetable.tour-entries.list`, `timetable.logs.read` и `vehicle.hofs.read`; 128 для остальных списков расписания, `drivers.read` и `tickets.read`. Если строки страницы всё равно превышают почтовый ящик 64 KiB, плагин отбрасывает последние строки, пока ответ не уместится, и `next_cursor` продолжается с первой отброшенной строки, поэтому ни один список не завершается ошибкой из-за размера.
 
 <a id="public-runtime-operations"></a>
 ## Публичные runtime-операции
@@ -101,8 +174,9 @@
 
 | Операция | Вид | Аргументы | Ключи результата | Ошибки |
 | --- | --- | --- | --- | --- |
-| `weather.read` | Read | нет | `fog_density`, `lightness`, `primary_light_factor`, `secondary_light_factor`, `ambient_light_factor`, `cloud_type`, `cloud_transparency`, `precipitation_set`, `wet_ground`, `wind_speed`, `wind_direction`, `relative_humidity`, `absolute_humidity`, `temperature`, `dew_point`, `pressure`, `precipitation`, `precipitation_rate` | |
-| `weather.set` | Write | любые | нет | Всегда `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` (при пустых аргументах: `OL_E_RUNTIME_ARGUMENT_REQUIRED`). OMSI перезаписывает оба профилированных кандидата для ветра на следующем такте обновления погоды. |
+| `weather.read` | Read | нет | `fog_density`, `lightness`, `primary_light_factor`, `secondary_light_factor`, `ambient_light_factor`, `cloud_type`, `cloud_transparency`, `precipitation_set`, `wet_ground`, `wind_speed`, `wind_direction`, `relative_humidity`, `absolute_humidity`, `temperature`, `dew_point`, `pressure`, `precipitation`, `precipitation_rate`, а также исходные значения `set.fog_density`, `set.lightness`, `cloud_type_name`, `cloud_height`, `ground_moisture`, `ground_moisture_cover`, `ground_wetness`, `snow`, `snow_on_roads`. `fog_density`, `lightness`, `wind_speed`, `wind_direction`, коэффициенты освещённости и влажности — это значения OMSI на каждом такте; `cloud_type` — определённый номер типа облаков | |
+| `weather.set` | Write | хотя бы один из `fog_density`, `lightness`, `wind_speed`, `wind_direction`, `temperature`, `dew_point`, `pressure`, `precipitation`, `precipitation_rate`, `cloud_type`, `cloud_height`, `ground_moisture`, `ground_moisture_cover`, `ground_wetness`, `snow`, `snow_on_roads`. Диапазоны: туман 0..100000, `lightness` и значения земли 0..1, скорость ветра 0..200, направление ветра 0..360, температура и точка росы -60..60, давление 850..1100, осадки 0..2, интенсивность 0..255, высота облаков 0..20000, `cloud_type` — 1..64 символа кодовой страницы 1252 (`-1` = нет облаков), булевы значения `true`/`false`/`1`/`0` | ключи `weather.read`; при `cloud_type` также `cloud_type_resolved` (`false`, если OMSI не знает тип облаков: она их не рисует) | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_RUNTIME_SETTING_NOT_PERSISTENT` (производный ключ: `relative_humidity`, `absolute_humidity`, коэффициенты освещённости, `cloud_transparency`, `precipitation_set`, `wet_ground`; `detail` называет ключ, который следует задать), `OL_E_RUNTIME_SETTING_UNAVAILABLE` (неизвестный ключ), `OL_E_CAPABILITY_UNRESOLVED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE` |
+| `weather.metar.set` | Write | `icao` (4 буквы или цифры) | ключи `weather.actual.read` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_CAPABILITY_UNRESOLVED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE` |
 | `weather.actual.read` | Read | нет | `active`, `icao`, `last_downloaded`, `invalid_icao`, `counter`, `process` | |
 
 <a id="map"></a>
@@ -128,7 +202,7 @@
 | Операция | Вид | Аргументы | Ключи результата | Ошибки |
 | --- | --- | --- | --- | --- |
 | `road-vehicles.read` | Read | нет | `count`, `ai_collection`, `player_index` (сырой индекс транспортного средства игрока в OMSI, передаётся в том виде, в каком прочитан; чтобы узнать, существует ли ТС игрока, используйте `present` из `player-vehicle.read`) | |
-| `road-vehicles.list` | Read | нет | `count`, `vehicle.<n>.handle` (`rv-NNNNNN`) | |
+| `road-vehicles.list` | Read | необязательные `cursor`, `limit` | поля страницы; `vehicle.<n>.handle` (`rv-NNNNNN`; `<n>` — позиция в списке OMSI) | `OL_E_RUNTIME_CURSOR_INVALID` |
 | `road-vehicle.read` | Read | обязательный `handle` | `handle`, `runtime_index`, `tile`, `marked_for_killing`, `traffic_type`, `position_x`, `position_y`, `position_z`, `rotation_x`, `rotation_y`, `rotation_z`, `rotation_w`, `steering`, `tacho`, `ground_speed`, `kilometres`, `throttle`, `brake`, `clutch`, `ai_enabled`, `ai_mode`, `ai_light`, `ai_interior_light`, `ai_indicator_left`, `ai_indicator_right`, `ai_brake_light` | `OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE` |
 | `player-vehicle.read` | Read | нет | `present` (`false`, когда у OMSI нет транспортного средства игрока); при `true`: `player_index` плюс все ключи `road-vehicle.read` | |
 | `road-vehicles.spawn` | Action | обязательный `model` (канонический путь `Vehicles\...\*.bus`, не более 240 символов, без `..`, должен существовать внутри установки) | `bus`, `created_handle`, `before_count`, `after_count`, `delta_count`, `raw_native_return`, `identity_validation` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_BUS_IDENTITY_INVALID`, `OL_E_MAKEVEHICLE_BUS_NOT_FOUND`, `OL_E_MAKEVEHICLE_DELTA_ZERO`, `OL_E_MAKEVEHICLE_DELTA_MULTIPLE`, `OL_E_MAKEVEHICLE_NATIVE_FAILED`, `OL_E_RUNTIME_CREATED_OBJECT_INVALID`, `OL_E_RUNTIME_CREATED_OBJECT_NOT_IN_COLLECTION`. Не назначает PlayerVehicle. Занимает несколько секунд; используйте клиентский тайм-аут 30 s. |
@@ -140,46 +214,51 @@
 | Операция | Вид | Аргументы | Ключи результата | Ошибки |
 | --- | --- | --- | --- | --- |
 | `humans.read` | Read | нет | `count` | |
-| `humans.list` | Read | нет | `count`, `human.<n>.handle` (`hb-NNNNNN`) | |
+| `humans.list` | Read | необязательные `cursor`, `limit` | поля страницы; `human.<n>.handle` (`hb-NNNNNN`; `<n>` — позиция в списке OMSI) | `OL_E_RUNTIME_CURSOR_INVALID` |
 | `human.read` | Read | обязательный `handle` | `handle`, `runtime_index`, `human_index`, `tile`, `marked_for_killing`, `collision_type`, `position_x`, `position_y`, `position_z`, `target_x`, `target_y`, `target_z`, `target_station`, `pre_target_station`, `departure`, `enter_bus_at`, `seat_bus`, `seat_station`, `ticket_type`, `ticket_index`, `ticket_ready`, `state`, `speed`, `bus_index`, `station`, `ai_mode`, `ai_mode_ex`, `ai_sub_mode`, `collision_state` | `OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE` |
 
 <a id="timetable-drivers-tickets"></a>
 ### Расписание, водители, билеты
 
-Результаты ограниченных списков содержат `count` (все записи в OMSI), `returned_count` (строки в этом ответе) и `truncated` (`true`, когда часть строк не вошла в ответ). Строки — это всегда первые `returned_count` записей, пронумерованные с `0`. Лимиты строк: 128 для tracks, trips, lines, rv-files, bus stops, station links, tours и profiles, 256 для tour entries и 512 для track entries. Если строки, допускаемые этим лимитом, всё равно превышают почтовый ящик размером 64 KiB (например, записи маршрута и записи рейса на Berlin-Spandau), плагин отбрасывает последние строки, пока ответ не поместится, и сообщает меньшее значение `returned_count` с `truncated=true` (аудит документации BUG-05; до исправления эти два списка завершались ошибкой `OL_E_RUNTIME_RESPONSE_TOO_LARGE`). `timetable.logs.read` не является ограниченным списком: операция возвращает все записи лога, и лог из нескольких сотен записей превышает почтовый ящик и завершается ошибкой `OL_E_RUNTIME_RESPONSE_TOO_LARGE`.
+Списки расписания, `drivers.read` и `tickets.read` выдаются постранично (см. [постраничный вывод](#pagination)); «поля страницы» ниже означает `count`, `returned_count`, `truncated` и `next_cursor`, и каждый список принимает необязательные `cursor` и `limit`.
 
 | Операция | Вид | Аргументы | Ключи результата | Ошибки |
 | --- | --- | --- | --- | --- |
 | `timetable.read` | Read | нет | `invalid` (`true`/`false`) и счётчики записей `tracks`, `trips`, `bus_stops`, `station_links`, `lines`, `rv_files` | |
-| `timetable.tracks.list` | Read | нет | `count`, `returned_count`, `truncated`; `track.<n>.filename`, `track.<n>.path`, `track.<n>.entries`, `track.<n>.length` | |
-| `timetable.trips.list` | Read | нет | `count`, `returned_count`, `truncated`; `trip.<n>.filename`, `trip.<n>.chrono_origin`, `trip.<n>.target`, `trip.<n>.line`, `trip.<n>.track_index`, `trip.<n>.track_name`, `trip.<n>.bus_stops`, `trip.<n>.profiles`, `trip.<n>.train_reverse`, `trip.<n>.invalid` | |
-| `timetable.lines.list` | Read | нет | `count`, `returned_count`, `truncated`; `line.<n>.name`, `line.<n>.chrono_origin`, `line.<n>.priority`, `line.<n>.tours`, `line.<n>.user_allowed` | |
-| `timetable.rv-files.list` | Read | нет | `count`, `returned_count`, `truncated`; `rv_file.<n>.line`, `rv_file.<n>.number_tours`, `rv_file.<n>.start_date_rel_2000`, `rv_file.<n>.end_date_rel_2000`, `rv_file.<n>.type_line_files`, `rv_file.<n>.type_line_probability`, `rv_file.<n>.type_tours` | |
-| `timetable.track-entries.list` | Read | нет | `count`, `returned_count`, `truncated`; `track_entry.<n>.track_index`, `track_entry.<n>.id`, `track_entry.<n>.path_index_on_object`, `track_entry.<n>.path_tile`, `track_entry.<n>.path_index`, `track_entry.<n>.relative_distance`, `track_entry.<n>.distance`, `track_entry.<n>.valid`, `track_entry.<n>.path_order_check`, `track_entry.<n>.allowed_fstrn`, `track_entry.<n>.chrono_origin`, `track_entry.<n>.bad_chronos` | |
-| `timetable.bus-stops.list` | Read | нет | `count`, `returned_count`, `truncated`; `bus_stop.<n>.name`, `bus_stop.<n>.supplement`, `bus_stop.<n>.tile`, `bus_stop.<n>.id`, `bus_stop.<n>.parent_id`, `bus_stop.<n>.preset_alighting`, `bus_stop.<n>.index`, `bus_stop.<n>.starting_links`, `bus_stop.<n>.ending_links`, `bus_stop.<n>.chrono_origin` | |
-| `timetable.station-links.list` | Read | нет | `count`, `returned_count`, `truncated`; `station_link.<n>.length`, `station_link.<n>.start_bus_stop_id`, `station_link.<n>.end_bus_stop_id`, `station_link.<n>.start_bus_stop`, `station_link.<n>.end_bus_stop`, `station_link.<n>.chrono_origin`, `station_link.<n>.valid`, `station_link.<n>.visible`, `station_link.<n>.track_entries`, `station_link.<n>.start_track_entry`, `station_link.<n>.end_track_entry` | |
-| `timetable.tours.list` | Read | нет | `count`, `returned_count`, `truncated`; `tour.<n>.line_index`, `tour.<n>.name`, `tour.<n>.ai_group`, `tour.<n>.ai_group_index`, `tour.<n>.ai_type`, `tour.<n>.completed_day`, `tour.<n>.entries`, `tour.<n>.has_normal_vehicle`, `tour.<n>.invalid`, `tour.<n>.vehicle_indices`, `tour.<n>.vehicle_reservations` | |
-| `timetable.profiles.list` | Read | нет | `count`, `returned_count`, `truncated`; `profile.<n>.trip_index`, `profile.<n>.name`, `profile.<n>.service_trip`, `profile.<n>.stop_times`, `profile.<n>.total_time`, `profile.<n>.track_entry_times` | |
-| `timetable.tour-entries.list` | Read | нет | `count`, `returned_count`, `truncated`; `tour_entry.<n>.line_index`, `tour_entry.<n>.tour_index`, `tour_entry.<n>.trip`, `tour_entry.<n>.trip_index`, `tour_entry.<n>.profile_index`, `tour_entry.<n>.start_time`, `tour_entry.<n>.end_time`, `tour_entry.<n>.smooth_transition` | |
-| `timetable.logs.read` | Read | нет | `count`; `log.<n>.bus_stop`, `log.<n>.estimated_arrival`, `log.<n>.estimated_departure`, `log.<n>.actual_arrival`, `log.<n>.actual_departure`, `log.<n>.arrival_ok`, `log.<n>.departure_ok` (все записи; не ограничен) | `OL_E_RUNTIME_RESPONSE_TOO_LARGE` для длинного лога |
-| `drivers.read` | Read | нет | `count`, `selected_index`; `driver.<n>.filename`, `driver.<n>.name`, `driver.<n>.gender`, `driver.<n>.bus_stops`, `driver.<n>.crashes`, `driver.<n>.passengers`, `driver.<n>.tickets`, `driver.<n>.cash` | |
-| `tickets.read` | Read | нет | `filename`, `voice_path`, `stamper_factor`, `buy_factor`, `chattiness`, `whinge_factor`, `count`; `ticket.<n>.name`, `ticket.<n>.display_name`, `ticket.<n>.value`, `ticket.<n>.maximum_stations`, `ticket.<n>.day_ticket` | |
+| `timetable.tracks.list` | Read | необязательные `cursor`, `limit` | поля страницы; `track.<n>.filename`, `track.<n>.path`, `track.<n>.entries`, `track.<n>.length` | |
+| `timetable.trips.list` | Read | необязательные `cursor`, `limit` | поля страницы; `trip.<n>.filename`, `trip.<n>.chrono_origin`, `trip.<n>.target`, `trip.<n>.line`, `trip.<n>.track_index`, `trip.<n>.track_name`, `trip.<n>.bus_stops`, `trip.<n>.profiles`, `trip.<n>.train_reverse`, `trip.<n>.invalid` | |
+| `timetable.lines.list` | Read | необязательные `cursor`, `limit` | поля страницы; `line.<n>.name`, `line.<n>.chrono_origin`, `line.<n>.priority`, `line.<n>.tours`, `line.<n>.user_allowed` | |
+| `timetable.rv-files.list` | Read | необязательные `cursor`, `limit` | поля страницы; `rv_file.<n>.line`, `rv_file.<n>.number_tours`, `rv_file.<n>.start_date_rel_2000`, `rv_file.<n>.end_date_rel_2000`, `rv_file.<n>.type_line_files`, `rv_file.<n>.type_line_probability`, `rv_file.<n>.type_tours` | |
+| `timetable.track-entries.list` | Read | необязательные `cursor`, `limit` | поля страницы; `track_entry.<n>.track_index`, `track_entry.<n>.id`, `track_entry.<n>.path_index_on_object`, `track_entry.<n>.path_tile`, `track_entry.<n>.path_index`, `track_entry.<n>.relative_distance`, `track_entry.<n>.distance`, `track_entry.<n>.valid`, `track_entry.<n>.path_order_check`, `track_entry.<n>.allowed_fstrn`, `track_entry.<n>.chrono_origin`, `track_entry.<n>.bad_chronos` | |
+| `timetable.bus-stops.list` | Read | необязательные `cursor`, `limit` | поля страницы; `bus_stop.<n>.name`, `bus_stop.<n>.supplement`, `bus_stop.<n>.tile`, `bus_stop.<n>.id`, `bus_stop.<n>.parent_id`, `bus_stop.<n>.preset_alighting`, `bus_stop.<n>.index`, `bus_stop.<n>.starting_links`, `bus_stop.<n>.ending_links`, `bus_stop.<n>.chrono_origin` | |
+| `timetable.station-links.list` | Read | необязательные `cursor`, `limit` | поля страницы; `station_link.<n>.length`, `station_link.<n>.start_bus_stop_id`, `station_link.<n>.end_bus_stop_id`, `station_link.<n>.start_bus_stop`, `station_link.<n>.end_bus_stop`, `station_link.<n>.chrono_origin`, `station_link.<n>.valid`, `station_link.<n>.visible`, `station_link.<n>.track_entries`, `station_link.<n>.start_track_entry`, `station_link.<n>.end_track_entry` | |
+| `timetable.tours.list` | Read | необязательные `cursor`, `limit` | поля страницы; `tour.<n>.line_index`, `tour.<n>.name`, `tour.<n>.ai_group`, `tour.<n>.ai_group_index`, `tour.<n>.ai_type`, `tour.<n>.completed_day`, `tour.<n>.entries`, `tour.<n>.has_normal_vehicle`, `tour.<n>.invalid`, `tour.<n>.vehicle_indices`, `tour.<n>.vehicle_reservations` | |
+| `timetable.profiles.list` | Read | необязательные `cursor`, `limit` | поля страницы; `profile.<n>.trip_index`, `profile.<n>.name`, `profile.<n>.service_trip`, `profile.<n>.stop_times`, `profile.<n>.total_time`, `profile.<n>.track_entry_times` | |
+| `timetable.tour-entries.list` | Read | необязательные `cursor`, `limit` | поля страницы; `tour_entry.<n>.line_index`, `tour_entry.<n>.tour_index`, `tour_entry.<n>.trip`, `tour_entry.<n>.trip_index`, `tour_entry.<n>.profile_index`, `tour_entry.<n>.start_time`, `tour_entry.<n>.end_time`, `tour_entry.<n>.smooth_transition` | |
+| `timetable.logs.read` | Read | необязательные `cursor`, `limit` | поля страницы; `log.<n>.bus_stop`, `log.<n>.estimated_arrival`, `log.<n>.estimated_departure`, `log.<n>.actual_arrival`, `log.<n>.actual_departure`, `log.<n>.arrival_ok`, `log.<n>.departure_ok` | |
+| `timetable.no-rv-numbers.list` | Read | необязательные `cursor`, `limit` | поля страницы; `no_rv.<n>.group`, `no_rv.<n>.number`: номера ТС, которые OMSI не отдаёт свободному ИИ (собственный список строк зарезервированных номеров OMSI, читаемый через её собственную раскладку; `OL_E_RUNTIME_VALUE_INVALID`, если список имеет неожиданную форму). Не более 256 на страницу. Статический анализ; проверка в runtime ожидается. |
+| `map.tiles.list` | Read | необязательные `cursor`, `limit` | поля страницы; `tile.<n>.x`, `tile.<n>.y` (позиция в сетке), `tile.<n>.tile_index` (собственный индекс тайла в списке тайлов карты), `tile.<n>.filename`, `tile.<n>.version`, `tile.<n>.unsaved`, `tile.<n>.loaded`, `tile.<n>.load_requested`, `tile.<n>.failed`, `tile.<n>.thread_loading`, `tile.<n>.prepared_for_ode`, `tile.<n>.width_south`, `tile.<n>.width_north`, `tile.<n>.objects`, `tile.<n>.path_groups`, `tile.<n>.path_segments`, `tile.<n>.surface_objects`, `tile.<n>.spline_segments`; `tile.<n>.state` = `unavailable` с `tile.<n>.error` для тайла, который не удаётся прочитать. Не более 256 на страницу. Позиция и индекс получены статическим анализом; проверка в runtime ожидается. |
+| `drivers.read` | Read | необязательные `cursor`, `limit` | `count`, `selected_index`; `driver.<n>.filename`, `driver.<n>.name`, `driver.<n>.gender`, `driver.<n>.bus_stops`, `driver.<n>.crashes`, `driver.<n>.passengers`, `driver.<n>.tickets`, `driver.<n>.cash` | |
+| `tickets.read` | Read | необязательные `cursor`, `limit` | `filename`, `voice_path`, `stamper_factor`, `buy_factor`, `chattiness`, `whinge_factor`, `count`; `ticket.<n>.name`, `ticket.<n>.display_name`, `ticket.<n>.value`, `ticket.<n>.maximum_stations`, `ticket.<n>.day_ticket` | |
 
 <a id="vehicle-scripts-constants-curves-hof-handle-scoped"></a>
 ### Скрипты, константы, кривые и HOF транспортного средства (в рамках handle)
 
 | Операция | Вид | Аргументы | Ключи результата | Ошибки |
 | --- | --- | --- | --- | --- |
-| `vehicle.variables.list` | Read | обязательный `handle` | `handle`, `count`, `returned_count`, `truncated` (лимит 512), `name.<n>` | `OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` |
+| `vehicle.variables.list` | Read | обязательный `handle`; необязательные `cursor`, `limit` | `handle`, поля страницы, `name.<n>` | `OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` |
 | `vehicle.variable.get` | Read | обязательные `handle`, `name` | `handle`, `name`, `value` | `OL_E_RUNTIME_VARIABLE_NOT_FOUND`, `OL_E_RUNTIME_VARIABLE_UNAVAILABLE` |
 | `vehicle.variable.set` | Write | обязательные `handle`, `name`, `value` (конечное число с плавающей точкой) | `handle`, `name`, `requested_value`, `value` (обратное чтение) | `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_RUNTIME_VARIABLE_NOT_FOUND` |
-| `vehicle.string-variables.list` | Read | обязательный `handle` | `handle`, `count`, `returned_count`, `truncated` (лимит 512), `name.<n>` | `OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` |
+| `vehicle.string-variables.list` | Read | обязательный `handle`; необязательные `cursor`, `limit` | `handle`, поля страницы, `name.<n>` | `OL_E_RUNTIME_OBJECT_HANDLE_REQUIRED`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` |
 | `vehicle.string-variable.get` | Read | обязательные `handle`, `name` | `handle`, `name`, `value` | `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` |
-| `vehicle.constants.list` | Read | обязательный `handle` | `handle`, `count`, `name.<n>` | `OL_E_RUNTIME_CONSTANTS_UNAVAILABLE` |
+| `vehicle.string-variable.set` | Write | обязательные `handle`, `name` (с учётом регистра, как объявляет скрипт, до 128 символов), `value` (1..1024 символа) | `handle`, `name`, `value`, прочитанное обратно после записи | `OL_E_RUNTIME_STRING_VARIABLE_NOT_FOUND` (сама OMSI молча проигнорировала бы неизвестное имя), `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_CAPABILITY_UNRESOLVED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE` |
+| `vehicle.trigger` | Action | обязательные `handle`, `name` (кодовая страница 1252, до 128 символов), `value` (`1` запускает `name`, `0` запускает `name_off`, `2` запускает `name_drag`) | `handle`, `name`, `value`, `dispatched` | `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_CAPABILITY_UNRESOLVED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`. Точка входа скрипта выполняется синхронно; имя, которое скрипт не определяет, ничего не делает. За нажатием обычно следует отпускание |
+| `vehicle.sound-trigger` | Action | обязательные `handle`, `trigger` (кодовая страница 1252, до 128 символов); необязательный `file` (до 260 символов) | `handle`, `trigger`, `file`, `dispatched` | `OL_E_RUNTIME_SCRIPT_OBJECT_UNAVAILABLE` (также: у ТС нет пакета звуков), `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, `OL_E_CAPABILITY_UNRESOLVED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE` |
+| `vehicle.constants.list` | Read | обязательный `handle`; необязательные `cursor`, `limit` | `handle`, поля страницы, `name.<n>` | `OL_E_RUNTIME_CONSTANTS_UNAVAILABLE` |
 | `vehicle.constant.get` | Read | обязательные `handle`, `name` | `handle`, `name`, `value` | `OL_E_RUNTIME_CONSTANT_NOT_FOUND` |
-| `vehicle.curves.list` | Read | обязательный `handle` | `handle`, `count`, `name.<n>` | |
+| `vehicle.curves.list` | Read | обязательный `handle`; необязательные `cursor`, `limit` | `handle`, поля страницы, `name.<n>` | |
 | `vehicle.curve.evaluate` | Read | обязательные `handle`, `name`, `x` (конечное число с плавающей точкой; отсутствующий или нечисловой `x` даёт `OL_E_RUNTIME_ARGUMENT_REQUIRED`) | `handle`, `name`, `x`, `value` (линейная интерполяция) | `OL_E_RUNTIME_CURVE_NOT_FOUND`, `OL_E_RUNTIME_CURVE_EMPTY`, `OL_E_RUNTIME_CURVE_INVALID`, `OL_E_RUNTIME_CURVE_DEGENERATE` |
-| `vehicle.hofs.read` | Read | обязательный `handle` | `handle`, `count`, `hof.<n>.name`, `hof.<n>.service_trip` | `OL_E_RUNTIME_HOF_UNAVAILABLE` |
+| `vehicle.hofs.read` | Read | обязательный `handle`; необязательные `cursor`, `limit` | `handle`, поля страницы, `hof.<n>.name`, `hof.<n>.service_trip` | `OL_E_RUNTIME_HOF_UNAVAILABLE` |
 
 ### Direct3D 9
 
@@ -195,42 +274,19 @@
 
 Неудачные операции D3D возвращают значения `detail` и `native_status`. Методы расширения `D3DRuntimeApi` (`GetD3DStatusAsync`, `CreateD3DTextureAsync`, `DescribeD3DTextureAsync`, `UpdateD3DTextureAsync`, `ReleaseD3DTextureAsync`) оборачивают эти операции для потребителей API.
 
-<a id="getcapabilitiesasync-names"></a>
-## Имена `GetCapabilitiesAsync`
+## `GetCapabilitiesAsync`
 
-`IOmsiLaunch.GetCapabilitiesAsync(InstallationSpec)` возвращает статический список записей `Capability(Name, Available, EvidenceState, Reason)`, описывающих то, как хост видит установку. Эти имена образуют отдельный, более грубый словарь, чем идентификаторы реестра выше: реестр — это контракт для операций, а список возможностей — машиночитаемая сводка для интеграторов. Связь между ними указана в последнем столбце.
+`IOmsiLaunch.GetCapabilitiesAsync(InstallationSpec)` возвращает по одной записи `Capability(Name, Available, EvidenceState, Reason)` на каждую запись каталога, не являющуюся `InternalOnly`. `Name` — идентификатор из каталога, `EvidenceState` — его подтверждение из каталога. `Available` вычисляется для установки:
 
-| Имя | Доступно | Подтверждение | Связь |
-| --- | --- | --- | --- |
-| `runtime.current-windows-x64` | зависит от платформы | STATICALLY_VALIDATED | [совместимость](compatibility.md) |
-| `runtime.command-channel` | true | STATICALLY_VALIDATED | runtime-почтовый ящик (mailbox) |
-| `runtime.time.read`, `runtime.time.write` | true | RUNTIME_VALIDATED | `time.read`, `time.set` |
-| `runtime.time.actual-date-time.write` | false | RELEASE_IF_CLOSED | `calendar.set-actual-date-time` |
-| `runtime.map.read` | true | RUNTIME_VALIDATED | `map.read` |
-| `runtime.weather.read`, `runtime.weather.actual.read` | true | RUNTIME_VALIDATED | `weather.read`, `weather.actual.read` |
-| `runtime.weather.write` | false | RUNTIME_PARTIAL | `weather.set` (отклоняется) |
-| `runtime.camera.read`, `runtime.camera.write` | true | RUNTIME_VALIDATED | `camera.read`, `camera.set` |
-| `runtime.d3d.status`, `runtime.d3d.texture.create`, `runtime.d3d.texture.update`, `runtime.d3d.texture.describe`, `runtime.d3d.texture.release` | true | RUNTIME_VALIDATED | `d3d.*` |
-| `runtime.d3d.lifecycle.reset` | true | IMPLEMENTED_NOT_RUNTIME_VALIDATED | RV-007. Список — это фиксированный перечень-самоотчёт: эта запись не была обновлена после того, как в раунде runtime closure наблюдались переходы resetting/restored (`D01`); подтверждения см. на странице [статус проверки в runtime](../status/runtime-validation-status.md) |
-| `runtime.road-vehicles.read`, `runtime.road-vehicles.spawn`, `runtime.road-vehicles.place-random` | true | RUNTIME_VALIDATED | `road-vehicles.*` |
-| `runtime.vehicle.variable.write` | true | RUNTIME_VALIDATED | `vehicle.variable.set` |
-| `runtime.humans.read`, `runtime.timetable.read`, `runtime.timetable.track-entries.read` | true | RUNTIME_VALIDATED | `humans.*`, `timetable.*` |
-| `world.new-map`, `world.presented-entrypoint`, `world.saved-situation` | true | RUNTIME_VALIDATED | режимы мира `session.start` |
-| `world.entrypoint-identity` | false | RUNTIME_PARTIAL | BI-001 |
-| `world.last-map-state` | false | UNSUPPORTED_FOR_CURRENT_PROFILE | `LastMapState` (`/last`) |
-| `world.date.explicit`, `world.date.system`, `world.time.explicit`, `world.time.system` | false | STATICALLY_PARTIAL | `/date`, `/time`, `/year`; их запрос делает план неисполнимым |
-| `weather.preset`, `weather.icao`, `weather.real-current` | false | STATICALLY_PARTIAL | `/weather*`; их запрос делает план неисполнимым |
-| `player-vehicle.model`, `player-vehicle.repaint`, `player-vehicle.hof`, `player-vehicle.fleet-number`, `player-vehicle.registration` | false | STATICALLY_PARTIAL | `/vehicle` и связанные флаги; их запрос делает план неисполнимым |
-| `configuration.options.semantic` | true | STATICALLY_VALIDATED | `/set`, `settings` профиля (RV-005 в runtime) |
-| `input.keyboard.patch`, `input.controller.active-ffscale` | true | STATICALLY_VALIDATED | парсеры документов существуют; `InputSpec` сеансом не применяется (BI-005) |
-| `input.controller.axis-buttons` | false | STATICALLY_PARTIAL | BI-005 |
-| `content.maps`, `content.situations`, `content.vehicles`, `content.repaints`, `content.hofs`, `content.fleet-registration-sources` | true | STATICALLY_VALIDATED | `DiscoverAsync`, `/list` |
+- Записи `Unsupported` никогда не доступны; `Reason` содержит примечание из каталога.
+- Каждой записи нужна текущая платформа, а каждой записи, кроме `runtime.current-windows-x64`, — установка OMSI 2.
+- Запись с нативными возможностями на известной раскладке сообщает `native: RESOLVED_KNOWN_LAYOUT`. На другой сборке OMSI 2 исполняемый файл определяется статически: `native: STATICALLY_RESOLVED` либо `native: PENDING_IN_PROCESS_RESOLUTION` с указанием того, что файл не определил. Запись в состоянии pending всё равно сообщается как доступная, потому что решает определение в процессе; если оно завершается неудачей, операция или запуск завершаются с `OL_E_CAPABILITY_UNRESOLVED`.
 
-Кроме того, планировщик сообщает возможности для каждого плана в `SessionPlan.RequiredCapabilities` и `SessionPlan.UnsupportedRequestedFeatures` (`runtime.current-windows-x64`, `transaction.exact-restore`, `omsi.profile.OMSI23004`, `world.new-map`, `world.presented-entrypoint`, `world.entrypoint-identity`, `world.saved-situation`, `boot.headless-start`, `internet-textures.disabled`, `world.explicit-date`, `world.explicit-time`, `world.explicit-year`, `weather`, `player-vehicle.*`, `input.keyboard`, `input.controller`, `content.*`).
+Планировщик сообщает возможности для каждого плана в `SessionPlan.RequiredCapabilities` и `SessionPlan.UnsupportedRequestedFeatures` с теми же идентификаторами каталога (`runtime.current-windows-x64`, `transaction.exact-restore`, `omsi.omsi2`, `world.*`, `boot.headless-start`, `internet-textures.disabled`, `player-vehicle.*`, `input.*`, `content.*`). Неподдерживаемая запрошенная функция несёт своё подтверждение из каталога; обязательная нативная возможность несёт `RESOLVED_KNOWN_LAYOUT`, `STATICALLY_RESOLVED` или `PENDING_IN_PROCESS_RESOLUTION`.
 
 <a id="known-limitations"></a>
 ## Известные ограничения
 
-- Handle действуют в рамках сеанса; повторное использование адреса обнаруживается по отпечатку объекта (VMT плюс указатель на определение для транспортных средств, VMT плюс индекс человека для объектов Human) и сообщается как `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. Остаточная слепая зона: объект того же класса и с тем же определением, пересозданный по тому же адресу между двумя чтениями списка, неотличим от исходного.
-- Результаты ограничены почтовым ящиком размером 64 KiB; ограниченные списки усекаются с `truncated=true`; `timetable.logs.read` не ограничен и может завершиться ошибкой `OL_E_RUNTIME_RESPONSE_TOO_LARGE`.
-- Нет перемещения транспортных средств между тайлами, нет записи строковых переменных, нет записи календаря, нет записи погоды, нет назначения PlayerVehicle при headless-запуске. См. [известные ограничения](known-limitations.md).
+- Handle действуют в рамках сеанса и сообщаются как `OL_E_RUNTIME_OBJECT_HANDLE_STALE`, как только их объект исчез. Handle транспортного средства привязан к его VMT, его определению и `IDCode` OMSI (уникальному в процессе числу, которое получает каждый объект карты при создании и которое никогда не используется повторно), поэтому объект, пересозданный по тому же адресу, всегда отличается. Объекты Human — это пулованные слоты, существующие в течение всего сеанса карты: handle человека перестаёт разрешаться, когда человек исчезает (`RenderMe` 0) или слот создаётся снова (новая целевая остановка или отправление).
+- Результаты ограничены почтовым ящиком размером 64 KiB; каждый список выдаётся постранично (см. [постраничный вывод](#pagination)).
+- Нет перемещения транспортных средств между тайлами, нет записи календаря, нет назначения PlayerVehicle при headless-запуске. Запись строковых переменных, script triggers и запись погоды — `EXPERIMENTAL` (проверка в runtime ожидается). См. [известные ограничения](known-limitations.md).

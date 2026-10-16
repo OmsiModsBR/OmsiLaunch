@@ -1,7 +1,7 @@
 # Windows 托盘指示器
 
-<!-- l10n: source=reference/windows-tray.md -->
-> 本页是 OmsiLaunch 0.1.0-beta3 [英文原始页面](../../../reference/windows-tray.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
+<!-- l10n: source=reference/windows-tray.md source-sha256=d38220bd1069b7c27c4e384abad4bd439883255437821375a4118a1750d01b4a -->
+> 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/windows-tray.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 每个独立的所有者会话（通过 `OmsiLaunch.exe` 或 `OmsiLaunchW.exe` 启动）都会显示一个通知区域图标，用于报告会话状态并允许用户结束会话。本页规定该指示器的行为，依据是 `tools\OmsiLaunch.Cli\WindowsHost.cs` 中 `SessionTrayIndicator`、`StatusWindow` 和 `StopConfirmationWindow` 的实现、只读呈现器 `SessionStatusPresenter`（`tools\OmsiLaunch.Cli\SessionStatusPresenter.cs`）、字符串注册表 `WindowsUiStrings`（`tools\OmsiLaunch.Cli\WindowsUiStrings.cs`），以及 `WindowsHost` 的 `OmsiLaunchW.exe` 失败对话框。托盘只是一个呈现适配器：它既不拥有 OMSI，也不负责恢复，其停止操作所触发的是与 `session stop` 相同的规范所有者停止路径（参见 [CLI 参考](cli.md)和[本地控制](local-control.md)）。
 
@@ -60,7 +60,7 @@
 | `Presentation` | `Splash` | 始终显示 | `Managed` 或 `Original OMSI` | `Spec.EffectivePresentation.Splash` |
 | `Presentation` | `Internet textures` | 始终显示 | `Original OMSI`（`Native`）、`Disabled`、`Override` | `Spec.EffectiveInternetTextures.Mode` |
 
-`Environment` 和 `Vehicle` 部分永远不会出现在正在运行的 Beta 3 会话中：请求日期、时间、年份、天气或任何玩家车辆字段都会使计划不可运行，因此不会启动此类会话（参见[已知限制](known-limitations.md)）。它们是为将来的版本准备的，并由离线呈现器测试覆盖。
+`Environment` 部分会在请求了日期、时间、年份或天气时出现在正在运行的 Beta 4 会话中（这些请求为实验性，参见[已知限制](known-limitations.md)）。`Vehicle` 部分永远不会出现在正在运行的会话中：请求任何玩家车辆字段都会使计划不可运行，因此不会启动此类会话。它是为将来的版本准备的，并由离线呈现器测试覆盖。
 
 运行时证据（pt-BR 界面，运行时收尾轮次 `T01`）：一个 NEW_MAP Grundorf 会话显示了 `Sessão em execução`；`Sessão`：`Modo: Nova sessão`、`Mapa: Grundorf`、`Ponto de entrada: 1`；`Apresentação`：`Splash: Gerenciado`、`Texturas da internet: OMSI original`。
 

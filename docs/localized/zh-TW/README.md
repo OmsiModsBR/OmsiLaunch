@@ -1,9 +1,9 @@
 # OmsiLaunch 文件
 
-<!-- l10n: source=README.md -->
-> 本頁為 OmsiLaunch 0.1.0-beta3 [英文原始頁面](../../README.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
+<!-- l10n: source=README.md source-sha256=09275bd568ca2ebaee648db8894d7773a8b94bafdbb324b3d8b53d897597b0cb -->
+> 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../README.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
-這是 OmsiLaunch `0.1.0-beta3`（強化後基準版本）的規範性英文文件。OmsiLaunch 針對唯一一個 OMSI 2 組建（設定檔 `Omsi23004_692EBFBF`）提供可程式化的啟動、工作階段擁有權與執行階段控制。`docs/` 下的每一頁都描述目前程式碼的實際行為；當頁面與程式碼不一致時，以程式碼為準，該頁面即視為錯誤。
+這是 OmsiLaunch `0.1.0-beta4`（強化後基準版本）的規範性英文文件。OmsiLaunch 針對已安裝的 OMSI 2 提供可程式化的啟動、工作階段擁有權與執行階段控制；每項原生功能都依組建逐一解析並驗證（請參閱[相容性](reference/compatibility.md)）。`docs/` 下的每一頁都描述目前程式碼的實際行為；當頁面與程式碼不一致時，以程式碼為準，該頁面即視為錯誤。
 
 全文使用的穩定性詞彙：`STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`、`UNAVAILABLE`。會被解析但不產生任何作用的旗標標示為 `ACCEPTED_FOR_COMPATIBILITY / CURRENTLY_NO_EFFECT`。除非[執行階段驗證狀態](status/runtime-validation-status.md)如此記載，否則任何項目都不稱為已於執行階段驗證。
 
@@ -27,6 +27,8 @@
 | [CLI 參考](reference/cli.md) | `OmsiLaunch.exe` / `OmsiLaunchW.exe` 的所有旗標、命令字與階層式路由。 |
 | [CLI 範例](reference/cli-examples.md) | 常見工作可直接複製貼上的命令列。 |
 | [LaunchSpec 參考](reference/launchspec.md) | 所有 `LaunchSpec` 屬性與列舉值，以及 `/spec` 的 JSON 載入規則。 |
+| [HOF 管理](reference/hof-management.md) | 以工作階段為範圍，將 HOF 複製並鏡像到車輛資料夾：來源、目標、衝突與還原。 |
+| [執行階段模組](../../reference/runtime-modules.md) | 隨工作階段在 OMSI 內執行的模組：資訊清單、信任、生命週期、失敗原則與操作。 |
 | [工作階段設定檔參考](reference/session-profiles.md) | `profile.yaml` 結構描述 `omsilaunch.session-profile/v1`、索引鍵、限制與優先順序。 |
 | [公開 API 參考](reference/public-api.md) | `IOmsiLaunch`、公開 record 與列舉，以及每個成員的穩定性。 |
 | [公開 API 清單](reference/public-api-inventory.md) | 自動產生的清單，列出每個公開型別與成員及其簽章與穩定性。 |
@@ -45,14 +47,15 @@
 | [已知限制](reference/known-limitations.md) | 此 Beta 版中不支援、部分支援或屬於已接受風險的項目。 |
 | [執行階段驗證狀態](status/runtime-validation-status.md) | 哪些已在 OMSI 下執行過、哪些僅離線執行過、哪些仍需要實際工作階段。 |
 
-對維護者而言仍具規範性的根層級頁面：
-[`README.md`](../../../README.md)、[`PUBLIC-API.md`](../../../PUBLIC-API.md)、
-[`RUNTIME-CONTROL.md`](../../../RUNTIME-CONTROL.md)、
-[`RUNTIME-CAPABILITIES.md`](../../../RUNTIME-CAPABILITIES.md)、
-[`BUILD-PROFILES.md`](../../../BUILD-PROFILES.md)、
-[`IMPLEMENTATION-STATUS.md`](../../../IMPLEMENTATION-STATUS.md)、
-[`TESTING-AND-VALIDATION.md`](../../../TESTING-AND-VALIDATION.md)、
-[`POST-RELEASE-BACKLOG.md`](../../../POST-RELEASE-BACKLOG.md)。這些頁面只是摘要；上方各頁才是詳細參考。歷史頁面列於[文件資訊清單](../../DOCUMENTATION-MANIFEST.md)。
+對維護者而言仍具規範性的頁面：儲存庫的
+[`README.md`](../../../README.md)、`docs/specs` 之下的規格
+（[`PUBLIC-API.md`](../../specs/PUBLIC-API.md)、
+[`RUNTIME-CONTROL.md`](../../specs/RUNTIME-CONTROL.md)、
+[`RUNTIME-CAPABILITIES.md`](../../specs/RUNTIME-CAPABILITIES.md)、
+[`BUILD-PROFILES.md`](../../specs/BUILD-PROFILES.md)）以及 `docs/project` 之下的專案頁面
+（[`IMPLEMENTATION-STATUS.md`](../../project/IMPLEMENTATION-STATUS.md)、
+[`TESTING-AND-VALIDATION.md`](../../project/TESTING-AND-VALIDATION.md)、
+[`POST-RELEASE-BACKLOG.md`](../../project/POST-RELEASE-BACKLOG.md)）。這些頁面只是摘要；上方各頁才是詳細參考。歷史頁面列於[文件資訊清單](../../DOCUMENTATION-MANIFEST.md)。
 
 <a id="how-this-documentation-is-kept-in-sync"></a>
 ## 本文件如何保持同步
@@ -76,4 +79,4 @@
 <a id="translations"></a>
 ## 翻譯
 
-`docs\localized\<locale>\` 存放此 `0.1.0-beta3` 文件的完整翻譯，涵蓋 `pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` 與 `ja-JP`。頁面集、各地區設定的根目錄以及刻意不翻譯的頁面列於 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md)。翻譯會保留英文頁面中的每個命令、旗標、識別碼、錯誤碼與範例不變，並由 `docs.localization` 關卡進行檢查。英文頁面仍是規範性的來源：翻譯與英文頁面不一致時，以英文頁面與程式碼為準，該翻譯即視為錯誤。
+`docs\localized\<locale>\` 存放此 `0.1.0-beta4` 文件的完整翻譯，涵蓋 `pt-BR`、`pt-PT`、`en-GB`、`fr-FR`、`de-DE`、`es-ES`、`es-LATAM`、`it-IT`、`pl-PL`、`nl-NL`、`ru-RU`、`zh-CN`、`zh-TW` 與 `ja-JP`。頁面集、各地區設定的根目錄以及刻意不翻譯的頁面列於 [`localized/LOCALIZATION-MANIFEST.md`](../LOCALIZATION-MANIFEST.md)。翻譯會保留英文頁面中的每個命令、旗標、識別碼、錯誤碼與範例不變，並由 `docs.localization` 關卡進行檢查。英文頁面仍是規範性的來源：翻譯與英文頁面不一致時，以英文頁面與程式碼為準，該翻譯即視為錯誤。
