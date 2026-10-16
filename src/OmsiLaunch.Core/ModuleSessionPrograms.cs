@@ -35,6 +35,12 @@ internal sealed class ModuleSessionPrograms
     {
         var root = plan.Spec.Installation.RootPath;
         var result = new ModuleSessionPrograms();
+        // A program started but not yet in result.programs when something throws
+        // (a cancellation, an unexpected exception) would otherwise outlive the
+        // failed start: the caller never receives `result` to stop it.
+        SessionProgram? current = null;
+        try
+        {
         foreach (var planned in plan.EffectivePlannedModules.Where(x => x.IsEligible))
         {
             var directory = Path.Combine(root, RuntimeModuleProtocol.ModulesDirectory, planned.Id);
@@ -42,6 +48,7 @@ internal sealed class ModuleSessionPrograms
             if (module.Manifest?.HostComponent is not { } host) continue;
             var manifest = module.Manifest;
             var program = new SessionProgram(planned, manifest, addEvent, addDiagnostic);
+            current = program;
             try
             {
                 if (module.Code is not null) throw new ModuleException(module.Code, module.Message ?? "the module is not usable");
@@ -60,10 +67,21 @@ internal sealed class ModuleSessionPrograms
             {
                 var code = exception is ModuleException typed ? typed.Code : PublicErrorCodes.MODULE_LOAD_FAILED;
                 result.Fail(program, code, "session program: " + exception.Message, trace);
+                // Under the degrade policy Fail keeps the module, but a program that was
+                // started and never joined the list (its context was refused) has no owner.
+                if (!result.programs.Contains(program)) program.End(0);
             }
+            current = null;
         }
         result.WaitPrepared(cancellationToken, trace);
         return result;
+        }
+        catch
+        {
+            current?.End(0);
+            result.Stop();
+            throw;
+        }
     }
 
     private void WaitPrepared(CancellationToken cancellationToken, Action<string, string> trace)

@@ -240,6 +240,12 @@ try
             Check(StartupHandoffWire.TryDeserialize(StartupHandoffWire.Serialize(none with { Weather = weather }), out var withWeather) && withWeather == none with { Weather = weather }, "start weather round trip: " + weather.Mode);
         var trailing = bytes.Concat(new byte[] { 0 }).ToArray();
         Check(!StartupHandoffWire.TryDeserialize(trailing, out _), "trailing bytes are rejected");
+        // The writer enforces the reader's module limit instead of producing a handoff the plugin refuses.
+        StartupModule[] Modules(int count) => Enumerable.Range(0, count).Select(i => new StartupModule(@"plugins\OmsiLaunch.Modules\m" + i, new string('A', 64))).ToArray();
+        Check(StartupHandoffWire.TryDeserialize(StartupHandoffWire.Serialize(none with { Modules = Modules(StartupHandoffWire.MaxModules) }), out var atLimit) && atLimit!.Modules!.Count == StartupHandoffWire.MaxModules, "64 modules round trip");
+        var overLimit = false;
+        try { StartupHandoffWire.Serialize(none with { Modules = Modules(StartupHandoffWire.MaxModules + 1) }); } catch (ArgumentException) { overLimit = true; }
+        Check(overLimit, "65 modules are rejected when writing");
         // Version 6: a module's settings travel as a JSON object of strings.
         var withSettings = handoff with { Modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\sample", new string('A', 64), "{\"ram\":\"auto\",\"monitor\":\"true\"}") } };
         Check(StartupHandoffWire.TryDeserialize(StartupHandoffWire.Serialize(withSettings), out var settingsDecoded) && settingsDecoded!.Modules!.Single() == withSettings.Modules!.Single(), "v6 settings round trip");

@@ -182,6 +182,10 @@ public sealed class SessionPlanner
             else if (module.Requested) diagnostics.Add(new(module.Code ?? PublicErrorCodes.MODULE_NOT_FOUND, "Runtime module " + module.Id + " cannot be loaded: " + module.Reason, data));
             else diagnostics.Add(new(PublicErrorCodes.MODULE_NOT_LOADED_WARNING, "Runtime module " + module.Id + " (" + module.Activation + ") is not loaded: " + module.Reason, data));
         }
+        // The startup handoff carries at most StartupHandoffWire.MaxModules modules; more would
+        // make the plugin reject the handoff after the plan was accepted.
+        if (plan.Modules.Count(module => module.IsEligible) > StartupHandoffWire.MaxModules)
+            diagnostics.Add(new(PublicErrorCodes.INVALID_ARGUMENT, "At most " + StartupHandoffWire.MaxModules + " runtime modules can join one session; disable some."));
         return plan.Modules;
     }
 

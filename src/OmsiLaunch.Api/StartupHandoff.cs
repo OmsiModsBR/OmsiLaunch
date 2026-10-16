@@ -52,10 +52,13 @@ public static class StartupHandoffWire
     private const int HeaderSize = 64;
     private const int StartBlockSize = 1 + 5 * 4;
     private const int MaxWeatherPresetBytes = 1024;
+    // The most runtime modules one session can hand over; the reader rejects more.
+    public const int MaxModules = 64;
     public static byte[] Serialize(StartupHandoff value)
     {
         var profile = Encoding.UTF8.GetBytes(value.BuildProfileId); var map = Encoding.UTF8.GetBytes(value.MapIdentity); var entrypoint = Encoding.UTF8.GetBytes(value.EntrypointIdentity); var situation = Encoding.UTF8.GetBytes(value.SituationIdentity);
         var modules = (value.Modules ?? Array.Empty<StartupModule>()).Select(x => (Directory: Encoding.UTF8.GetBytes(x.RelativeDirectory), Sha: Convert.FromHexString(x.ManifestSha256), Settings: Encoding.UTF8.GetBytes(x.Settings))).ToArray();
+        if (modules.Length > MaxModules) throw new ArgumentException("A session cannot hand over more than " + MaxModules + " runtime modules.", nameof(value));
         if (modules.Any(x => x.Sha.Length != 32)) throw new ArgumentException("A module manifest SHA-256 must be 32 bytes.", nameof(value));
         if (modules.Any(x => x.Settings.Length > MaxModuleSettingsBytes)) throw new ArgumentException("A module's settings exceed 64 KiB.", nameof(value));
         var weather = value.Weather is { Mode: not WeatherMode.Unset } requested ? requested : null;
@@ -113,7 +116,7 @@ public static class StartupHandoffWire
         {
             if (payload.Length - offset < 4) return false;
             var count = BinaryPrimitives.ReadUInt32LittleEndian(payload[offset..]); offset += 4;
-            if (count > 64) return false;
+            if (count > MaxModules) return false;
             for (var moduleIndex = 0; moduleIndex < count; moduleIndex++)
             {
                 if (payload.Length - offset < 4) return false;
