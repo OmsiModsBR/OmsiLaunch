@@ -191,7 +191,7 @@ disagree, the English page is authoritative.
 These are the most important limitations. The complete list is in
 [Known limitations](docs/reference/known-limitations.md).
 
-- **One OMSI build.** Steam LAA is `PARTIAL`: gameplay, reads, commands and stop
+- **Steam.** Steam LAA is `PARTIAL`: gameplay, reads, commands and stop
   need a genuine Steam installation and were not runtime validated.
 - **Experimental in this beta:** starting from the last map state (`/last`)
   and explicit date, time, year or weather at start are closed statically and
@@ -200,15 +200,17 @@ These are the most important limitations. The complete list is in
   ignored.
 - **Runtime writes are limited.** `weather.set`, `weather.metar.set`,
   string-variable writes and script triggers are experimental until runtime
-  validated; calendar writes and vehicle relocation are unavailable. Runtime changes are not
-  journaled and are not restored.
+  validated; calendar writes and vehicle relocation are unavailable. Runtime
+  changes are not journaled and are not restored.
 - **Handle lifetime.** Stale detection for road vehicles and humans that
   disappear naturally (RV-002) has no safe runtime producer and is validated
   offline only.
-- **Bounded results.** Long lists are truncated (`truncated=true`). There is no
-  paging.
-- **Stop is forced.** OMSI's own shutdown does not run, and unsaved OMSI state is
-  lost.
+- **Paged results.** Runtime lists are paged with `cursor` and `limit` and
+  continue at `next_cursor`; a page that does not fit the 64 KiB mailbox is
+  shortened and flagged `truncated=true`.
+- **Stop is forced by default.** OMSI is terminated, its own shutdown does not
+  run, and unsaved OMSI state is lost. The opt-in cooperative shutdown
+  (`/cooperative-shutdown`, experimental) runs OMSI's exit routine first.
 - **Same-user trust model.** Any process of the same Windows user can reach the
   local control plane.
 

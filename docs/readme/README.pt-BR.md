@@ -61,14 +61,17 @@ mudar antes da 1.0.
 
 ## Escopo do OMSI suportado
 
-O OmsiLaunch suporta exatamente um build do OMSI 2 e se recusa a iniciar qualquer coisa que
-não reconheça.
+O OmsiLaunch exige um OMSI 2 instalado. Ele não depende de um arquivo `Omsi.exe`
+específico: cada capacidade nativa é resolvida e verificada individualmente
+dentro do OMSI antes de ser usada, e uma capacidade que não pode ser verificada em
+um build fica indisponível nesse build.
 
 | Item | Escopo |
 | --- | --- |
-| Build do OMSI | Perfil `Omsi23004_692EBFBF`: `Omsi.exe` com SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (OMSI 2.3.004). `STABLE_BETA`; todas as validações em runtime foram executadas com este arquivo. |
-| Executável Steam LAA | O SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` é aceito por lista de permissões. Somente a impressão digital e o planejamento foram validados; o gameplay **não** foi validado em runtime. `PARTIAL`. |
-| Builds desconhecidos | Rejeitados com `OL_E_UNSUPPORTED_BUILD`. O hash é verificado novamente a cada plano e a cada início. |
+| Requisito | OMSI 2 instalado: um `Omsi.exe` de 32 bits com versão do OMSI 2 (2.x) e os diretórios `maps\` e `Vehicles\`. Qualquer outra coisa é recusada com `OL_E_UNSUPPORTED_BUILD`. |
+| Layout conhecido | OMSI 2.3.004 (`Omsi23004`). Todas as capacidades são resolvidas, e todas as validações em runtime foram executadas neste layout. Os hashes o identificam como um caminho rápido; não são um requisito. |
+| Outros builds do OMSI 2 | Cada capacidade é resolvida por estratégias independentes do build (RTTI do Delphi, assinaturas de código únicas, slots de VMT) e verificada. Capacidades que leem layouts de objetos precisam de um layout conhecido. |
+| Executável Steam | Resolvido no processo; uma sessão Steam genuína **não** foi validada em runtime. |
 | Sistema operacional | Windows 10 ou posterior, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controlador) e .NET 6 Runtime **x86** (o plugin é executado dentro do `Omsi.exe` de 32 bits). |
 
@@ -190,22 +193,27 @@ divergirem, vale a página em inglês.
 Estas são as limitações mais importantes. A lista completa está em
 [Limitações conhecidas](../localized/pt-BR/reference/known-limitations.md).
 
-- **Um único build do OMSI.** O Steam LAA é `PARTIAL`: gameplay, leituras, comandos e parada
+- **Steam.** O Steam LAA é `PARTIAL`: gameplay, leituras, comandos e parada
   precisam de uma instalação genuína do Steam e não foram validados em runtime.
-- **Indisponível neste beta:** iniciar a partir do último estado do mapa (`/last`),
-  data, hora, ano ou clima explícitos no início e atribuição do veículo do jogador
-  no início. Solicitar qualquer um desses itens torna o plano não apto para execução, em vez de ser
-  ignorado silenciosamente.
-- **As gravações em runtime são limitadas.** `weather.set`, gravações de calendário, gravações de
-  variáveis de string e realocação de veículos estão indisponíveis. Alterações em runtime não são
-  registradas no journal e não são restauradas.
+- **Experimental neste beta:** iniciar a partir do último estado do mapa (`/last`)
+  e data, hora, ano ou clima explícitos no início estão fechados estaticamente e
+  aguardam validação em runtime. **Indisponível:** atribuição do veículo do jogador
+  no início; solicitá-la torna o plano não apto para execução, em vez de ser
+  ignorada silenciosamente.
+- **As gravações em runtime são limitadas.** `weather.set`, `weather.metar.set`,
+  gravações de variáveis de string e gatilhos de script são experimentais até serem
+  validados em runtime; gravações de calendário e realocação de veículos estão
+  indisponíveis. Alterações em runtime não são registradas no journal e não são
+  restauradas.
 - **Tempo de vida dos handles.** A detecção de handles obsoletos para veículos rodoviários e humanos que
   desaparecem naturalmente (RV-002) não tem produtor seguro em runtime e é validada
   somente offline.
-- **Resultados limitados.** Listas longas são truncadas (`truncated=true`). Não há
-  paginação.
-- **A parada é forçada.** O próprio encerramento do OMSI não é executado, e o estado não salvo do OMSI é
-  perdido.
+- **Resultados paginados.** As listas de runtime são paginadas com `cursor` e `limit` e
+  continuam em `next_cursor`; uma página que não cabe no mailbox de 64 KiB é
+  encurtada e sinalizada com `truncated=true`.
+- **A parada é forçada por padrão.** O OMSI é encerrado, o próprio encerramento do OMSI
+  não é executado, e o estado não salvo do OMSI é perdido. O encerramento cooperativo opcional
+  (`/cooperative-shutdown`, experimental) executa primeiro a rotina de saída do OMSI.
 - **Modelo de confiança do mesmo usuário.** Qualquer processo do mesmo usuário do Windows pode acessar o
   plano de controle local.
 

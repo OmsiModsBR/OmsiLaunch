@@ -63,14 +63,18 @@ gemarkeerd als `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` of
 
 ## Ondersteunde OMSI-reikwijdte
 
-OmsiLaunch ondersteunt precies één OMSI 2-build en weigert alles te starten wat
-het niet herkent.
+OmsiLaunch vereist een geïnstalleerde OMSI 2. Het is niet afhankelijk van één
+specifiek `Omsi.exe`-bestand: elke native capability wordt binnen OMSI
+afzonderlijk opgelost en geverifieerd voordat ze wordt gebruikt, en een
+capability die op een build niet kan worden geverifieerd, is op die build niet
+beschikbaar.
 
 | Onderdeel | Reikwijdte |
 | --- | --- |
-| OMSI-build | Profiel `Omsi23004_692EBFBF`: `Omsi.exe` met SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (OMSI 2.3.004). `STABLE_BETA`; elke runtimevalidatie is op dit bestand uitgevoerd. |
-| Steam LAA-executable | SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` wordt via een allowlist geaccepteerd. Alleen de vingerafdruk en de planning zijn gevalideerd; de gameplay is **niet** runtime-gevalideerd. `PARTIAL`. |
-| Onbekende builds | Geweigerd met `OL_E_UNSUPPORTED_BUILD`. De hash wordt bij elk plan en bij elke start opnieuw gecontroleerd. |
+| Vereiste | OMSI 2 geïnstalleerd: een 32-bits `Omsi.exe` met een OMSI 2-versie (2.x) en de mappen `maps\` en `Vehicles\`. Al het andere wordt geweigerd met `OL_E_UNSUPPORTED_BUILD`. |
+| Bekende layout | OMSI 2.3.004 (`Omsi23004`). Elke capability wordt opgelost en elke runtimevalidatie is op deze layout uitgevoerd. Hashes identificeren de layout als snelle route; ze zijn geen vereiste. |
+| Andere OMSI 2-builds | Elke capability wordt opgelost met buildonafhankelijke strategieën (Delphi RTTI, unieke codesignaturen, VMT-slots) en geverifieerd. Capabilities die objectlayouts lezen, vereisen een bekende layout. |
+| Steam-executable | Wordt in het proces opgelost; een echte Steam-sessie is **niet** runtime-gevalideerd. |
 | Besturingssysteem | Windows 10 of later, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controller) en .NET 6 Runtime **x86** (de plugin draait binnen de 32-bits `Omsi.exe`). |
 
@@ -198,24 +202,29 @@ gezaghebbend.
 Dit zijn de belangrijkste beperkingen. De volledige lijst staat in
 [Bekende beperkingen](../localized/nl-NL/reference/known-limitations.md).
 
-- **Eén OMSI-build.** Steam LAA is `PARTIAL`: gameplay, uitlezen, opdrachten en
+- **Steam.** Steam LAA is `PARTIAL`: gameplay, uitlezen, opdrachten en
   stoppen vereisen een echte Steam-installatie en zijn niet runtime-gevalideerd.
-- **Niet beschikbaar in deze bèta:** starten vanuit de laatste kaartstatus
-  (`/last`), een expliciete datum, tijd, jaar of expliciet weer bij de start, en
-  het toewijzen van een spelersvoertuig bij de start. Wie een van deze
-  onderdelen aanvraagt, maakt het plan niet uitvoerbaar in plaats van dat het
-  stilzwijgend wordt genegeerd.
-- **Runtime-schrijfacties zijn beperkt.** `weather.set`, schrijfacties naar de
-  kalender, schrijfacties naar stringvariabelen en het verplaatsen van
-  voertuigen zijn niet beschikbaar. Runtimewijzigingen worden niet in het
-  journal vastgelegd en niet hersteld.
+- **Experimenteel in deze bèta:** starten vanuit de laatste kaartstatus
+  (`/last`) en een expliciete datum, tijd, jaar of expliciet weer bij de start
+  zijn statisch afgesloten en wachten op runtimevalidatie. **Niet beschikbaar:**
+  het toewijzen van een spelersvoertuig bij de start; wie dit aanvraagt, maakt
+  het plan niet uitvoerbaar in plaats van dat het stilzwijgend wordt genegeerd.
+- **Runtime-schrijfacties zijn beperkt.** `weather.set`, `weather.metar.set`,
+  schrijfacties naar stringvariabelen en scripttriggers zijn experimenteel tot
+  ze runtime-gevalideerd zijn; schrijfacties naar de kalender en het
+  verplaatsen van voertuigen zijn niet beschikbaar. Runtimewijzigingen worden
+  niet in het journal vastgelegd en niet hersteld.
 - **Levensduur van handles.** Detectie van verouderde handles voor wegvoertuigen
   en mensen die op natuurlijke wijze verdwijnen (RV-002) heeft geen veilige
   runtimebron en is alleen offline gevalideerd.
-- **Begrensde resultaten.** Lange lijsten worden afgekapt (`truncated=true`). Er
-  is geen paginering.
-- **Stoppen is geforceerd.** OMSI's eigen afsluitprocedure wordt niet
-  uitgevoerd, en niet-opgeslagen OMSI-status gaat verloren.
+- **Gepagineerde resultaten.** Runtimelijsten worden gepagineerd met `cursor` en
+  `limit` en gaan verder bij `next_cursor`; een pagina die niet in de
+  mailbox van 64 KiB past, wordt ingekort en gemarkeerd met `truncated=true`.
+- **Stoppen is standaard geforceerd.** OMSI wordt beëindigd, de eigen
+  afsluitprocedure van OMSI wordt niet uitgevoerd, en niet-opgeslagen
+  OMSI-status gaat verloren. Het optionele coöperatieve afsluiten
+  (`/cooperative-shutdown`, experimenteel) voert eerst de afsluitroutine van
+  OMSI uit.
 - **Vertrouwensmodel op basis van dezelfde gebruiker.** Elk proces van dezelfde
   Windows-gebruiker kan het lokale control plane bereiken.
 

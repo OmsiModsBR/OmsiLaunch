@@ -64,14 +64,18 @@ sind pro Member als `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` oder
 
 ## Unterstützter OMSI-Umfang
 
-OmsiLaunch unterstützt genau einen OMSI-2-Build und verweigert den Start von
-allem, was es nicht erkennt.
+OmsiLaunch setzt ein installiertes OMSI 2 voraus. Es hängt nicht von einer
+bestimmten `Omsi.exe`-Datei ab: Jede native Capability wird vor ihrer Verwendung
+einzeln innerhalb von OMSI aufgelöst und verifiziert, und eine Capability, die
+sich auf einem Build nicht verifizieren lässt, ist auf diesem Build nicht
+verfügbar.
 
 | Element | Umfang |
 | --- | --- |
-| OMSI-Build | Profil `Omsi23004_692EBFBF`: `Omsi.exe` mit SHA-256 `692EBFBF2CD32FAB05A8B934E52C2BE14594E939882F3DBF2BA4E2B66CCC6243` (OMSI 2.3.004). `STABLE_BETA`; jede Runtime-Validierung lief mit dieser Datei. |
-| Steam-LAA-Executable | SHA-256 `7DAB063D1F62E73B3A2C7A6AC1921D7EDF5E5DB0FBC731481D117EEC8DE7D759` wird per Allow-List akzeptiert. Validiert wurden nur Fingerabdruck und Planung; der Spielbetrieb wurde **nicht** zur Laufzeit validiert. `PARTIAL`. |
-| Unbekannte Builds | Werden mit `OL_E_UNSUPPORTED_BUILD` abgelehnt. Der Hash wird bei jeder Planung und bei jedem Start erneut geprüft. |
+| Voraussetzung | OMSI 2 installiert: eine 32-Bit-`Omsi.exe` mit einer OMSI-2-Version (2.x) sowie die Verzeichnisse `maps\` und `Vehicles\`. Alles andere wird mit `OL_E_UNSUPPORTED_BUILD` abgelehnt. |
+| Bekanntes Layout | OMSI 2.3.004 (`Omsi23004`). Jede Capability wird aufgelöst, und jede Runtime-Validierung lief mit diesem Layout. Hashes identifizieren es als schnellen Pfad; sie sind keine Voraussetzung. |
+| Andere OMSI-2-Builds | Jede Capability wird über build-unabhängige Strategien (Delphi-RTTI, eindeutige Code-Signaturen, VMT-Slots) aufgelöst und verifiziert. Capabilities, die Objektlayouts lesen, benötigen ein bekanntes Layout. |
+| Steam-Executable | Wird im Prozess aufgelöst; eine echte Steam-Sitzung wurde **nicht** zur Laufzeit validiert. |
 | Betriebssystem | Windows 10 oder neuer, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (Controller) und .NET 6 Runtime **x86** (das Plugin läuft im 32-Bit-Prozess `Omsi.exe`). |
 
@@ -199,23 +203,28 @@ voneinander abweichen, ist die englische Seite verbindlich.
 Dies sind die wichtigsten Einschränkungen. Die vollständige Liste finden Sie unter
 [Bekannte Einschränkungen](../localized/de-DE/reference/known-limitations.md).
 
-- **Ein OMSI-Build.** Steam LAA ist `PARTIAL`: Spielbetrieb, Lesezugriffe, Befehle
+- **Steam.** Steam LAA ist `PARTIAL`: Spielbetrieb, Lesezugriffe, Befehle
   und Beenden erfordern eine echte Steam-Installation und wurden nicht zur Laufzeit validiert.
-- **In dieser Beta nicht verfügbar:** Starten aus dem letzten Kartenstatus (`/last`),
-  explizites Datum, explizite Uhrzeit, explizites Jahr oder Wetter beim Start sowie
-  die Zuweisung des Spielerfahrzeugs beim Start. Wird eines davon angefordert, ist
-  der Plan nicht ausführbar, statt dass die Anforderung stillschweigend ignoriert wird.
-- **Runtime-Schreibzugriffe sind begrenzt.** `weather.set`, Schreibzugriffe auf den
-  Kalender, Schreibzugriffe auf String-Variablen und das Versetzen von Fahrzeugen
-  sind nicht verfügbar. Runtime-Änderungen werden nicht im Journal protokolliert
-  und nicht wiederhergestellt.
+- **In dieser Beta experimentell:** Starten aus dem letzten Kartenstatus (`/last`)
+  sowie explizites Datum, explizite Uhrzeit, explizites Jahr oder Wetter beim Start
+  sind statisch abgeschlossen und warten auf die Runtime-Validierung. **Nicht
+  verfügbar:** die Zuweisung des Spielerfahrzeugs beim Start; wird sie angefordert,
+  ist der Plan nicht ausführbar, statt dass die Anforderung stillschweigend ignoriert wird.
+- **Runtime-Schreibzugriffe sind begrenzt.** `weather.set`, `weather.metar.set`,
+  Schreibzugriffe auf String-Variablen und Skript-Trigger sind experimentell, bis
+  sie zur Laufzeit validiert sind; Schreibzugriffe auf den Kalender und das
+  Versetzen von Fahrzeugen sind nicht verfügbar. Runtime-Änderungen werden nicht
+  im Journal protokolliert und nicht wiederhergestellt.
 - **Lebensdauer von Handles.** Die Erkennung veralteter Handles für
   Straßenfahrzeuge und Menschen, die auf natürliche Weise verschwinden (RV-002),
   hat keinen sicheren Runtime-Auslöser und ist nur offline validiert.
-- **Begrenzte Ergebnisse.** Lange Listen werden gekürzt (`truncated=true`). Es gibt
-  keine Seitenaufteilung (Paging).
-- **Das Beenden erfolgt zwangsweise.** Das eigene Herunterfahren von OMSI läuft
-  nicht ab, und nicht gespeicherter OMSI-Zustand geht verloren.
+- **Seitenweise Ergebnisse.** Runtime-Listen werden mit `cursor` und `limit`
+  seitenweise geliefert und mit `next_cursor` fortgesetzt; eine Seite, die nicht in
+  die Mailbox von 64 KiB passt, wird gekürzt und mit `truncated=true` gekennzeichnet.
+- **Das Beenden erfolgt standardmäßig zwangsweise.** OMSI wird beendet, das eigene
+  Herunterfahren von OMSI läuft nicht ab, und nicht gespeicherter OMSI-Zustand geht
+  verloren. Das optionale kooperative Herunterfahren (`/cooperative-shutdown`,
+  experimentell) führt zuvor die Beenden-Routine von OMSI aus.
 - **Vertrauensmodell auf Benutzerebene.** Jeder Prozess desselben Windows-Benutzers
   kann die lokale Steuerungsebene (Control Plane) erreichen.
 
