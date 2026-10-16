@@ -36,7 +36,7 @@ validado em runtime, a menos que o
 | [Exemplos da CLI](reference/cli-examples.md) | Linhas de comando prontas a copiar e colar para tarefas comuns. |
 | [Referência do LaunchSpec](reference/launchspec.md) | Todas as propriedades e valores de enumeração de `LaunchSpec`, regras de carregamento JSON para `/spec`. |
 | [Gestão de HOF](reference/hof-management.md) | Cópia de HOF com âmbito de sessão e espelhamento nas pastas de veículos: origens, destinos, conflitos, restauro. |
-| [Módulos de runtime](../../reference/runtime-modules.md) | Módulos que correm dentro do OMSI com uma sessão: manifesto, confiança, ciclo de vida, políticas de falha, operações. |
+| [Módulos de runtime](reference/runtime-modules.md) | Módulos que correm dentro do OMSI com uma sessão: manifesto, confiança, ciclo de vida, políticas de falha, operações. |
 | [Referência dos perfis de sessão](reference/session-profiles.md) | Esquema `omsilaunch.session-profile/v1` de `profile.yaml`, chaves, limites, precedência. |
 | [Referência da API pública](reference/public-api.md) | `IOmsiLaunch`, records e enumerações públicos, estabilidade por membro. |
 | [Inventário da API pública](reference/public-api-inventory.md) | Lista gerada de todos os tipos e membros públicos, com assinatura e estabilidade. |

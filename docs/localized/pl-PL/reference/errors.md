@@ -271,7 +271,7 @@ Zob. [transakcje i odzyskiwanie](../concepts/transactions-and-recovery.md).
 
 ## Module
 
-Moduły runtime (zob. [moduły runtime](../../../reference/runtime-modules.md)). Przy planowaniu kod jest komunikatem diagnostycznym planu: dla zażądanego modułu czyni plan niemożliwym do uruchomienia; dla modułu, który dołączył sam (plik ustawień, zawartość, domyślny), plan zgłasza zamiast tego `OL_W_MODULE_NOT_LOADED`. W sesji kod jest komunikatem diagnostycznym sesji (sesja trwa dalej, chyba że kodem jest `OL_E_MODULE_SESSION_FAILED`), a dla operacji modułu jest wynikiem runtime.
+Moduły runtime (zob. [moduły runtime](runtime-modules.md)). Przy planowaniu kod jest komunikatem diagnostycznym planu: dla zażądanego modułu czyni plan niemożliwym do uruchomienia; dla modułu, który dołączył sam (plik ustawień, zawartość, domyślny), plan zgłasza zamiast tego `OL_W_MODULE_NOT_LOADED`. W sesji kod jest komunikatem diagnostycznym sesji (sesja trwa dalej, chyba że kodem jest `OL_E_MODULE_SESSION_FAILED`), a dla operacji modułu jest wynikiem runtime.
 
 | Kod | Zgłaszany przez | Znaczenie | Powierzchnia | Co zrobić |
 | --- | --- | --- | --- | --- |
@@ -293,7 +293,7 @@ Moduły runtime (zob. [moduły runtime](../../../reference/runtime-modules.md)).
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | Moduł z `failure_policy` równym `fail-session` zakończył się błędem; sesja jest zatrzymywana i przywracana. | Komunikat diagnostyczny sesji (stan `Failed`) | Zob. poprzedzający kod modułu. |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`, `ModuleSettings`, CLI | Zażądane ustawienie modułu jest nieprawidłowe lub niezadeklarowane przez moduł, moduł jest jednocześnie włączony i wyłączony, nazwa ustawienia nie ma postaci `<module-id>.<key>` albo flaga modułu jest zadeklarowana przez kilka modułów. | Komunikat diagnostyczny planu (niemożliwy do uruchomienia); błąd CLI | Poprawić żądanie; `/list:RuntimeModules` pokazuje ustawienia każdego modułu. |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`, `ModuleHost` | Wtyczka OMSI wymieniona przez moduł w `conflicts.plugins` jest włączona (`plugins\*.opl`) albo wczytana w OMSI. Powód wskazuje `.opl`. | Komunikat diagnostyczny planu; komunikat diagnostyczny sesji | Wyłączyć lub usunąć tę wtyczkę. OmsiLaunch nigdy jej nie zmienia. |
-| `OL_E_MODULE_HOOK_UNAVAILABLE` | zarezerwowany | Zarezerwowany; komponent natywny otrzymuje zamiast tego liczbowe wyniki hooków opisane w [modułach runtime](../../../reference/runtime-modules.md#native-components-and-hooks). | brak | brak |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | zarezerwowany | Zarezerwowany; komponent natywny otrzymuje zamiast tego liczbowe wyniki hooków opisane w [modułach runtime](runtime-modules.md#native-components-and-hooks). | brak | brak |
 
 <a id="non-error-diagnostic-codes"></a>
 ## Kody diagnostyczne niebędące błędami

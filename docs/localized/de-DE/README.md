@@ -35,7 +35,7 @@ zur Laufzeit validiert bezeichnet, sofern der
 | [CLI-Beispiele](reference/cli-examples.md) | Befehlszeilen zum Kopieren und Einfügen für häufige Aufgaben. |
 | [LaunchSpec-Referenz](reference/launchspec.md) | Jede `LaunchSpec`-Eigenschaft und jeder Enum-Wert, JSON-Laderegeln für `/spec`. |
 | [HOF-Verwaltung](reference/hof-management.md) | Sitzungsbezogenes Kopieren und Spiegeln von HOF-Dateien in Fahrzeugordner: Quellen, Ziele, Konflikte, Wiederherstellung. |
-| [Runtime-Module](../../reference/runtime-modules.md) | Module, die mit einer Sitzung innerhalb von OMSI laufen: Manifest, Vertrauen, Lebenszyklus, Fehlerrichtlinien, Operationen. |
+| [Runtime-Module](reference/runtime-modules.md) | Module, die mit einer Sitzung innerhalb von OMSI laufen: Manifest, Vertrauen, Lebenszyklus, Fehlerrichtlinien, Operationen. |
 | [Referenz der Sitzungsprofile](reference/session-profiles.md) | `profile.yaml`-Schema `omsilaunch.session-profile/v1`, Schlüssel, Grenzwerte, Vorrang. |
 | [Referenz der öffentlichen API](reference/public-api.md) | `IOmsiLaunch`, öffentliche Records und Enums, Stabilität pro Member. |
 | [Inventar der öffentlichen API](reference/public-api-inventory.md) | Generierte Liste aller öffentlichen Typen und Member mit Signatur und Stabilität. |

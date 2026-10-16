@@ -271,7 +271,7 @@
 
 ## Module
 
-ランタイムモジュール（[ランタイムモジュール](../../../reference/runtime-modules.md)を参照）。プラン作成時、コードはプラン診断です。要求されたモジュールではプランが実行不可になり、自らセッションに加わったモジュール（設定ファイル、コンテンツ、既定）では代わりにプランが `OL_W_MODULE_NOT_LOADED` を報告します。セッション中、コードはセッション診断です（コードが `OL_E_MODULE_SESSION_FAILED` でない限りセッションは継続します）。モジュールの操作ではランタイム結果になります。
+ランタイムモジュール（[ランタイムモジュール](runtime-modules.md)を参照）。プラン作成時、コードはプラン診断です。要求されたモジュールではプランが実行不可になり、自らセッションに加わったモジュール（設定ファイル、コンテンツ、既定）では代わりにプランが `OL_W_MODULE_NOT_LOADED` を報告します。セッション中、コードはセッション診断です（コードが `OL_E_MODULE_SESSION_FAILED` でない限りセッションは継続します）。モジュールの操作ではランタイム結果になります。
 
 | コード | 発生元 | 意味 | 経路 | 対処 |
 | --- | --- | --- | --- | --- |
@@ -293,7 +293,7 @@
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` が `fail-session` のモジュールが失敗しました。セッションは停止され、復元されます。 | セッション診断（状態 `Failed`） | 直前のモジュールコードを参照してください。 |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 要求されたモジュール設定が無効、またはモジュールが宣言していません。あるいはモジュールが有効化と無効化の両方をされている、設定名が `<module-id>.<key>` ではない、または複数のモジュールが同じモジュールフラグを宣言しています。 | プラン診断（実行不可）、CLI エラー | リクエストを修正してください。`/list:RuntimeModules` が各モジュールの設定を示します。 |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | モジュールが `conflicts.plugins` に挙げている OMSI プラグインが有効（`plugins\*.opl`）、または OMSI に読み込まれています。理由に `.opl` が示されます。 | プラン診断、セッション診断 | そのプラグインを無効化または削除してください。OmsiLaunch がそれを変更することはありません。 |
-| `OL_E_MODULE_HOOK_UNAVAILABLE` | 予約済み | 予約済みです。ネイティブコンポーネントは代わりに、[ランタイムモジュール](../../../reference/runtime-modules.md#native-components-and-hooks)で説明されている数値のフック結果を受け取ります。 | なし | なし |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | 予約済み | 予約済みです。ネイティブコンポーネントは代わりに、[ランタイムモジュール](runtime-modules.md#native-components-and-hooks)で説明されている数値のフック結果を受け取ります。 | なし | なし |
 
 <a id="non-error-diagnostic-codes"></a>
 ## エラーではない診断コード

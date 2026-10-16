@@ -67,9 +67,9 @@
 | 结果受 64 KiB 邮箱限制：长列表会被截断（`truncated=true`）；每次 `d3d.texture.update` 的像素负载限制为 48 KiB | 设计如此 | [能力](capabilities.md) |
 | 单飞行通道：每个会话同一时间只处理一个请求；槽忙时返回 `OL_E_RUNTIME_CHANNEL_BUSY`；请求 ID 不得重复使用 | 设计如此 | [运行时控制](runtime-control.md) |
 | 遥测是一个 64 事件的环：落后超过 64 个事件的宿主会丢失最旧的事件，并会被告知丢失了多少（`telemetry.lost`） | `EXPERIMENTAL` | [永久插件](../concepts/permanent-plugin.md) |
-| 模块的 Direct3D 设备钩子是 vtable 钩子：在另一个组件会把设备的原始方法写回的安装上（在回归测试安装上于游戏开始后不久观察到），它们不再被调用，并且在清理时无法移除（`OL_E_MODULE_CLEANUP_INCOMPLETE`；该组件保持加载） | `PARTIAL` | [运行时模块](../../../reference/runtime-modules.md#native-components-and-hooks) |
-| 运行时模块的加载是开放的：OmsiLaunch 不检查模块由谁制作；它只保证模块绝不会在 OmsiLaunch 进程内运行，并且会话程序被限制在其任务范围内（不会有第二个进程，随会话结束而结束） | 设计如此（E21） | [运行时模块](../../../reference/runtime-modules.md#security-boundary) |
-| 模块协议 2（设置、默认激活、设置文件、会话程序、插件冲突、通知、`get_value`）仅经过离线验证 | `EXPERIMENTAL` | [运行时模块](../../../reference/runtime-modules.md) |
+| 模块的 Direct3D 设备钩子是 vtable 钩子：在另一个组件会把设备的原始方法写回的安装上（在回归测试安装上于游戏开始后不久观察到），它们不再被调用，并且在清理时无法移除（`OL_E_MODULE_CLEANUP_INCOMPLETE`；该组件保持加载） | `PARTIAL` | [运行时模块](runtime-modules.md#native-components-and-hooks) |
+| 运行时模块的加载是开放的：OmsiLaunch 不检查模块由谁制作；它只保证模块绝不会在 OmsiLaunch 进程内运行，并且会话程序被限制在其任务范围内（不会有第二个进程，随会话结束而结束） | 设计如此（E21） | [运行时模块](runtime-modules.md#security-boundary) |
+| 模块协议 2（设置、默认激活、设置文件、会话程序、插件冲突、通知、`get_value`）仅经过离线验证 | `EXPERIMENTAL` | [运行时模块](runtime-modules.md) |
 | 已在运行时观察到 D3D 设备重置（`resetting`、`restored`、代次失效）；由于 OMSI 的设备直接进入 `DEVICENOTRESET`，未产生单独的 `lost` 状态转换 | `PARTIAL`（RV-007） | [运行时验证状态](../status/runtime-validation-status.md) |
 | 运行时列表是分页的（`cursor`、`limit`、`next_cursor`）：一页最多包含该列表的最大行数，以及 64 KiB 运行时槽所能容纳的内容 | `EXPERIMENTAL` | [能力](capabilities.md#pagination) |
 | 部分高级的地图/地块/路径/对象图字段未公开；运行时读取器是受构建配置限制的类型化快照，绝不提供任意内存访问 | 设计如此 | [能力](capabilities.md) |

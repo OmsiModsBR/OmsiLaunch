@@ -171,7 +171,7 @@ Un preset con `hofs` combinato con un flag `/hof-source`: `OL_E_SESSION_PROFILE_
 
 ### `modules`
 
-Una voce per ogni id di [modulo runtime](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Ogni voce è un mapping con queste chiavi (contesto `module`):
+Una voce per ogni id di [modulo runtime](runtime-modules.md) (`EXPERIMENTAL`). Ogni voce è un mapping con queste chiavi (contesto `module`):
 
 | Chiave | Tipo | Obbligatoria | Predefinito | Descrizione |
 | --- | --- | --- | --- | --- |

@@ -171,7 +171,7 @@ Un préréglage avec `hofs` combiné à une option `/hof-source` : `OL_E_SESSION
 
 ### `modules`
 
-Une entrée par id de [module runtime](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Chaque entrée est un mapping avec ces clés (contexte `module`) :
+Une entrée par id de [module runtime](runtime-modules.md) (`EXPERIMENTAL`). Chaque entrée est un mapping avec ces clés (contexte `module`) :
 
 | Clé | Type | Obligatoire | Valeur par défaut | Description |
 | --- | --- | --- | --- | --- |

@@ -271,7 +271,7 @@
 
 ## Module
 
-執行階段模組（請參閱[執行階段模組](../../../reference/runtime-modules.md)）。規劃時，代碼是計畫診斷訊息：對被要求的模組，它會使計畫不可執行；對自行加入的模組（設定檔、內容、預設），計畫改為回報 `OL_W_MODULE_NOT_LOADED`。在工作階段中，代碼是工作階段診斷訊息（除非代碼為 `OL_E_MODULE_SESSION_FAILED`，否則工作階段會繼續），對模組操作而言則是執行階段結果。
+執行階段模組（請參閱[執行階段模組](runtime-modules.md)）。規劃時，代碼是計畫診斷訊息：對被要求的模組，它會使計畫不可執行；對自行加入的模組（設定檔、內容、預設），計畫改為回報 `OL_W_MODULE_NOT_LOADED`。在工作階段中，代碼是工作階段診斷訊息（除非代碼為 `OL_E_MODULE_SESSION_FAILED`，否則工作階段會繼續），對模組操作而言則是執行階段結果。
 
 | 代碼 | 引發位置 | 意義／典型原因 | 呈現方式 | 處置 |
 | --- | --- | --- | --- | --- |
@@ -293,7 +293,7 @@
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` 為 `fail-session` 的模組失敗；工作階段被停止並還原。 | 工作階段診斷訊息（狀態 `Failed`） | 請參閱前面的模組代碼。 |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 被要求的模組設定無效或模組未宣告它、某個模組同時被啟用與停用、設定名稱不是 `<module-id>.<key>`，或某個模組旗標由多個模組宣告。 | 計畫診斷訊息（不可執行）；CLI 錯誤 | 修正要求；`/list:RuntimeModules` 會顯示每個模組的設定。 |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | 模組在 `conflicts.plugins` 下列出的某個 OMSI 外掛程式已啟用（`plugins\*.opl`），或已在 OMSI 中載入。原因會指出該 `.opl`。 | 計畫診斷訊息；工作階段診斷訊息 | 停用或移除該外掛程式。OmsiLaunch 絕不會變更它。 |
-| `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生元件改為接收[執行階段模組](../../../reference/runtime-modules.md#native-components-and-hooks)中所述的數值 hook 結果。 | 無 | 無 |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生元件改為接收[執行階段模組](runtime-modules.md#native-components-and-hooks)中所述的數值 hook 結果。 | 無 | 無 |
 
 <a id="non-error-diagnostic-codes"></a>
 ## 非錯誤的診斷碼

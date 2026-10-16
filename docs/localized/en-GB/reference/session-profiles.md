@@ -166,7 +166,7 @@ A preset with `hofs` combined with a `/hof-source` flag: `OL_E_SESSION_PROFILE_O
 
 ### `modules`
 
-One entry per [runtime module](../../../reference/runtime-modules.md) id (`EXPERIMENTAL`). Each entry is a mapping with these keys (context `module`):
+One entry per [runtime module](runtime-modules.md) id (`EXPERIMENTAL`). Each entry is a mapping with these keys (context `module`):
 
 | Key | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |

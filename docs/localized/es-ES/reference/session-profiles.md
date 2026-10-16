@@ -171,7 +171,7 @@ Un preset con `hofs` combinado con un flag `/hof-source`: `OL_E_SESSION_PROFILE_
 
 ### `modules`
 
-Una entrada por id de [módulo de runtime](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Cada entrada es un mapeo con estas claves (contexto `module`):
+Una entrada por id de [módulo de runtime](runtime-modules.md) (`EXPERIMENTAL`). Cada entrada es un mapeo con estas claves (contexto `module`):
 
 | Clave | Tipo | Obligatoria | Valor predeterminado | Descripción |
 | --- | --- | --- | --- | --- |

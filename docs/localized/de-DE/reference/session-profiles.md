@@ -171,7 +171,7 @@ Eine Voreinstellung mit `hofs` in Kombination mit einem `/hof-source`-Flag: `OL_
 
 ### `modules`
 
-Ein Eintrag pro [Runtime-Modul](../../../reference/runtime-modules.md)-ID (`EXPERIMENTAL`). Jeder Eintrag ist ein Mapping mit diesen Schlüsseln (Kontext `module`):
+Ein Eintrag pro [Runtime-Modul](runtime-modules.md)-ID (`EXPERIMENTAL`). Jeder Eintrag ist ein Mapping mit diesen Schlüsseln (Kontext `module`):
 
 | Schlüssel | Typ | Erforderlich | Standard | Beschreibung |
 | --- | --- | --- | --- | --- |

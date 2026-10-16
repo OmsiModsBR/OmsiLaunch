@@ -28,7 +28,7 @@
 | [CLI 示例](reference/cli-examples.md) | 常见任务的可直接复制粘贴的命令行。 |
 | [LaunchSpec 参考](reference/launchspec.md) | 每个 `LaunchSpec` 属性和枚举值，以及 `/spec` 的 JSON 加载规则。 |
 | [HOF 管理](reference/hof-management.md) | 会话范围内的 HOF 复制与镜像到车辆文件夹：来源、目标、冲突、还原。 |
-| [运行时模块](../../reference/runtime-modules.md) | 随会话在 OMSI 内运行的模块：清单、信任、生命周期、失败策略、操作。 |
+| [运行时模块](reference/runtime-modules.md) | 随会话在 OMSI 内运行的模块：清单、信任、生命周期、失败策略、操作。 |
 | [会话配置档参考](reference/session-profiles.md) | `profile.yaml` 架构 `omsilaunch.session-profile/v1`、键、限制、优先级。 |
 | [公共 API 参考](reference/public-api.md) | `IOmsiLaunch`、公共记录和枚举，以及每个成员的稳定性。 |
 | [公共 API 清单](reference/public-api-inventory.md) | 自动生成的列表，包含每个公共类型和成员的签名与稳定性。 |

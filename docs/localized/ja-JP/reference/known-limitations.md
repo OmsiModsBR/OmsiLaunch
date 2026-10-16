@@ -69,9 +69,9 @@
 | 結果は 64 KiB のメールボックスによって上限が設けられます。長いリストは切り詰められます（`truncated=true`）。ピクセルペイロードは `d3d.texture.update` 1 回あたり 48 KiB に制限されます | 設計上の仕様 | [ケイパビリティ](capabilities.md) |
 | シングルフライトのチャネル: セッションごとに一度に 1 リクエストのみです。スロットがビジーの場合は `OL_E_RUNTIME_CHANNEL_BUSY` になります。リクエスト ID を再利用してはなりません | 設計上の仕様 | [ランタイム制御](runtime-control.md) |
 | テレメトリは 64 イベントのリングです。64 イベントを超えて遅れたホストは最も古いものを失い、その件数が通知されます（`telemetry.lost`） | `EXPERIMENTAL` | [常駐プラグイン](../concepts/permanent-plugin.md) |
-| モジュールの Direct3D デバイスフックは vtable フックです。別のコンポーネントがデバイスの元のメソッドを書き戻すインストール環境（リグレッション用のインストール環境で、ゲームプレイの開始直後に観測されました）では、呼び出されなくなり、クリーンアップ時にも取り除けません（`OL_E_MODULE_CLEANUP_INCOMPLETE`。コンポーネントは読み込まれたままです） | `PARTIAL` | [ランタイムモジュール](../../../reference/runtime-modules.md#native-components-and-hooks) |
-| ランタイムモジュールの読み込みはオープンです。OmsiLaunch はモジュールを誰が作ったかを確認しません。保証するのは、モジュールが OmsiLaunch プロセス内で決して実行されないこと、およびセッションプログラムがそのジョブに閉じ込められること（2 つ目のプロセスなし、セッションとともに終了）だけです | 設計上の仕様（E21） | [ランタイムモジュール](../../../reference/runtime-modules.md#security-boundary) |
-| モジュールプロトコル 2（設定、既定のアクティベーション、設定ファイル、セッションプログラム、プラグインの競合、通知、`get_value`）は、オフラインでのみ検証されています | `EXPERIMENTAL` | [ランタイムモジュール](../../../reference/runtime-modules.md) |
+| モジュールの Direct3D デバイスフックは vtable フックです。別のコンポーネントがデバイスの元のメソッドを書き戻すインストール環境（リグレッション用のインストール環境で、ゲームプレイの開始直後に観測されました）では、呼び出されなくなり、クリーンアップ時にも取り除けません（`OL_E_MODULE_CLEANUP_INCOMPLETE`。コンポーネントは読み込まれたままです） | `PARTIAL` | [ランタイムモジュール](runtime-modules.md#native-components-and-hooks) |
+| ランタイムモジュールの読み込みはオープンです。OmsiLaunch はモジュールを誰が作ったかを確認しません。保証するのは、モジュールが OmsiLaunch プロセス内で決して実行されないこと、およびセッションプログラムがそのジョブに閉じ込められること（2 つ目のプロセスなし、セッションとともに終了）だけです | 設計上の仕様（E21） | [ランタイムモジュール](runtime-modules.md#security-boundary) |
+| モジュールプロトコル 2（設定、既定のアクティベーション、設定ファイル、セッションプログラム、プラグインの競合、通知、`get_value`）は、オフラインでのみ検証されています | `EXPERIMENTAL` | [ランタイムモジュール](runtime-modules.md) |
 | D3D のデバイスリセットはランタイムで観測されました（`resetting`、`restored`、世代の無効化）。OMSI のデバイスが直接 `DEVICENOTRESET` に移行したため、独立した `lost` 遷移は発生しませんでした | `PARTIAL`（RV-007） | [ランタイム検証ステータス](../status/runtime-validation-status.md) |
 | ランタイムのリストはページングされます（`cursor`、`limit`、`next_cursor`）。1 ページが保持するのは、リストの最大行数と、64 KiB のランタイムスロットに収まる分までです | `EXPERIMENTAL` | [ケイパビリティ](capabilities.md#pagination) |
 

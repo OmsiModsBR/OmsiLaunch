@@ -117,7 +117,7 @@
 | `InternetTextures` | `InternetTexturesSpec` オブジェクトまたは null | いいえ | `null` → `EffectiveInternetTextures` = `Native` | はい | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | `SessionProfileMetadata` オブジェクトまたは null | いいえ | `null` | 出自の記録のみ（`session_profile.selected` プラン診断） | `STABLE_BETA` |
 | `HofManagement` | `HofManagementSpec` オブジェクトまたは null | いいえ | `null` → `EffectiveHofManagement` = 操作なし | はい（セッションの HOF オーバーレイ。[HOF 管理](hof-management.md)を参照） | `STABLE_BETA` |
-| `Modules` | `RuntimeModulesSpec` オブジェクト（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）または null | いいえ | `null` → `EffectiveModules` = 要求・無効化・設定されたものなし | いいえ（モジュールが OmsiLaunch を通じてインストール環境のファイルに触れることはありません。[ランタイムモジュール](../../../reference/runtime-modules.md)を参照） | `EXPERIMENTAL` |
+| `Modules` | `RuntimeModulesSpec` オブジェクト（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）または null | いいえ | `null` → `EffectiveModules` = 要求・無効化・設定されたものなし | いいえ（モジュールが OmsiLaunch を通じてインストール環境のファイルに触れることはありません。[ランタイムモジュール](runtime-modules.md)を参照） | `EXPERIMENTAL` |
 
 読み取り専用アクセサー（CLI の JSON 出力に含まれ、読み込み時には無視されます）: `EffectiveYear`、`EffectiveWeather`、`EffectiveInput`、`EffectiveDiagnostics`、`EffectivePresentation`、`EffectiveInternetTextures`、`EffectiveHofManagement`、`EffectiveModules`。
 
@@ -271,7 +271,7 @@ CLI フラグ `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/tr
 
 | プロパティ | 型 | 既定値 | 有効な値 | 使用 | 安定性 |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | モジュール ID の配列 | なし | `plugins\OmsiLaunch.Modules` 配下にインストールされたモジュールの ID。[ランタイムモジュール](../../../reference/runtime-modules.md)を参照してください。読み込めない要求済みモジュールは、プラン診断 `OL_E_MODULE_*` になります（プランは実行不可）。 | はい | `EXPERIMENTAL` |
+| `Enable` | モジュール ID の配列 | なし | `plugins\OmsiLaunch.Modules` 配下にインストールされたモジュールの ID。[ランタイムモジュール](runtime-modules.md)を参照してください。読み込めない要求済みモジュールは、プラン診断 `OL_E_MODULE_*` になります（プランは実行不可）。 | はい | `EXPERIMENTAL` |
 | `Disable` | モジュール ID の配列または null | なし | 既定、コンテンツ、または設定ファイルによるモジュールをセッションから除外します（プラン診断 `module.disabled`）。有効化と無効化の両方が指定されたモジュールは `OL_E_MODULE_SETTING_INVALID` です。読み取り専用アクセサー `EffectiveDisable`。 | はい | `EXPERIMENTAL` |
 | `Settings` | 文字列のオブジェクトまたは null | なし | `"<module id>.<key>": "<value>"`。設定ファイル `.omsilaunch\modules.ini` とマニフェストの既定値より優先されます。無効な値、またはモジュールが宣言していないキーは `OL_E_MODULE_SETTING_INVALID`（プランは実行不可）です。セッションが読み込まないモジュールの設定は `OL_W_MODULE_SETTING_IGNORED` です。有効な値は `PlannedModule.Settings` にあります。読み取り専用アクセサー `EffectiveSettings`。 | はい | `EXPERIMENTAL` |
 

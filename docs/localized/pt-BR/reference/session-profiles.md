@@ -171,7 +171,7 @@ Uma predefinição com `hofs` combinada com a flag `/hof-source`: `OL_E_SESSION_
 
 ### `modules`
 
-Uma entrada por id de [módulo de runtime](../../../reference/runtime-modules.md) (`EXPERIMENTAL`). Cada entrada é um mapeamento com estas chaves (contexto `module`):
+Uma entrada por id de [módulo de runtime](runtime-modules.md) (`EXPERIMENTAL`). Cada entrada é um mapeamento com estas chaves (contexto `module`):
 
 | Chave | Tipo | Obrigatória | Padrão | Descrição |
 | --- | --- | --- | --- | --- |

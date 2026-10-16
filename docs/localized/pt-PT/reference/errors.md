@@ -281,7 +281,7 @@ Ver [transações e recuperação](../concepts/transactions-and-recovery.md).
 <a id="module"></a>
 ## Módulo
 
-Módulos de runtime (ver [módulos de runtime](../../../reference/runtime-modules.md)). No planeamento, um código é um diagnóstico do plano: para um módulo pedido, torna o plano não executável; para um módulo que aderiu por si próprio (ficheiro de definições, conteúdo, predefinição), o plano comunica `OL_W_MODULE_NOT_LOADED` em vez disso. Numa sessão, um código é um diagnóstico da sessão (a sessão continua, a menos que o código seja `OL_E_MODULE_SESSION_FAILED`) e, para uma operação de módulo, é o resultado de runtime.
+Módulos de runtime (ver [módulos de runtime](runtime-modules.md)). No planeamento, um código é um diagnóstico do plano: para um módulo pedido, torna o plano não executável; para um módulo que aderiu por si próprio (ficheiro de definições, conteúdo, predefinição), o plano comunica `OL_W_MODULE_NOT_LOADED` em vez disso. Numa sessão, um código é um diagnóstico da sessão (a sessão continua, a menos que o código seja `OL_E_MODULE_SESSION_FAILED`) e, para uma operação de módulo, é o resultado de runtime.
 
 | Código | Gerado por | Significado / causa típica | Superfície | O que fazer |
 | --- | --- | --- | --- | --- |
@@ -303,7 +303,7 @@ Módulos de runtime (ver [módulos de runtime](../../../reference/runtime-module
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | Um módulo cujo `failure_policy` é `fail-session` falhou; a sessão é parada e restaurada. | Diagnóstico da sessão (estado `Failed`) | Ver o código de módulo anterior. |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`, `ModuleSettings`, CLI | Uma definição de módulo pedida é inválida ou não é declarada pelo módulo, um módulo está simultaneamente ativado e desativado, o nome de uma definição não é `<module-id>.<key>`, ou uma flag de módulo é declarada por vários módulos. | Diagnóstico do plano (não executável); erro da CLI | Corrigir o pedido; `/list:RuntimeModules` mostra as definições de cada módulo. |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`, `ModuleHost` | Um plugin do OMSI que o módulo lista em `conflicts.plugins` está ativado (`plugins\*.opl`), ou carregado no OMSI. O motivo indica o `.opl`. | Diagnóstico do plano; diagnóstico da sessão | Desativar ou remover esse plugin. O OmsiLaunch nunca o altera. |
-| `OL_E_MODULE_HOOK_UNAVAILABLE` | reservado | Reservado; um componente nativo recebe, em vez disso, os resultados numéricos de hook descritos em [módulos de runtime](../../../reference/runtime-modules.md#native-components-and-hooks). | nenhuma | nenhuma |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | reservado | Reservado; um componente nativo recebe, em vez disso, os resultados numéricos de hook descritos em [módulos de runtime](runtime-modules.md#native-components-and-hooks). | nenhuma | nenhuma |
 
 <a id="non-error-diagnostic-codes"></a>
 ## Códigos de diagnóstico que não são erros

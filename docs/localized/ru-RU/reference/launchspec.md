@@ -117,7 +117,7 @@
 | `InternetTextures` | объект `InternetTexturesSpec` или null | нет | `null` → `EffectiveInternetTextures` = `Native` | да | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | объект `SessionProfileMetadata` или null | нет | `null` | только сведения о происхождении (диагностическое сообщение плана `session_profile.selected`) | `STABLE_BETA` |
 | `HofManagement` | объект `HofManagementSpec` или null | нет | `null` → `EffectiveHofManagement` = нет операций | да (HOF-overlay сеанса, см. [управление HOF](hof-management.md)) | `STABLE_BETA` |
-| `Modules` | объект `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) или null | нет | `null` → `EffectiveModules` = ничего не запрошено, не отключено и не задано | нет (модули никогда не затрагивают файлы установки через OmsiLaunch; см. [runtime-модули](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
+| `Modules` | объект `RuntimeModulesSpec` (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) или null | нет | `null` → `EffectiveModules` = ничего не запрошено, не отключено и не задано | нет (модули никогда не затрагивают файлы установки через OmsiLaunch; см. [runtime-модули](runtime-modules.md)) | `EXPERIMENTAL` |
 
 Методы доступа только для чтения (присутствуют в JSON-выводе CLI, при загрузке игнорируются): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
@@ -270,7 +270,7 @@
 
 | Свойство | Тип | По умолчанию | Допустимые значения | Используется | Стабильность |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | массив идентификаторов модулей | нет | Идентификаторы модулей, установленных ниже `plugins\OmsiLaunch.Modules`; см. [runtime-модули](../../../reference/runtime-modules.md). Запрошенный модуль, который не удаётся загрузить, — диагностическое сообщение плана `OL_E_MODULE_*` (план неисполним). | да | `EXPERIMENTAL` |
+| `Enable` | массив идентификаторов модулей | нет | Идентификаторы модулей, установленных ниже `plugins\OmsiLaunch.Modules`; см. [runtime-модули](runtime-modules.md). Запрошенный модуль, который не удаётся загрузить, — диагностическое сообщение плана `OL_E_MODULE_*` (план неисполним). | да | `EXPERIMENTAL` |
 | `Disable` | массив идентификаторов модулей или null | нет | Не допускает в сеанс модуль по умолчанию, модуль из содержимого или из файла параметров (диагностическое сообщение плана `module.disabled`). Модуль, одновременно включённый и отключённый, — `OL_E_MODULE_SETTING_INVALID`. Метод доступа только для чтения `EffectiveDisable`. | да | `EXPERIMENTAL` |
 | `Settings` | объект со строками или null | нет | `"<module id>.<key>": "<value>"`. Имеет приоритет над файлом параметров `.omsilaunch\modules.ini` и значением по умолчанию из манифеста. Неверное значение или ключ, которого модуль не объявляет, — `OL_E_MODULE_SETTING_INVALID` (план неисполним); параметры модуля, который сеанс не загружает, — `OL_W_MODULE_SETTING_IGNORED`. Эффективные значения находятся в `PlannedModule.Settings`. Метод доступа только для чтения `EffectiveSettings`. | да | `EXPERIMENTAL` |
 

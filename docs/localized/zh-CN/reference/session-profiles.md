@@ -171,7 +171,7 @@
 
 ### `modules`
 
-每个[运行时模块](../../../reference/runtime-modules.md) ID 一个条目（`EXPERIMENTAL`）。每个条目是带有下列键的映射（上下文 `module`）：
+每个[运行时模块](runtime-modules.md) ID 一个条目（`EXPERIMENTAL`）。每个条目是带有下列键的映射（上下文 `module`）：
 
 | 键 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |

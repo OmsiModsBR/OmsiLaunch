@@ -117,7 +117,7 @@
 | `InternetTextures` | `InternetTexturesSpec` 对象或 null | 否 | `null` → `EffectiveInternetTextures` = `Native` | 是 | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | `SessionProfileMetadata` 对象或 null | 否 | `null` | 仅用于来源记录（`session_profile.selected` 计划诊断信息） | `STABLE_BETA` |
 | `HofManagement` | `HofManagementSpec` 对象或 null | 否 | `null` → `EffectiveHofManagement` = 无操作 | 是（会话 HOF 覆盖层，参见 [HOF 管理](hof-management.md)） | `STABLE_BETA` |
-| `Modules` | `RuntimeModulesSpec` 对象（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）或 null | 否 | `null` → `EffectiveModules` = 没有被请求、被禁用或被设置的内容 | 否（模块绝不会通过 OmsiLaunch 触及安装文件；参见[运行时模块](../../../reference/runtime-modules.md)） | `EXPERIMENTAL` |
+| `Modules` | `RuntimeModulesSpec` 对象（`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`）或 null | 否 | `null` → `EffectiveModules` = 没有被请求、被禁用或被设置的内容 | 否（模块绝不会通过 OmsiLaunch 触及安装文件；参见[运行时模块](runtime-modules.md)） | `EXPERIMENTAL` |
 
 只读访问器（出现在 CLI 的 JSON 输出中，加载时被忽略）：`EffectiveYear`、`EffectiveWeather`、`EffectiveInput`、`EffectiveDiagnostics`、`EffectivePresentation`、`EffectiveInternetTextures`、`EffectiveHofManagement`、`EffectiveModules`。
 
@@ -271,7 +271,7 @@ CLI 参数 `/log`、`/logall`、`/omsi-logall`、`/verbose`、`/trace`、`/trace
 
 | 属性 | 类型 | 默认值 | 有效值 | 是否使用 | 稳定性 |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | 模块 id 数组 | 无 | 安装在 `plugins\OmsiLaunch.Modules` 之下的模块 id；参见[运行时模块](../../../reference/runtime-modules.md)。无法加载的被请求模块是计划诊断信息 `OL_E_MODULE_*`（计划不可运行）。 | 是 | `EXPERIMENTAL` |
+| `Enable` | 模块 id 数组 | 无 | 安装在 `plugins\OmsiLaunch.Modules` 之下的模块 id；参见[运行时模块](runtime-modules.md)。无法加载的被请求模块是计划诊断信息 `OL_E_MODULE_*`（计划不可运行）。 | 是 | `EXPERIMENTAL` |
 | `Disable` | 模块 id 数组或 null | 无 | 使默认模块、内容模块或设置文件模块不进入会话（计划诊断信息 `module.disabled`）。同时被启用和禁用的模块为 `OL_E_MODULE_SETTING_INVALID`。只读访问器 `EffectiveDisable`。 | 是 | `EXPERIMENTAL` |
 | `Settings` | 字符串对象或 null | 无 | `"<module id>.<key>": "<value>"`。优先于设置文件 `.omsilaunch\modules.ini` 和清单中的默认值。无效的值或模块未声明的键为 `OL_E_MODULE_SETTING_INVALID`（计划不可运行）；为会话未加载的模块给出的设置项为 `OL_W_MODULE_SETTING_IGNORED`。生效的值位于 `PlannedModule.Settings`。只读访问器 `EffectiveSettings`。 | 是 | `EXPERIMENTAL` |
 

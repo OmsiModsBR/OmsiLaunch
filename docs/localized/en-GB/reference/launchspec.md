@@ -112,7 +112,7 @@ Column "Consumed" states what the current code does with the value. Stability us
 | `InternetTextures` | `InternetTexturesSpec` object or null | no | `null` → `EffectiveInternetTextures` = `Native` | yes | `STABLE_BETA` / `EXPERIMENTAL` |
 | `SessionProfile` | `SessionProfileMetadata` object or null | no | `null` | provenance only (`session_profile.selected` plan diagnostic) | `STABLE_BETA` |
 | `HofManagement` | `HofManagementSpec` object or null | no | `null` → `EffectiveHofManagement` = no operations | yes (session HOF overlays, see [HOF management](hof-management.md)) | `STABLE_BETA` |
-| `Modules` | `RuntimeModulesSpec` object (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) or null | no | `null` → `EffectiveModules` = nothing requested, disabled or set | no (modules never touch installation files through OmsiLaunch; see [runtime modules](../../../reference/runtime-modules.md)) | `EXPERIMENTAL` |
+| `Modules` | `RuntimeModulesSpec` object (`{ "Enable": [...], "Disable": [...], "Settings": { "<module id>.<key>": "<value>" } }`) or null | no | `null` → `EffectiveModules` = nothing requested, disabled or set | no (modules never touch installation files through OmsiLaunch; see [runtime modules](runtime-modules.md)) | `EXPERIMENTAL` |
 
 Read-only accessors (present in CLI JSON output, ignored on load): `EffectiveYear`, `EffectiveWeather`, `EffectiveInput`, `EffectiveDiagnostics`, `EffectivePresentation`, `EffectiveInternetTextures`, `EffectiveHofManagement`, `EffectiveModules`.
 
@@ -264,7 +264,7 @@ The CLI flags `/log`, `/logall`, `/omsi-logall`, `/verbose`, `/trace`, `/trace-p
 
 | Property | Type | Default | Valid values | Consumed | Stability |
 | --- | --- | --- | --- | --- | --- |
-| `Enable` | array of module ids | none | Ids of modules installed below `plugins\OmsiLaunch.Modules`; see [runtime modules](../../../reference/runtime-modules.md). A requested module that cannot be loaded is a plan diagnostic `OL_E_MODULE_*` (plan not runnable). | yes | `EXPERIMENTAL` |
+| `Enable` | array of module ids | none | Ids of modules installed below `plugins\OmsiLaunch.Modules`; see [runtime modules](runtime-modules.md). A requested module that cannot be loaded is a plan diagnostic `OL_E_MODULE_*` (plan not runnable). | yes | `EXPERIMENTAL` |
 | `Disable` | array of module ids or null | none | Keeps a default, content or settings-file module out of the session (plan diagnostic `module.disabled`). A module both enabled and disabled is `OL_E_MODULE_SETTING_INVALID`. Read-only accessor `EffectiveDisable`. | yes | `EXPERIMENTAL` |
 | `Settings` | object of strings or null | none | `"<module id>.<key>": "<value>"`. Wins over the settings file `.omsilaunch\modules.ini` and the manifest default. An invalid value or a key the module does not declare is `OL_E_MODULE_SETTING_INVALID` (plan not runnable); settings for a module the session does not load are `OL_W_MODULE_SETTING_IGNORED`. The effective values are in `PlannedModule.Settings`. Read-only accessor `EffectiveSettings`. | yes | `EXPERIMENTAL` |
 

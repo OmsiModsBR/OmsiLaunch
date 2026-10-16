@@ -271,7 +271,7 @@
 
 ## Module
 
-运行时模块（参见[运行时模块](../../../reference/runtime-modules.md)）。规划阶段，代码是计划诊断信息：对于被请求的模块，它会使计划不可运行；对于自行加入的模块（设置文件、内容、默认），计划会改为报告 `OL_W_MODULE_NOT_LOADED`。在会话中，代码是会话诊断信息（除非代码为 `OL_E_MODULE_SESSION_FAILED`，否则会话继续），对于模块操作则是运行时结果。
+运行时模块（参见[运行时模块](runtime-modules.md)）。规划阶段，代码是计划诊断信息：对于被请求的模块，它会使计划不可运行；对于自行加入的模块（设置文件、内容、默认），计划会改为报告 `OL_W_MODULE_NOT_LOADED`。在会话中，代码是会话诊断信息（除非代码为 `OL_E_MODULE_SESSION_FAILED`，否则会话继续），对于模块操作则是运行时结果。
 
 | 代码 | 引发位置 | 含义 | 途径 | 处理方法 |
 | --- | --- | --- | --- | --- |
@@ -293,7 +293,7 @@
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` 为 `fail-session` 的模块失败；会话被停止并还原。 | 会话诊断信息（状态 `Failed`） | 参见前面的模块代码。 |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 请求的模块设置无效或未由该模块声明，某个模块同时被启用和禁用，设置名称不是 `<module-id>.<key>`，或某个模块参数由多个模块声明。 | 计划诊断信息（不可运行）；CLI 错误 | 更正请求；`/list:RuntimeModules` 会显示每个模块的设置。 |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | 模块在 `conflicts.plugins` 下列出的某个 OMSI 插件已被启用（`plugins\*.opl`），或已在 OMSI 中加载。原因会指明 `.opl`。 | 计划诊断信息；会话诊断信息 | 关闭或移除该插件。OmsiLaunch 绝不会更改它。 |
-| `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生组件会改为收到[运行时模块](../../../reference/runtime-modules.md#native-components-and-hooks)中描述的数值钩子结果。 | 无 | 无 |
+| `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生组件会改为收到[运行时模块](runtime-modules.md#native-components-and-hooks)中描述的数值钩子结果。 | 无 | 无 |
 
 <a id="non-error-diagnostic-codes"></a>
 ## 非错误诊断码

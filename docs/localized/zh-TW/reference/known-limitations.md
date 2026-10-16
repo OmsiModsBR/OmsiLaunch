@@ -67,9 +67,9 @@
 | 結果受限於 64 KiB 信箱（mailbox）：長清單會被截斷（`truncated=true`）；每次 `d3d.texture.update` 的像素酬載上限為 48 KiB | 依設計 | [功能](capabilities.md) |
 | 單一飛行（single-flight）通道：每個工作階段一次只能有一個要求；槽位忙碌時為 `OL_E_RUNTIME_CHANNEL_BUSY`；要求 id 不得重複使用 | 依設計 | [執行階段控制](runtime-control.md) |
 | 遙測是 64 個事件的環狀緩衝區：落後超過 64 個事件的主機會失去最舊的事件，並被告知失去多少（`telemetry.lost`） | `EXPERIMENTAL` | [永久外掛程式](../concepts/permanent-plugin.md) |
-| 模組的 Direct3D 裝置 hook 是 vtable hook：在另一個元件會把裝置的原始方法寫回的安裝上（在迴歸測試安裝上，於遊戲過程開始後不久觀察到），它們會停止被呼叫，且在清理時無法移除（`OL_E_MODULE_CLEANUP_INCOMPLETE`；該元件仍保持載入） | `PARTIAL` | [執行階段模組](../../../reference/runtime-modules.md#native-components-and-hooks) |
-| 執行階段模組的載入是開放的：OmsiLaunch 不檢查模組是誰製作的；它只保證模組絕不會在 OmsiLaunch 處理程序內執行，且工作階段程式被限制在其工作範圍內（沒有第二個處理程序、隨工作階段結束） | 依設計（E21） | [執行階段模組](../../../reference/runtime-modules.md#security-boundary) |
-| 模組協定 2（設定、預設啟用、設定檔、工作階段程式、外掛程式衝突、通知、`get_value`）僅離線驗證 | `EXPERIMENTAL` | [執行階段模組](../../../reference/runtime-modules.md) |
+| 模組的 Direct3D 裝置 hook 是 vtable hook：在另一個元件會把裝置的原始方法寫回的安裝上（在迴歸測試安裝上，於遊戲過程開始後不久觀察到），它們會停止被呼叫，且在清理時無法移除（`OL_E_MODULE_CLEANUP_INCOMPLETE`；該元件仍保持載入） | `PARTIAL` | [執行階段模組](runtime-modules.md#native-components-and-hooks) |
+| 執行階段模組的載入是開放的：OmsiLaunch 不檢查模組是誰製作的；它只保證模組絕不會在 OmsiLaunch 處理程序內執行，且工作階段程式被限制在其工作範圍內（沒有第二個處理程序、隨工作階段結束） | 依設計（E21） | [執行階段模組](runtime-modules.md#security-boundary) |
+| 模組協定 2（設定、預設啟用、設定檔、工作階段程式、外掛程式衝突、通知、`get_value`）僅離線驗證 | `EXPERIMENTAL` | [執行階段模組](runtime-modules.md) |
 | 已在執行階段觀察到 D3D 裝置重設（`resetting`、`restored`、generation 失效）；由於 OMSI 的裝置直接進入 `DEVICENOTRESET`，未產生獨立的 `lost` 轉換 | `PARTIAL`（RV-007） | [執行階段驗證狀態](../status/runtime-validation-status.md) |
 | 執行階段清單是分頁的（`cursor`、`limit`、`next_cursor`）：一頁最多包含該清單的最大資料列數，以及可容納於 64 KiB 執行階段槽位的資料列 | `EXPERIMENTAL` | [功能](capabilities.md#pagination) |
 | 部分進階的地圖／圖塊／路徑／物件圖欄位未公開；執行階段讀取器是受設定檔限制的具型別快照，絕非任意記憶體存取 | 依設計 | [功能](capabilities.md) |
