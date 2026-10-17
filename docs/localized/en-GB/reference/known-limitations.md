@@ -1,6 +1,6 @@
 # Known Limitations
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > British English edition of the [canonical page](../../../reference/known-limitations.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 This page lists, from the code, everything in OmsiLaunch 0.1.0-beta4 that is `UNAVAILABLE`, `PARTIAL`, or an accepted risk, so that users and integrators do not build on behaviour the product does not provide. Each row names the limitation, its stability, why it exists, and where it is documented in detail. The English documentation is normative; localised copies under `docs/localized/` are not maintained at the same level and may lag behind (see the last section).
@@ -10,7 +10,6 @@ This page lists, from the code, everything in OmsiLaunch 0.1.0-beta4 that is `UN
 | Limitation | Stability | Detail |
 | --- | --- | --- |
 | Capabilities that read object layouts (vehicles, humans, weather, map, camera, timetable, scripts, drivers, tickets) are verified only on a known layout (`Omsi23004`); on another OMSI 2 build they are unavailable (`OL_E_CAPABILITY_UNRESOLVED`) until structural validators exist | `PARTIAL` on unknown builds | [compatibility](compatibility.md) |
-| The genuine Steam executable (DRM-protected) has not been runtime validated; a controlled LAA copy was | `PARTIAL` for Steam | [compatibility](compatibility.md) |
 | Only the known layout has been runtime validated; the build-independent resolution is verified offline against the reference executable with its identity withheld | `EXPERIMENTAL` on unknown builds | [runtime validation status](../status/runtime-validation-status.md) |
 | Windows 10+ x64 only; no Windows 7/8, no XP, no ARM64 | `UNAVAILABLE` | [compatibility](compatibility.md) |
 | The plugin needs the **x86** .NET 6 runtime in addition to the x64 runtime used by the controller | | [compatibility](compatibility.md) |

@@ -1,6 +1,6 @@
 # Совместимость
 
-<!-- l10n: source=reference/compatibility.md source-sha256=bd2e58f38c45a35819751b568f389c9b567f45ecef4a5a5f5a1b68e2f1160907 -->
+<!-- l10n: source=reference/compatibility.md source-sha256=9f3a7654d57410845e20c92eccc746868cbac665b4d937581f16c3818d7b7b88 -->
 > Перевод [исходной страницы на английском языке](../../../reference/compatibility.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 OmsiLaunch работает с установленной **OMSI 2**. Он не требует какого-то одного файла `Omsi.exe`: каждое нативное допущение, которое он делает внутри OMSI (функция, место патча, класс, слот VMT, глобальная переменная, смещение поля), определяется и проверяется отдельно, в процессе, перед использованием, а возможность доступна, только если проверены все её допущения. На этой странице указано, что означает «установлена OMSI 2», как идентифицируются сборки, как определяются возможности и каковы требования к операционной системе и среде выполнения. Источники: `src/OmsiLaunch.Builds.Omsi23004/OmsiBuildDetection.cs`, `src/OmsiLaunch.Builds.Omsi23004/NativeTargetCatalog.cs`, `src/OmsiLaunch.NativeResolution/`, `src/OmsiLaunch.Plugin/PluginNativeTargets.cs`, `src/OmsiLaunch.Core/SessionPlanner.cs`, `src/OmsiLaunch.Process/RuntimePlatform.cs`.
@@ -87,7 +87,7 @@ Windows 7, Windows 8.x, Windows XP и другие системы NT 6 и бол
 ## Примечания о Steam и Large Address Aware
 
 - Копия с Large Address Aware, отличающаяся от оригинала только заголовками, имеет ту же идентичность кода и использует ту же известную раскладку.
-- Исполняемый файл Steam на диске защищён DRM, поэтому его файл может отличаться от загруженного образа: план может сообщить `OL_W_CAPABILITY_PENDING`, а решает определение в процессе. Сеанс с подлинным исполняемым файлом Steam не проверялся в runtime (см. [статус проверки в runtime](../status/runtime-validation-status.md)).
+- Исполняемый файл Steam на диске защищён DRM, поэтому его файл может отличаться от загруженного образа: план может сообщить `OL_W_CAPABILITY_PENDING`, а решает определение в процессе. Сеанс с подлинным исполняемым файлом Steam не проверялся в runtime (см.
 - Steam запускает OMSI самостоятельно; сеанс должен запускаться через `OmsiLaunch.exe`, чтобы существовал handoff. При запуске из Steam постоянный плагин остаётся неактивным (нет handoff, нет хуков).
 
 <a id="related-pages"></a>

@@ -1,6 +1,6 @@
 # Bekende beperkingen
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/known-limitations.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina somt, op basis van de code, alles in OmsiLaunch 0.1.0-beta4 op dat `UNAVAILABLE` of `PARTIAL` is of een geaccepteerd risico vormt, zodat gebruikers en integrators niet voortbouwen op gedrag dat het product niet biedt. Elke rij noemt de beperking, de stabiliteit ervan, waarom ze bestaat en waar ze in detail is gedocumenteerd. De Engelse documentatie is normatief; gelokaliseerde kopieën onder `docs/localized/` worden niet op hetzelfde niveau onderhouden en kunnen achterlopen (zie de laatste sectie).
@@ -11,7 +11,6 @@ Deze pagina somt, op basis van de code, alles in OmsiLaunch 0.1.0-beta4 op dat `
 | Beperking | Stabiliteit | Details |
 | --- | --- | --- |
 | Capabilities die objectindelingen lezen (voertuigen, mensen, weer, kaart, camera, dienstregeling, scripts, chauffeurs, kaartjes) worden alleen op een bekende indeling (`Omsi23004`) geverifieerd; op een andere OMSI 2-build zijn ze niet beschikbaar (`OL_E_CAPABILITY_UNRESOLVED`) totdat er structurele validators bestaan | `PARTIAL` op onbekende builds | [compatibiliteit](compatibility.md) |
-| Het echte Steam-uitvoerbare bestand (DRM-beschermd) is niet runtime-gevalideerd; een gecontroleerde LAA-kopie wel | `PARTIAL` voor Steam | [compatibiliteit](compatibility.md) |
 | Alleen de bekende indeling is runtime-gevalideerd; de buildonafhankelijke oplossing is offline geverifieerd tegen het referentie-uitvoerbare bestand met zijn identiteit achtergehouden | `EXPERIMENTAL` op onbekende builds | [status van runtimevalidatie](../status/runtime-validation-status.md) |
 | Alleen Windows 10+ x64; geen Windows 7/8, geen XP, geen ARM64 | `UNAVAILABLE` | [compatibiliteit](compatibility.md) |
 | De plugin heeft de **x86**-runtime van .NET 6 nodig, naast de x64-runtime die de controller gebruikt | | [compatibiliteit](compatibility.md) |

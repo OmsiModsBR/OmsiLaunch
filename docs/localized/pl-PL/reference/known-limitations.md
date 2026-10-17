@@ -1,6 +1,6 @@
 # Znane ograniczenia
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/known-limitations.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 Ta strona wymienia, na podstawie kodu, wszystko w OmsiLaunch 0.1.0-beta4, co jest `UNAVAILABLE`, `PARTIAL` lub stanowi zaakceptowane ryzyko, tak aby użytkownicy i integratorzy nie opierali się na zachowaniu, którego produkt nie zapewnia. Każdy wiersz podaje ograniczenie, jego stabilność, przyczynę oraz miejsce, w którym zostało szczegółowo udokumentowane. Dokumentacja angielska jest normatywna; zlokalizowane kopie w `docs/localized/` nie są utrzymywane na tym samym poziomie i mogą być nieaktualne (zob. ostatnią sekcję).
@@ -11,7 +11,6 @@ Ta strona wymienia, na podstawie kodu, wszystko w OmsiLaunch 0.1.0-beta4, co jes
 | Ograniczenie | Stabilność | Szczegóły |
 | --- | --- | --- |
 | Możliwości odczytujące układy obiektów (pojazdy, postacie, pogoda, mapa, kamera, rozkład jazdy, skrypty, kierowcy, bilety) są weryfikowane tylko w znanym układzie (`Omsi23004`); w innym buildzie OMSI 2 są niedostępne (`OL_E_CAPABILITY_UNRESOLVED`), dopóki nie powstaną walidatory strukturalne | `PARTIAL` w nieznanych buildach | [zgodność](compatibility.md) |
-| Oryginalny plik wykonywalny Steam (chroniony DRM) nie został zweryfikowany w runtime; kontrolowana kopia LAA została | `PARTIAL` dla Steam | [zgodność](compatibility.md) |
 | Zweryfikowany w runtime jest tylko znany układ; rozwiązywanie niezależne od buildu jest weryfikowane offline względem pliku referencyjnego z ukrytą tożsamością | `EXPERIMENTAL` w nieznanych buildach | [stan weryfikacji w runtime](../status/runtime-validation-status.md) |
 | Tylko Windows 10+ x64; brak Windows 7/8, brak XP, brak ARM64 | `UNAVAILABLE` | [zgodność](compatibility.md) |
 | Wtyczka wymaga runtime .NET 6 w wersji **x86** oprócz runtime x64 używanego przez kontroler | | [zgodność](compatibility.md) |

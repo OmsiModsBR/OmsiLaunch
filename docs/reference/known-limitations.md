@@ -7,7 +7,6 @@ This page lists, from the code, everything in OmsiLaunch 0.1.0-beta4 that is `UN
 | Limitation | Stability | Detail |
 | --- | --- | --- |
 | Capabilities that read object layouts (vehicles, humans, weather, map, camera, timetable, scripts, drivers, tickets) are verified only on a known layout (`Omsi23004`); on another OMSI 2 build they are unavailable (`OL_E_CAPABILITY_UNRESOLVED`) until structural validators exist | `PARTIAL` on unknown builds | [compatibility](compatibility.md) |
-| The genuine Steam executable (DRM-protected) has not been runtime validated; a controlled LAA copy was | `PARTIAL` for Steam | [compatibility](compatibility.md) |
 | Only the known layout has been runtime validated; the build-independent resolution is verified offline against the reference executable with its identity withheld | `EXPERIMENTAL` on unknown builds | [runtime validation status](../status/runtime-validation-status.md) |
 | Windows 10+ x64 only; no Windows 7/8, no XP, no ARM64 | `UNAVAILABLE` | [compatibility](compatibility.md) |
 | The plugin needs the **x86** .NET 6 runtime in addition to the x64 runtime used by the controller | | [compatibility](compatibility.md) |

@@ -51,9 +51,7 @@ getypeerde fouten en de modulebrug zijn waargenomen in live OMSI-sessies
 (validatierondes A en B). De functies die na die rondes zijn toegevoegd, zijn
 `EXPERIMENTAL`: afgesloten met statische analyse en alleen offline getest,
 met runtimevalidatie nog in afwachting. Enkele zijn nog `STATICALLY_VALIDATED`,
-`PARTIAL` of `UNAVAILABLE`. Twee runtime-items staan nog open omdat ze niet
-veilig kunnen worden opgewekt: Steam LAA-gameplay en het natuurlijk verdwijnen
-van wegvoertuigen en mensen (RV-002). De pagina
+`PARTIAL` of `UNAVAILABLE`. Eén runtime-item staat nog open omdat het niet veilig kan worden opgewekt: het natuurlijk verdwijnen van wegvoertuigen en mensen (RV-002). De pagina
 [runtimevalidatiestatus](../localized/nl-NL/status/runtime-validation-status.md) is
 de gezaghebbende registratie van wat onder OMSI is uitgevoerd en wat alleen offline.
 
@@ -74,7 +72,6 @@ beschikbaar.
 | Vereiste | OMSI 2 geïnstalleerd: een 32-bits `Omsi.exe` met een OMSI 2-versie (2.x) en de mappen `maps\` en `Vehicles\`. Al het andere wordt geweigerd met `OL_E_UNSUPPORTED_BUILD`. |
 | Bekende layout | OMSI 2.3.004 (`Omsi23004`). Elke capability wordt opgelost en elke runtimevalidatie is op deze layout uitgevoerd. Hashes identificeren de layout als snelle route; ze zijn geen vereiste. |
 | Andere OMSI 2-builds | Elke capability wordt opgelost met buildonafhankelijke strategieën (Delphi RTTI, unieke codesignaturen, VMT-slots) en geverifieerd. Capabilities die objectlayouts lezen, vereisen een bekende layout. |
-| Steam-executable | Wordt in het proces opgelost; een echte Steam-sessie is **niet** runtime-gevalideerd. |
 | Besturingssysteem | Windows 10 of later, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controller) en .NET 6 Runtime **x86** (de plugin draait binnen de 32-bits `Omsi.exe`). |
 
@@ -202,8 +199,6 @@ gezaghebbend.
 Dit zijn de belangrijkste beperkingen. De volledige lijst staat in
 [Bekende beperkingen](../localized/nl-NL/reference/known-limitations.md).
 
-- **Steam.** Steam LAA is `PARTIAL`: gameplay, uitlezen, opdrachten en
-  stoppen vereisen een echte Steam-installatie en zijn niet runtime-gevalideerd.
 - **Experimenteel in deze bèta:** starten vanuit de laatste kaartstatus
   (`/last`) en een expliciete datum, tijd, jaar of expliciet weer bij de start
   zijn statisch afgesloten en wachten op runtimevalidatie. **Niet beschikbaar:**

@@ -1,6 +1,6 @@
 # 互換性
 
-<!-- l10n: source=reference/compatibility.md source-sha256=bd2e58f38c45a35819751b568f389c9b567f45ecef4a5a5f5a1b68e2f1160907 -->
+<!-- l10n: source=reference/compatibility.md source-sha256=9f3a7654d57410845e20c92eccc746868cbac665b4d937581f16c3818d7b7b88 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/compatibility.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 OmsiLaunch は、インストールされた **OMSI 2** で動作します。特定の `Omsi.exe` ファイルを必要とはしません。OMSI 内部に対して行うすべてのネイティブな前提（関数、パッチサイト、クラス、VMT スロット、グローバル変数、フィールドオフセット）は、使用される前にプロセス内で個別に解決され検証され、ケイパビリティはその前提がすべて検証された場合にのみ利用可能になります。このページでは、「OMSI 2 がインストールされている」とは何を意味するか、ビルドがどのように識別されるか、ケイパビリティがどのように解決されるか、そしてオペレーティングシステムとランタイムの要件を示します。ソース: `src/OmsiLaunch.Builds.Omsi23004/OmsiBuildDetection.cs`、`src/OmsiLaunch.Builds.Omsi23004/NativeTargetCatalog.cs`、`src/OmsiLaunch.NativeResolution/`、`src/OmsiLaunch.Plugin/PluginNativeTargets.cs`、`src/OmsiLaunch.Core/SessionPlanner.cs`、`src/OmsiLaunch.Process/RuntimePlatform.cs`。
@@ -87,7 +87,7 @@ Windows 7、Windows 8.x、Windows XP、およびその他の NT 6 以前のシ�
 ## Steam と Large Address Aware に関する注記
 
 - ヘッダーのみが異なる Large Address Aware のコピーは、元のものと同じコード ID を持ち、同じ既知のレイアウトを使用します。
-- Steam の実行ファイルはディスク上で DRM により保護されているため、そのファイルは読み込まれたイメージと異なる場合があります。プランは `OL_W_CAPABILITY_PENDING` を報告することがあり、プロセス内の解決が決定します。正規の Steam 実行ファイルによるセッションはランタイム検証されていません（[ランタイム検証ステータス](../status/runtime-validation-status.md)を参照）。
+- Steam の実行ファイルはディスク上で DRM により保護されているため、そのファイルは読み込まれたイメージと異なる場合があります。プランは `OL_W_CAPABILITY_PENDING` を報告することがあり、プロセス内の解決が決定します。
 - Steam は OMSI を自ら起動します。ハンドオフが存在するように、セッションは `OmsiLaunch.exe` を通じて開始する必要があります。Steam から起動された場合、常駐プラグインは何も動作しません（ハンドオフなし、フックなし）。
 
 <a id="related-pages"></a>

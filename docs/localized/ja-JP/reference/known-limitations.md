@@ -1,6 +1,6 @@
 # 既知の制限事項
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/known-limitations.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページでは、OmsiLaunch 0.1.0-beta4 において `UNAVAILABLE`、`PARTIAL`、または受容済みリスクであるものをすべて、コードに基づいて列挙します。これは、利用者やインテグレーターが、製品が提供しない動作を前提に構築してしまうことを防ぐためです。各行には、制限事項、その安定性、それが存在する理由、および詳細が記載されている場所を示します。英語のドキュメントが規範です。`docs/localized/` 配下のローカライズ版は同じ水準では保守されておらず、内容が遅れている場合があります（最後のセクションを参照）。
@@ -11,7 +11,6 @@
 | 制限事項 | 安定性 | 詳細 |
 | --- | --- | --- |
 | オブジェクトレイアウトを読み取るケイパビリティ（車両、人物、天候、マップ、カメラ、時刻表、スクリプト、運転士、乗車券）は、既知のレイアウト（`Omsi23004`）でのみ検証されます。別の OMSI 2 ビルドでは、構造的なバリデーターが用意されるまで利用できません（`OL_E_CAPABILITY_UNRESOLVED`） | 不明なビルドでは `PARTIAL` | [互換性](compatibility.md) |
-| 正規の Steam 実行ファイル（DRM で保護）はランタイム検証されていません。管理された LAA コピーは検証されました | Steam については `PARTIAL` | [互換性](compatibility.md) |
 | ランタイム検証されたのは既知のレイアウトのみです。ビルド非依存の解決は、ID を伏せた参照実行ファイルに対してオフラインで検証されています | 不明なビルドでは `EXPERIMENTAL` | [ランタイム検証ステータス](../status/runtime-validation-status.md) |
 | Windows 10 以降の x64 のみ。Windows 7/8、XP、ARM64 には対応していません | `UNAVAILABLE` | [互換性](compatibility.md) |
 | プラグインには、コントローラーが使用する x64 ランタイムに加えて **x86** の .NET 6 ランタイムが必要です | | [互換性](compatibility.md) |
