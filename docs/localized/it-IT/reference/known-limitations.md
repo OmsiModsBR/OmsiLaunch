@@ -1,6 +1,6 @@
 # Limitazioni note
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > Traduzione della [pagina originale in inglese](../../../reference/known-limitations.md) di OmsiLaunch 0.1.0-beta4. La pagina inglese è normativa: in caso di differenze prevalgono la pagina inglese e il codice.
 
 Questa pagina elenca, a partire dal codice, tutto ciò che in OmsiLaunch 0.1.0-beta4 è `UNAVAILABLE`, `PARTIAL` o un rischio accettato, affinché utenti e integratori non facciano affidamento su comportamenti che il prodotto non fornisce. Ogni riga indica la limitazione, la sua stabilità, il motivo per cui esiste e dove è documentata in dettaglio. La documentazione inglese è normativa; le copie localizzate in `docs/localized/` non sono mantenute allo stesso livello e possono essere in ritardo (vedere l'ultima sezione).
@@ -11,7 +11,6 @@ Questa pagina elenca, a partire dal codice, tutto ciò che in OmsiLaunch 0.1.0-b
 | Limitazione | Stabilità | Dettagli |
 | --- | --- | --- |
 | Le capability che leggono i layout degli oggetti (veicoli, human, meteo, mappa, telecamera, orario, script, conducenti, biglietti) vengono verificate solo su un layout noto (`Omsi23004`); su un altro build di OMSI 2 non sono disponibili (`OL_E_CAPABILITY_UNRESOLVED`) finché non esisteranno validatori strutturali | `PARTIAL` su build sconosciuti | [compatibilità](compatibility.md) |
-| L'eseguibile Steam autentico (protetto da DRM) non è stato validato a runtime; una copia LAA controllata lo è stata | `PARTIAL` per Steam | [compatibilità](compatibility.md) |
 | Solo il layout noto è stato validato a runtime; la risoluzione indipendente dal build viene verificata offline rispetto all'eseguibile di riferimento con la sua identità nascosta | `EXPERIMENTAL` su build sconosciuti | [stato della validazione a runtime](../status/runtime-validation-status.md) |
 | Solo Windows 10+ x64; nessun supporto per Windows 7/8, XP o ARM64 | `UNAVAILABLE` | [compatibilità](compatibility.md) |
 | Il plugin richiede il runtime .NET 6 **x86** oltre al runtime x64 usato dal controller | | [compatibilità](compatibility.md) |

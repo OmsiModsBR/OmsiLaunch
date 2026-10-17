@@ -1,6 +1,6 @@
 # 執行階段驗證狀態
 
-<!-- l10n: source=status/runtime-validation-status.md source-sha256=87cfe5eca3645bba4beefa62ea72d3bda5ef7a9f355158a7ea38eb1b61d8376d -->
+<!-- l10n: source=status/runtime-validation-status.md source-sha256=fe88f9c85e5cd7a0aa631f130cdbfa8a372574da34981c410f63e36322f3d7a3 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../status/runtime-validation-status.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁是 OmsiLaunch 0.1.0-beta4 唯一的證據總表。每一列列出一項功能（capability）或特性及其證據狀態。`RUNTIME_VALIDATED` 可引用 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（矩陣 id RV-nnn、阻礙項 BI-nnn，以及其 2026-09-20 執行表中的工作階段 id），或引用 post-Fable Round A 報告 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）；其餘一切皆由程式碼與離線測試套件推導而來。2026-09-21 的強化回合（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`，發現項目 S-01 至 S-34）變更了還原、復原、控制平面與邊界行為；這些變更當時只有離線證據。2026-09-23 的最終執行階段收尾回合（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`，情境 id 例如 `F01`、`S05`、`T01`，候選版本 2 與 3）在經授權的安裝上以實際工作階段執行了這些變更；由該回合提升狀態的列會引用其情境 id 與工作階段 id。因此 `RUNTIME_VALIDATED` 也可以引用該報告。
@@ -49,7 +49,6 @@
 | 特性 | 狀態 | 證據 |
 | --- | --- | --- |
 | 設定檔 `Omsi23004_692EBFBF`（`692EBFBF...6243`，8,503,440 位元組） | RUNTIME_VALIDATED | 矩陣中的每個工作階段 |
-| Steam LAA 執行檔（`7DAB063D...D759`） | PARTIAL | 執行階段收尾 `LAA01` 工作階段 `9ec975ca-7820-47be-b806-5f5a94aad4ab`：一份受控副本（由該安裝未修補的原始檔衍生，設定 `IMAGE_FILE_LARGE_ADDRESS_AWARE` 並重新計算 PE 總和檢查碼；8,503,440 位元組，characteristics 為 `0x81AE`）與雜湊相符，指紋被接受，計畫可執行。此映像是原始、受 DRM 保護的 Steam 執行檔：在真正的 Steam 安裝之外，它會交由 Steam 用戶端處理並結束，因此工作階段以 `OL_E_PROCESS_EXITED_EARLY` 失敗並精確還原。遊戲進行、讀取、命令與停止都需要真正的 Steam 安裝（ENVIRONMENT）。 |
 | 安裝識別：租約與控制管道名稱皆衍生自同一個定義 `InstallationPaths.IdentityKey`（`C:\OMSI` = `C:\OMSI\` = `C:\OMSI\.` = `C:\foo\..\OMSI` = 大小寫變化；`C:\OMSI-A` 與 `C:\OMSI-B` 不同）（修正回合 CP-02，附錄 A/B） | STATICALLY_VALIDATED；已於執行階段觀察到 | `lease.root-normalization`、`paths.installation-identity-and-containment`。執行階段收尾 `ID01`：工作階段 `01bfc780-10ef-4390-b700-c08bf809a42f` 執行期間，以含 `\.`、含 `..` 區段、小寫及大寫拼寫根目錄的第二次啟動與 `/recovery-status` 皆被拒絕（`OL_E_SESSION_ALREADY_ACTIVE`、`OL_E_INSTALLATION_BUSY`）；結尾帶分隔符號的拼寫亦同（`ID01b`，工作階段 `ba3ea7c9-9826-453d-b447-81c48763e18f`）。 |
 | 發行套件一致性：乾淨的暫存區、`Native.x86` 組建收據（依內容而非時間戳記）、不含 BOM 的資訊清單、已暫存封閉集與重新解壓縮封存檔的完整性、安裝程式會複製資訊清單（修正回合 CP-01、Round A RA-007、附錄 F/G/H） | STATICALLY_VALIDATED；已於安裝中觀察到 | `Test-PackagingPipeline.ps1`（候選套件一致，外加 16 個負面案例）、`runtime.release-manifest-bom`、`runtime.release-manifest-strict-parser`。執行階段收尾：安裝到經授權安裝中的套件都與其資訊清單一致，且每個工作階段都以 `plugin.integrity.reference = manifest` 進行規劃（候選版本台帳 `research/reports/runtime-closure/CANDIDATES.md`）。 |
 | 外掛程式封閉集對照 `release-manifest.json` 的完整性（S-09） | RUNTIME_VALIDATED | Round A 工作階段 `47efd323-4ce1-400a-ac83-74893cf82f26`；在已安裝發行套件上的執行階段收尾工作階段（例如 `R01` 工作階段 `878b5e3c-2f9d-46bf-a918-11bb2e227e55`，候選版本 3）以 `plugin.integrity.reference = manifest` 進行規劃；`R02` 顯示缺少一個列出的外掛程式會阻擋啟動。 |
@@ -181,8 +180,7 @@
 
 2026-09-23 的執行階段收尾回合結清了先前的待辦佇列。除了在此安裝上無法安全產生的項目之外，佇列維持為空：
 
-1. Steam LAA 的遊戲進行、讀取、命令與停止：需要真正的 Steam 安裝（環境因素；上方對應列為 `PARTIAL`）。
-2. RV-002 RoadVehicle 與 Human 的移除：沒有安全的移除產生方式（上方對應列為 `PARTIAL`）。
+1. RV-002 RoadVehicle 與 Human 的移除：沒有安全的移除產生方式（上方對應列為 `PARTIAL`）。
 
 因無法從產品外部產生而維持離線的項目，已在各自的列中標註，不屬於此佇列：信箱回應損毀、超大回覆、事件歷程截斷、D3D 的 `lost` 轉換、登出、shim 結束代碼 100-106，以及延後的 pre-fingerprint 復原分支。
 

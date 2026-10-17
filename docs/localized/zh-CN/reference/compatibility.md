@@ -1,6 +1,6 @@
 # 兼容性
 
-<!-- l10n: source=reference/compatibility.md source-sha256=bd2e58f38c45a35819751b568f389c9b567f45ecef4a5a5f5a1b68e2f1160907 -->
+<!-- l10n: source=reference/compatibility.md source-sha256=9f3a7654d57410845e20c92eccc746868cbac665b4d937581f16c3818d7b7b88 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/compatibility.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 OmsiLaunch 适用于已安装的 **OMSI 2**。它不要求某一个特定的 `Omsi.exe` 文件：它在 OMSI 内部作出的每一个原生假设（函数、补丁位置、类、VMT 槽、全局变量、字段偏移）在使用之前都会在进程内被单独解析并校验，只有当某项能力的所有假设都已校验时，该能力才可用。本页说明“已安装 OMSI 2”的含义、如何识别版本（build）、如何解析能力，以及对操作系统和运行时的要求。来源：`src/OmsiLaunch.Builds.Omsi23004/OmsiBuildDetection.cs`、`src/OmsiLaunch.Builds.Omsi23004/NativeTargetCatalog.cs`、`src/OmsiLaunch.NativeResolution/`、`src/OmsiLaunch.Plugin/PluginNativeTargets.cs`、`src/OmsiLaunch.Core/SessionPlanner.cs`、`src/OmsiLaunch.Process/RuntimePlatform.cs`。
@@ -87,7 +87,7 @@ Windows 7、Windows 8.x、Windows XP 以及其他 NT 6 及更早的系统不在�
 ## Steam 与 Large Address Aware 说明
 
 - 仅文件头不同的 Large Address Aware 副本与其原件具有相同的代码标识，并使用同一个已知布局。
-- Steam 可执行文件在磁盘上受 DRM 保护，因此其文件可能与其已加载的映像不同：计划可能会报告 `OL_W_CAPABILITY_PENDING`，由进程内解析决定。使用正版 Steam 可执行文件的会话尚未经过运行时验证（参见[运行时验证状态](../status/runtime-validation-status.md)）。
+- Steam 可执行文件在磁盘上受 DRM 保护，因此其文件可能与其已加载的映像不同：计划可能会报告 `OL_W_CAPABILITY_PENDING`，由进程内解析决定。
 - Steam 会自行启动 OMSI；会话必须通过 `OmsiLaunch.exe` 启动，才会存在交接数据。从 Steam 启动时，永久插件保持非活动状态（没有交接，没有钩子）。
 
 <a id="related-pages"></a>

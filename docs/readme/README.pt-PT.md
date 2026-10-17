@@ -52,9 +52,7 @@ foram observados em sessões reais do OMSI (rondas de validação A e B). As
 funcionalidades acrescentadas depois dessas rondas são `EXPERIMENTAL`: fechadas
 por análise estática e testadas apenas offline, com a validação em runtime
 pendente. Algumas continuam `STATICALLY_VALIDATED`, `PARTIAL` ou `UNAVAILABLE`.
-Dois itens de runtime continuam em aberto porque não é possível produzi-los em
-segurança: o jogo com o Steam LAA e a remoção natural de veículos rodoviários
-e humanos (RV-002). A página de
+Um item de runtime continua em aberto porque não é possível produzi-lo em segurança: a remoção natural de veículos rodoviários e humanos (RV-002). A página de
 [estado da validação em runtime](../localized/pt-PT/status/runtime-validation-status.md) é
 o registo de referência do que foi executado sob o OMSI e do que foi executado apenas offline.
 
@@ -74,7 +72,6 @@ num build fica indisponível nesse build.
 | Requisito | OMSI 2 instalado: um `Omsi.exe` de 32 bits com uma versão do OMSI 2 (2.x) e os diretórios `maps\` e `Vehicles\`. Qualquer outra situação é recusada com `OL_E_UNSUPPORTED_BUILD`. |
 | Estrutura conhecida | OMSI 2.3.004 (`Omsi23004`). Todas as capacidades são resolvidas e todas as validações em runtime foram executadas nesta estrutura. Os hashes identificam-na como um caminho rápido; não são um requisito. |
 | Outros builds do OMSI 2 | Cada capacidade é resolvida por estratégias independentes do build (RTTI do Delphi, assinaturas de código únicas, slots de VMT) e verificada. As capacidades que leem estruturas de objetos requerem uma estrutura conhecida. |
-| Executável Steam | Resolvido em processo; uma sessão Steam genuína **não** foi validada em runtime. |
 | Sistema operativo | Windows 10 ou posterior, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controlador) e .NET 6 Runtime **x86** (o plugin é executado dentro do `Omsi.exe` de 32 bits). |
 
@@ -202,9 +199,6 @@ e a página em inglês divergem, prevalece a página em inglês.
 Estas são as limitações mais importantes. A lista completa encontra-se em
 [Limitações conhecidas](../localized/pt-PT/reference/known-limitations.md).
 
-- **Steam.** O Steam LAA está `PARTIAL`: o jogo, as leituras,
-  os comandos e a paragem necessitam de uma instalação Steam genuína e não foram
-  validados em runtime.
 - **Experimental nesta beta:** iniciar a partir do último estado do mapa
   (`/last`) e data, hora, ano ou meteorologia explícitos no início estão fechados
   por análise estática e aguardam validação em runtime. **Indisponível:**

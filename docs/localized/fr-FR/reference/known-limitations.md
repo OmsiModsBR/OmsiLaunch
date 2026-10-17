@@ -1,6 +1,6 @@
 # Limitations connues
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > Traduction de la [page originale en anglais](../../../reference/known-limitations.md) d’OmsiLaunch 0.1.0-beta4. La page anglaise fait foi : en cas de divergence, la page anglaise et le code prévalent.
 
 Cette page recense, à partir du code, tout ce qui, dans OmsiLaunch 0.1.0-beta4, est `UNAVAILABLE`, `PARTIAL` ou constitue un risque accepté, afin que les utilisateurs et les intégrateurs ne s'appuient pas sur un comportement que le produit ne fournit pas. Chaque ligne nomme la limitation, sa stabilité, sa raison d'être et l'endroit où elle est documentée en détail. La documentation anglaise est normative ; les copies localisées sous `docs/localized/` ne sont pas maintenues au même niveau et peuvent être en retard (voir la dernière section).
@@ -11,7 +11,6 @@ Cette page recense, à partir du code, tout ce qui, dans OmsiLaunch 0.1.0-beta4,
 | Limitation | Stabilité | Détail |
 | --- | --- | --- |
 | Les capacités qui lisent des dispositions d'objets (véhicules, humains, météo, carte, caméra, horaires, scripts, conducteurs, billets) ne sont vérifiées que sur une disposition connue (`Omsi23004`) ; sur un autre build d'OMSI 2, elles sont indisponibles (`OL_E_CAPABILITY_UNRESOLVED`) tant que des validateurs structurels n'existent pas | `PARTIAL` sur les builds inconnus | [compatibilité](compatibility.md) |
-| L'exécutable Steam authentique (protégé par DRM) n'a pas été validé à l'exécution ; une copie LAA contrôlée l'a été | `PARTIAL` pour Steam | [compatibilité](compatibility.md) |
 | Seule la disposition connue a été validée à l'exécution ; la résolution indépendante du build est vérifiée hors ligne par rapport à l'exécutable de référence dont l'identité est masquée | `EXPERIMENTAL` sur les builds inconnus | [état de la validation à l'exécution](../status/runtime-validation-status.md) |
 | Windows 10+ x64 uniquement ; pas de Windows 7/8, pas de XP, pas d'ARM64 | `UNAVAILABLE` | [compatibilité](compatibility.md) |
 | Le plugin nécessite le runtime .NET 6 **x86** en plus du runtime x64 utilisé par le contrôleur | | [compatibilité](compatibility.md) |

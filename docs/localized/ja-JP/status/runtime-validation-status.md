@@ -1,6 +1,6 @@
 # ランタイム検証ステータス
 
-<!-- l10n: source=status/runtime-validation-status.md source-sha256=87cfe5eca3645bba4beefa62ea72d3bda5ef7a9f355158a7ea38eb1b61d8376d -->
+<!-- l10n: source=status/runtime-validation-status.md source-sha256=fe88f9c85e5cd7a0aa631f130cdbfa8a372574da34981c410f63e36322f3d7a3 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../status/runtime-validation-status.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、OmsiLaunch 0.1.0-beta4 の唯一のエビデンス表です。各行はケイパビリティまたは機能と、そのエビデンスの状態を示します。`RUNTIME_VALIDATED` の根拠として引用できるのは、`research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（マトリクス ID RV-nnn、ブロッカー BI-nnn、および 2026-09-20 の実行表に記載されたセッション ID）、または Fable 後の Round A レポート `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）です。それ以外はすべてコードとオフラインテストスイートから導かれたものです。2026-09-21 の堅牢化ラウンド（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`、指摘事項 S-01 〜 S-34）では、復元、リカバリ、コントロールプレーン、境界の動作が変更されましたが、これらの変更にはオフラインのエビデンスしかありませんでした。2026-09-23 の最終ランタイムクロージャーラウンド（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`、`F01`、`S05`、`T01` などのシナリオ ID、候補 2 および 3）では、承認済みのインストール環境上の実セッションでこれらを実行しました。このラウンドで昇格した行には、そのシナリオ ID とセッション ID を記載しています。したがって、`RUNTIME_VALIDATED` はこのレポートを引用することもできます。
@@ -49,7 +49,6 @@
 | 機能 | 状態 | エビデンス |
 | --- | --- | --- |
 | プロファイル `Omsi23004_692EBFBF`（`692EBFBF...6243`、8,503,440 バイト） | RUNTIME_VALIDATED | マトリクスのすべてのセッション |
-| Steam LAA 実行ファイル（`7DAB063D...D759`） | PARTIAL | ランタイムクロージャー `LAA01` セッション `9ec975ca-7820-47be-b806-5f5a94aad4ab`: 管理下のコピー（インストール環境にあるパッチ未適用のオリジナルから `IMAGE_FILE_LARGE_ADDRESS_AWARE` を付与し、PE チェックサムを再計算して派生させたもの。8,503,440 バイト、characteristics `0x81AE`）はハッシュと一致し、フィンガープリントは受け入れられ、プランは実行可能でした。このイメージは DRM で保護されたオリジナルの Steam 実行ファイルであり、正規の Steam インストール環境の外では Steam クライアントにハンドオフして終了するため、セッションは `OL_E_PROCESS_EXITED_EARLY` で失敗し、正確に復元されました。ゲームプレイ、読み取り、コマンド、停止には正規の Steam インストール環境が必要です（ENVIRONMENT）。 |
 | インストール環境の識別: リースとコントロールパイプ名は 1 つの定義 `InstallationPaths.IdentityKey` から導出されます（`C:\OMSI` = `C:\OMSI\` = `C:\OMSI\.` = `C:\foo\..\OMSI` = 大文字小文字の違い。`C:\OMSI-A` と `C:\OMSI-B` は異なる）（修正パス CP-02、補遺 A/B） | STATICALLY_VALIDATED、ランタイムで観測済み | `lease.root-normalization`、`paths.installation-identity-and-containment`。ランタイムクロージャー `ID01`: セッション `01bfc780-10ef-4390-b700-c08bf809a42f` の実行中に、ルートを `\.` 付き、`..` セグメント付き、小文字、大文字で表記した 2 回目の開始と `/recovery-status` は拒否されました（`OL_E_SESSION_ALREADY_ACTIVE`、`OL_E_INSTALLATION_BUSY`）。末尾に区切り文字を付けた表記も同様です（`ID01b`、セッション `ba3ea7c9-9826-453d-b447-81c48763e18f`）。 |
 | リリースパッケージの整合性: クリーンなステージング、`Native.x86` のビルドレシート（タイムスタンプではなく内容）、BOM なしのマニフェスト、ステージングしたクロージャーと再展開したアーカイブの完全性、インストーラーによるマニフェストのコピー（修正パス CP-01、Round A RA-007、補遺 F/G/H） | STATICALLY_VALIDATED、インストール環境で観測済み | `Test-PackagingPipeline.ps1`（整合した候補と 16 件のネガティブケース）、`runtime.release-manifest-bom`、`runtime.release-manifest-strict-parser`。ランタイムクロージャー: 承認済みのインストール環境にインストールされたパッケージはマニフェストと整合しており、すべてのセッションが `plugin.integrity.reference = manifest` でプランニングされました（候補台帳 `research/reports/runtime-closure/CANDIDATES.md`）。 |
 | `release-manifest.json` に対するプラグインクロージャーの完全性（S-09） | RUNTIME_VALIDATED | Round A セッション `47efd323-4ce1-400a-ac83-74893cf82f26`。インストール済みのリリースパッケージ上のランタイムクロージャーのセッション（例: `R01` セッション `878b5e3c-2f9d-46bf-a918-11bb2e227e55`、候補 3）は `plugin.integrity.reference = manifest` でプランニングされました。`R02` では、記載されたプラグインが欠落していると開始がブロックされることが示されました。 |
@@ -179,8 +178,7 @@
 
 2026-09-23 のランタイムクロージャーラウンドにより、以前のキューは完了しました。このインストール環境で安全に発生させることができない項目を除き、キューは空のままです。
 
-1. Steam LAA のゲームプレイ、読み取り、コマンド、停止: 正規の Steam インストール環境が必要です（環境の問題。上の行は `PARTIAL`）。
-2. RV-002 の RoadVehicle と Human の削除: 安全な削除を発生させる手段がありません（上の行は `PARTIAL`）。
+1. RV-002 の RoadVehicle と Human の削除: 安全な削除を発生させる手段がありません（上の行は `PARTIAL`）。
 
 製品の外部から発生させることができないためオフラインのままとなる項目は、それぞれの行に記載されており、キューには含まれません: メールボックス応答の破損、サイズ超過の応答、イベント履歴の切り詰め、D3D の `lost` 遷移、ログオフ、シムの終了コード 100-106、フィンガープリント前の遅延リカバリ分岐。
 

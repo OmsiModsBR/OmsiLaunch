@@ -51,8 +51,7 @@ błędy i mostek modułów zaobserwowano w działających sesjach OMSI (rundy we
 A i B). Funkcje dodane po tych rundach mają status `EXPERIMENTAL`: zostały domknięte
 analizą statyczną i przetestowane wyłącznie offline, a weryfikacja runtime jest
 jeszcze w toku. Niektóre pozostają `STATICALLY_VALIDATED`, `PARTIAL` lub `UNAVAILABLE`.
-Dwa elementy runtime są nadal otwarte, ponieważ nie da się ich bezpiecznie wywołać:
-rozgrywka w Steam LAA oraz naturalne usuwanie pojazdów drogowych i postaci (RV-002).
+Jeden element runtime jest nadal otwarty, ponieważ nie da się go bezpiecznie wywołać: naturalne usuwanie pojazdów drogowych i postaci (RV-002).
 Strona
 [stan weryfikacji runtime](../localized/pl-PL/status/runtime-validation-status.md) jest
 wiążącym zapisem tego, co zostało uruchomione pod OMSI, a co działało tylko offline.
@@ -73,7 +72,6 @@ zweryfikować w danym buildzie, jest w tym buildzie niedostępna.
 | Wymaganie | Zainstalowany OMSI 2: 32-bitowy `Omsi.exe` w wersji OMSI 2 (2.x) oraz katalogi `maps\` i `Vehicles\`. Wszystko inne jest odrzucane z kodem `OL_E_UNSUPPORTED_BUILD`. |
 | Znany układ | OMSI 2.3.004 (`Omsi23004`). Każda możliwość jest rozpoznawana, a każda weryfikacja runtime została przeprowadzona na tym układzie. Hashe identyfikują go jako szybką ścieżkę; nie są wymaganiem. |
 | Inne buildy OMSI 2 | Każda możliwość jest rozpoznawana strategiami niezależnymi od buildu (Delphi RTTI, unikalne sygnatury kodu, sloty VMT) i weryfikowana. Możliwości odczytujące układ obiektów wymagają znanego układu. |
-| Plik wykonywalny Steam | Rozpoznawany w procesie; prawdziwa sesja Steam **nie** została zweryfikowana w runtime. |
 | System operacyjny | Windows 10 lub nowszy, x64. |
 | Środowiska uruchomieniowe | .NET 6 Desktop Runtime **x64** (kontroler) i .NET 6 Runtime **x86** (wtyczka działa wewnątrz 32-bitowego `Omsi.exe`). |
 
@@ -197,8 +195,6 @@ i strona angielska są niezgodne, wiążąca jest strona angielska.
 Poniżej wymieniono najważniejsze ograniczenia. Pełna lista znajduje się w
 [Znanych ograniczeniach](../localized/pl-PL/reference/known-limitations.md).
 
-- **Steam.** Steam LAA ma status `PARTIAL`: rozgrywka, odczyty, polecenia
-  i zatrzymanie wymagają prawdziwej instalacji Steam i nie zostały zweryfikowane w runtime.
 - **Eksperymentalne w tej becie:** uruchamianie od ostatniego stanu mapy (`/last`)
   oraz jawne ustawienie daty, godziny, roku lub pogody przy uruchomieniu są domknięte
   statycznie i oczekują na weryfikację runtime. **Niedostępne:** przypisanie pojazdu

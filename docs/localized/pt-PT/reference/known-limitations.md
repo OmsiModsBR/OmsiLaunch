@@ -1,6 +1,6 @@
 # Limitações conhecidas
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > Tradução da [página original em inglês](../../../reference/known-limitations.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
 
 Esta página enumera, a partir do código, tudo o que no OmsiLaunch 0.1.0-beta4 é `UNAVAILABLE`, `PARTIAL` ou um risco aceite, para que os utilizadores e integradores não construam sobre comportamentos que o produto não oferece. Cada linha indica a limitação, a sua estabilidade, a razão da sua existência e onde está documentada em detalhe. A documentação inglesa é normativa; as cópias localizadas em `docs/localized/` não são mantidas ao mesmo nível e podem estar desatualizadas (ver a última secção).
@@ -11,7 +11,6 @@ Esta página enumera, a partir do código, tudo o que no OmsiLaunch 0.1.0-beta4 
 | Limitação | Estabilidade | Detalhe |
 | --- | --- | --- |
 | As capacidades que leem disposições de objetos (veículos, humanos, meteorologia, mapa, câmara, horário, scripts, motoristas, bilhetes) só são verificadas numa disposição conhecida (`Omsi23004`); noutra build do OMSI 2 estão indisponíveis (`OL_E_CAPABILITY_UNRESOLVED`) até existirem validadores estruturais | `PARTIAL` em builds desconhecidas | [compatibilidade](compatibility.md) |
-| O executável Steam genuíno (protegido por DRM) não foi validado em runtime; uma cópia LAA controlada foi | `PARTIAL` para Steam | [compatibilidade](compatibility.md) |
 | Apenas a disposição conhecida foi validada em runtime; a resolução independente da build é verificada offline face ao executável de referência com a sua identidade retida | `EXPERIMENTAL` em builds desconhecidas | [estado da validação em runtime](../status/runtime-validation-status.md) |
 | Apenas Windows 10+ x64; sem Windows 7/8, sem XP, sem ARM64 | `UNAVAILABLE` | [compatibilidade](compatibility.md) |
 | O plugin precisa do runtime .NET 6 **x86**, além do runtime x64 usado pelo controlador | | [compatibilidade](compatibility.md) |

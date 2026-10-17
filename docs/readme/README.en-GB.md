@@ -50,8 +50,7 @@ errors and the modules bridge were observed in live OMSI sessions (validation
 rounds A and B). The features added after those rounds are `EXPERIMENTAL`:
 closed by static analysis and tested offline only, with runtime validation
 pending. Some remain `STATICALLY_VALIDATED`, `PARTIAL` or `UNAVAILABLE`.
-Two runtime items are still open because they cannot be produced safely: Steam
-LAA gameplay and the natural removal of road vehicles and humans (RV-002). The
+One runtime item is still open because it cannot be produced safely: the natural removal of road vehicles and humans (RV-002). The
 [runtime validation status](../localized/en-GB/status/runtime-validation-status.md) page is
 the authoritative record of what ran under OMSI and what ran only offline.
 
@@ -71,7 +70,6 @@ build is unavailable on that build.
 | Requirement | OMSI 2 installed: a 32-bit `Omsi.exe` with an OMSI 2 (2.x) version and the `maps\` and `Vehicles\` directories. Anything else is refused with `OL_E_UNSUPPORTED_BUILD`. |
 | Known layout | OMSI 2.3.004 (`Omsi23004`). Every capability resolves, and every runtime validation ran on this layout. Hashes identify it as a fast path; they are not a requirement. |
 | Other OMSI 2 builds | Each capability is resolved by build-independent strategies (Delphi RTTI, unique code signatures, VMT slots) and verified. Capabilities that read object layouts need a known layout. |
-| Steam executable | Resolved in process; a genuine Steam session has **not** been runtime validated. |
 | Operating system | Windows 10 or later, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (controller) and .NET 6 Runtime **x86** (the plugin runs inside the 32-bit `Omsi.exe`). |
 
@@ -193,8 +191,6 @@ disagree, the English page is authoritative.
 These are the most important limitations. The complete list is in
 [Known limitations](../localized/en-GB/reference/known-limitations.md).
 
-- **Steam.** Steam LAA is `PARTIAL`: gameplay, reads, commands and stop
-  need a genuine Steam installation and were not runtime validated.
 - **Experimental in this beta:** starting from the last map state (`/last`)
   and explicit date, time, year or weather at start are closed statically and
   await runtime validation. **Not available:** player-vehicle assignment at

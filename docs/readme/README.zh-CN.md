@@ -37,7 +37,7 @@
 
 ## 状态：0.1.0-beta4
 
-当前公开 Beta 版本为 **`0.1.0-beta4`**。Beta 4 新增了按能力兼容性、运行时模块（Runtime Modules）、1..99 号会话配置档，以及一组启动和运行时功能。兼容性、能力目录、分页、类型化错误和模块桥已在实际 OMSI 会话中观察验证（验证轮次 A 和 B）。这些轮次之后新增的功能为 `EXPERIMENTAL`：已通过静态分析关闭，仅经离线测试，运行时验证待进行。部分功能仍为 `STATICALLY_VALIDATED`、`PARTIAL` 或 `UNAVAILABLE`。有两个运行时事项仍未关闭，因为无法安全地产生相应场景：Steam LAA 的游戏过程，以及道路车辆和人物对象的自然移除（RV-002）。[运行时验证状态](../localized/zh-CN/status/runtime-validation-status.md)页面是权威记录，说明哪些内容在 OMSI 下运行过、哪些仅离线运行过。
+当前公开 Beta 版本为 **`0.1.0-beta4`**。Beta 4 新增了按能力兼容性、运行时模块（Runtime Modules）、1..99 号会话配置档，以及一组启动和运行时功能。兼容性、能力目录、分页、类型化错误和模块桥已在实际 OMSI 会话中观察验证（验证轮次 A 和 B）。这些轮次之后新增的功能为 `EXPERIMENTAL`：已通过静态分析关闭，仅经离线测试，运行时验证待进行。部分功能仍为 `STATICALLY_VALIDATED`、`PARTIAL` 或 `UNAVAILABLE`。有一个运行时事项仍未关闭，因为无法安全地产生相应场景：道路车辆和人物对象的自然移除（RV-002）。[运行时验证状态](../localized/zh-CN/status/runtime-validation-status.md)页面是权威记录，说明哪些内容在 OMSI 下运行过、哪些仅离线运行过。
 
 这是 Beta 版本：公共 API、CLI 和文件格式按成员分别标记为 `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL` 或 `UNAVAILABLE`，在 1.0 之前仍可能变化。
 
@@ -50,7 +50,6 @@ OmsiLaunch 需要已安装的 OMSI 2。它不依赖某一个特定的 `Omsi.exe`
 | 要求 | 已安装 OMSI 2：32 位 `Omsi.exe`，其版本为 OMSI 2（2.x），并带有 `maps\` 和 `Vehicles\` 目录。其他情况一律以 `OL_E_UNSUPPORTED_BUILD` 拒绝。 |
 | 已知布局 | OMSI 2.3.004（`Omsi23004`）。所有能力均可解析，所有运行时验证均在此布局上进行。哈希用于将其识别为快速路径；并非必要条件。 |
 | 其他 OMSI 2 版本（build） | 每项能力通过与版本无关的策略（Delphi RTTI、唯一代码签名、VMT 槽）解析并校验。读取对象布局的能力需要已知布局。 |
-| Steam 可执行文件 | 在进程内解析；正版 Steam 会话**未经**运行时验证。 |
 | 操作系统 | Windows 10 或更高版本，x64。 |
 | 运行时 | .NET 6 Desktop Runtime **x64**（控制器）和 .NET 6 Runtime **x86**（插件运行在 32 位 `Omsi.exe` 内部）。 |
 
@@ -127,7 +126,6 @@ OmsiLaunch.exe session stop
 
 以下是最重要的限制。完整列表见[已知限制](../localized/zh-CN/reference/known-limitations.md)。
 
-- **Steam。** Steam LAA 为 `PARTIAL`：游戏过程、读取、命令和停止都需要正版 Steam 安装实例，且未经运行时验证。
 - **本 Beta 版本中为实验性：** 从上次地图状态启动（`/last`），以及启动时指定日期、时间、年份或天气，已通过静态分析关闭，等待运行时验证。**不可用：** 启动时分配玩家车辆；请求该项会使计划不可运行，而不是被静默忽略。
 - **运行时写入受限。** `weather.set`、`weather.metar.set`、字符串变量写入和脚本触发器在经运行时验证之前均为实验性；日历写入和车辆重新定位不可用。运行时更改不会记录到事务日志中，也不会被还原。
 - **句柄生命周期。** 对于自然消失的道路车辆和人物对象（RV-002），失效检测没有安全的运行时产生途径，仅经过离线验证。
