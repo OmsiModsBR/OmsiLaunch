@@ -1,6 +1,6 @@
 # Bekannte Einschränkungen
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > Übersetzung der [englischen Originalseite](../../../reference/known-limitations.md) für OmsiLaunch 0.1.0-beta4. Maßgeblich ist die englische Seite: Bei Abweichungen gelten die englische Seite und der Code.
 
 Diese Seite führt, abgeleitet aus dem Code, alles in OmsiLaunch 0.1.0-beta4 auf, was `UNAVAILABLE`, `PARTIAL` oder ein akzeptiertes Risiko ist, damit Anwender und Integratoren nicht auf Verhalten aufbauen, das das Produkt nicht bietet. Jede Zeile nennt die Einschränkung, ihre Stabilität, den Grund für ihr Bestehen und die Stelle, an der sie ausführlich dokumentiert ist. Die englische Dokumentation ist normativ; lokalisierte Fassungen unter `docs/localized/` werden nicht auf demselben Stand gepflegt und können hinterherhinken (siehe den letzten Abschnitt).
@@ -11,7 +11,6 @@ Diese Seite führt, abgeleitet aus dem Code, alles in OmsiLaunch 0.1.0-beta4 auf
 | Einschränkung | Stabilität | Details |
 | --- | --- | --- |
 | Capabilities, die Objektlayouts lesen (Fahrzeuge, Humans, Wetter, Karte, Kamera, Fahrplan, Skripte, Fahrer, Fahrscheine), werden nur auf einem bekannten Layout (`Omsi23004`) verifiziert; auf einem anderen OMSI-2-Build sind sie nicht verfügbar (`OL_E_CAPABILITY_UNRESOLVED`), bis strukturelle Validatoren existieren | `PARTIAL` auf unbekannten Builds | [Kompatibilität](compatibility.md) |
-| Die echte Steam-Programmdatei (DRM-geschützt) wurde nicht zur Laufzeit validiert; eine kontrollierte LAA-Kopie wurde es | `PARTIAL` für Steam | [Kompatibilität](compatibility.md) |
 | Nur das bekannte Layout wurde zur Laufzeit validiert; die build-unabhängige Auflösung wird offline gegen die Referenz-Programmdatei verifiziert, wobei ihre Identität zurückgehalten wird | `EXPERIMENTAL` auf unbekannten Builds | [Status der Runtime-Validierung](../status/runtime-validation-status.md) |
 | Nur Windows 10+ x64; kein Windows 7/8, kein XP, kein ARM64 | `UNAVAILABLE` | [Kompatibilität](compatibility.md) |
 | Das Plugin benötigt zusätzlich zur vom Controller verwendeten x64-Runtime die **x86**-.NET-6-Runtime | | [Kompatibilität](compatibility.md) |

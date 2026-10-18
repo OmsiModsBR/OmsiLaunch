@@ -52,9 +52,7 @@ modules ont été observés dans des sessions OMSI réelles (séries de validati
 et B). Les fonctionnalités ajoutées après ces séries sont `EXPERIMENTAL` :
 closes par analyse statique et testées hors ligne uniquement, la validation à
 l'exécution restant en attente. Certaines restent `STATICALLY_VALIDATED`,
-`PARTIAL` ou `UNAVAILABLE`. Deux points runtime restent ouverts, car ils ne
-peuvent pas être produits de façon sûre : la phase de jeu avec Steam LAA et la
-disparition naturelle des véhicules routiers et des humains (RV-002). La page
+`PARTIAL` ou `UNAVAILABLE`. Un point runtime reste ouvert, car il ne peut pas être produit de façon sûre : la disparition naturelle des véhicules routiers et des humains (RV-002). La page
 [Statut de la validation à l'exécution](../localized/fr-FR/status/runtime-validation-status.md)
 est la référence qui fait foi sur ce qui a été exécuté sous OMSI et ce qui a
 été exécuté uniquement hors ligne.
@@ -75,7 +73,6 @@ pas être vérifiée sur un build est indisponible sur ce build.
 | Prérequis | OMSI 2 installé : un `Omsi.exe` 32 bits avec une version d'OMSI 2 (2.x) et les répertoires `maps\` et `Vehicles\`. Tout le reste est refusé avec `OL_E_UNSUPPORTED_BUILD`. |
 | Disposition connue | OMSI 2.3.004 (`Omsi23004`). Chaque capacité est résolue, et toutes les validations à l'exécution ont été effectuées sur cette disposition. Les hashes l'identifient par un chemin rapide ; ils ne sont pas une exigence. |
 | Autres builds d'OMSI 2 | Chaque capacité est résolue par des stratégies indépendantes du build (RTTI Delphi, signatures de code uniques, slots VMT) et vérifiée. Les capacités qui lisent des dispositions d'objets nécessitent une disposition connue. |
-| Exécutable Steam | Résolu dans le processus ; une véritable session Steam n'a **pas** été validée à l'exécution. |
 | Système d'exploitation | Windows 10 ou ultérieur, x64. |
 | Runtimes | .NET 6 Desktop Runtime **x64** (contrôleur) et .NET 6 Runtime **x86** (le plugin s'exécute dans le processus 32 bits `Omsi.exe`). |
 
@@ -208,9 +205,6 @@ anglaise, la page anglaise fait foi.
 Voici les limitations les plus importantes. La liste complète figure dans
 [Limitations connues](../localized/fr-FR/reference/known-limitations.md).
 
-- **Steam.** Steam LAA est `PARTIAL` : la phase de jeu, les
-  lectures, les commandes et l'arrêt nécessitent une véritable installation
-  Steam et n'ont pas été validés à l'exécution.
 - **Expérimental dans cette bêta :** le démarrage à partir du dernier état de la
   carte (`/last`) et la date, l'heure, l'année ou la météo explicites au
   démarrage sont clos statiquement et attendent la validation à l'exécution.

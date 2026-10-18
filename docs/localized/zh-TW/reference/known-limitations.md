@@ -1,6 +1,6 @@
 # 已知限制
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/known-limitations.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁根據程式碼，列出 OmsiLaunch 0.1.0-beta4 中所有屬於 `UNAVAILABLE`、`PARTIAL` 或已接受風險的項目，讓使用者與整合者不會建立在產品並未提供的行為之上。每一列說明該限制、其穩定性、存在原因，以及詳細說明所在的位置。英文文件為規範版本；`docs/localized/` 底下的在地化副本並未以相同程度維護，內容可能落後（請見最後一節）。
@@ -11,7 +11,6 @@
 | 限制 | 穩定性 | 詳細資訊 |
 | --- | --- | --- |
 | 讀取物件配置的功能（車輛、人物、天氣、地圖、攝影機、時刻表、指令碼、駕駛員、車票）只在已知配置（`Omsi23004`）上驗證；在另一個 OMSI 2 組建上，在結構驗證器出現之前它們無法使用（`OL_E_CAPABILITY_UNRESOLVED`） | 未知組建上為 `PARTIAL` | [相容性](compatibility.md) |
-| 真正的 Steam 執行檔（受 DRM 保護）尚未經過執行階段驗證；受控的 LAA 副本則已驗證 | Steam 為 `PARTIAL` | [相容性](compatibility.md) |
 | 只有已知配置經過執行階段驗證；與組建無關的解析是針對隱藏其識別的參考執行檔離線驗證 | 未知組建上為 `EXPERIMENTAL` | [執行階段驗證狀態](../status/runtime-validation-status.md) |
 | 僅支援 Windows 10+ x64；不支援 Windows 7/8、XP 或 ARM64 | `UNAVAILABLE` | [相容性](compatibility.md) |
 | 除了控制器使用的 x64 runtime 之外，外掛程式還需要 **x86** .NET 6 runtime | | [相容性](compatibility.md) |

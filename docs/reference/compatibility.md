@@ -77,7 +77,7 @@ Windows 7, Windows 8.x, Windows XP and other NT 6 and earlier systems are outsid
 ## Steam and Large Address Aware notes
 
 - A Large Address Aware copy that differs only in its headers has the same code identity as its original and uses the same known layout.
-- The Steam executable is DRM-protected on disk, so its file can differ from its loaded image: the plan may report `OL_W_CAPABILITY_PENDING`, and the in-process resolution decides. A session with the genuine Steam executable has not been runtime validated (see [runtime validation status](../status/runtime-validation-status.md)).
+- The Steam executable is DRM-protected on disk, so its file can differ from its loaded image: the plan may report `OL_W_CAPABILITY_PENDING`, and the in-process resolution decides.
 - Steam launches OMSI itself; a session must be started through `OmsiLaunch.exe` so that the handoff exists. Started from Steam, the permanent plugin stays inert (no handoff, no hooks).
 
 ## Related pages

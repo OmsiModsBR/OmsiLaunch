@@ -1,6 +1,6 @@
 # 运行时验证状态
 
-<!-- l10n: source=status/runtime-validation-status.md source-sha256=87cfe5eca3645bba4beefa62ea72d3bda5ef7a9f355158a7ea38eb1b61d8376d -->
+<!-- l10n: source=status/runtime-validation-status.md source-sha256=fe88f9c85e5cd7a0aa631f130cdbfa8a372574da34981c410f63e36322f3d7a3 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../status/runtime-validation-status.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页是 OmsiLaunch 0.1.0-beta4 唯一的证据表。每一行列出一项能力或功能及其证据状态。`RUNTIME_VALIDATED` 可以引用 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-MATRIX.md`（矩阵编号 RV-nnn、阻塞项 BI-nnn，以及其 2026-09-20 执行表中的会话 ID），也可以引用 Fable 之后的 Round A 报告 `research/reports/OMSILAUNCH-RUNTIME-VALIDATION-ROUND-A-001.md`（RA-nnn）；其余所有内容均由代码和离线测试套件推导得出。2026-09-21 的加固轮次（`research/reports/OMSILAUNCH-SECURITY-ROBUSTNESS-REVIEW-001.md`，发现项 S-01 至 S-34）改变了还原、恢复、控制平面和边界行为；这些更改当时只有离线证据。2026-09-23 的最终运行时收尾轮次（`research/reports/runtime-closure/FINAL-RUNTIME-VALIDATION-REPORT.md`，场景编号如 `F01`、`S05`、`T01`，候选版本 2 和 3）在已授权的安装实例上以真实会话运行了这些更改；由该轮次提升状态的行会引用其场景编号和会话 ID。因此，`RUNTIME_VALIDATED` 也可以引用该报告。
@@ -49,7 +49,6 @@
 | 功能 | 状态 | 证据 |
 | --- | --- | --- |
 | 构建配置 `Omsi23004_692EBFBF`（`692EBFBF...6243`，8,503,440 字节） | RUNTIME_VALIDATED | 所有矩阵会话 |
-| Steam LAA 可执行文件（`7DAB063D...D759`） | PARTIAL | 运行时收尾 `LAA01` 会话 `9ec975ca-7820-47be-b806-5f5a94aad4ab`：一个受控副本（由该安装实例未修补的原始文件派生，设置了 `IMAGE_FILE_LARGE_ADDRESS_AWARE` 并重新计算了 PE 校验和；8,503,440 字节，特征值 `0x81AE`）与哈希匹配，指纹被接受，计划可运行。该映像是原始的受 DRM 保护的 Steam 可执行文件：在真正的 Steam 安装之外，它会交给 Steam 客户端处理并退出，因此会话以 `OL_E_PROCESS_EXITED_EARLY` 失败并完成精确还原。游戏过程、读取、命令和停止都需要真正的 Steam 安装（ENVIRONMENT）。 |
 | 安装实例标识：租约和控制管道名称源自同一个定义 `InstallationPaths.IdentityKey`（`C:\OMSI` = `C:\OMSI\` = `C:\OMSI\.` = `C:\foo\..\OMSI` = 大小写变体；`C:\OMSI-A` 与 `C:\OMSI-B` 不同）（修正轮次 CP-02，附录 A/B） | STATICALLY_VALIDATED；已在运行时观察到 | `lease.root-normalization`、`paths.installation-identity-and-containment`。运行时收尾 `ID01`：会话 `01bfc780-10ef-4390-b700-c08bf809a42f` 运行期间，以 `\.`、`..` 路径段、小写和大写形式书写根目录的第二次启动和 `/recovery-status` 均被拒绝（`OL_E_SESSION_ALREADY_ACTIVE`、`OL_E_INSTALLATION_BUSY`）；带尾部分隔符的写法同样被拒绝（`ID01b`，会话 `ba3ea7c9-9826-453d-b447-81c48763e18f`）。 |
 | 发行包一致性：干净的暂存、`Native.x86` 构建回执（基于内容而非时间戳）、无 BOM 的清单、暂存闭包及重新解压的归档的完整性、安装程序复制清单（修正轮次 CP-01、Round A RA-007、附录 F/G/H） | STATICALLY_VALIDATED；已在安装中观察到 | `Test-PackagingPipeline.ps1`（候选版本一致，另加 16 个反例）、`runtime.release-manifest-bom`、`runtime.release-manifest-strict-parser`。运行时收尾：安装到已授权安装实例中的包与其清单一致，且每个会话都以 `plugin.integrity.reference = manifest` 进行规划（候选版本记录 `research/reports/runtime-closure/CANDIDATES.md`）。 |
 | 依据 `release-manifest.json` 的插件闭包完整性（S-09） | RUNTIME_VALIDATED | Round A 会话 `47efd323-4ce1-400a-ac83-74893cf82f26`；在已安装发行包上的运行时收尾会话（例如 `R01` 会话 `878b5e3c-2f9d-46bf-a918-11bb2e227e55`，候选版本 3）以 `plugin.integrity.reference = manifest` 进行规划；`R02` 表明缺少清单中列出的插件会阻止启动。 |
@@ -181,8 +180,7 @@
 
 2026-09-23 的运行时收尾轮次清空了之前的队列。除无法在此安装实例上安全制造的项目外，该队列保持为空：
 
-1. Steam LAA 的游戏过程、读取、命令和停止：需要真正的 Steam 安装（环境原因；上方对应行为 `PARTIAL`）。
-2. RV-002 RoadVehicle 和 Human 的移除：没有安全的移除制造方式（上方对应行为 `PARTIAL`）。
+1. RV-002 RoadVehicle 和 Human 的移除：没有安全的移除制造方式（上方对应行为 `PARTIAL`）。
 
 因无法从产品外部制造而保持仅离线的项目已在各自行中标注，不属于该队列：邮箱响应损坏、超大回复、事件历史截断、D3D 的 `lost` 状态转换、注销、shim 退出码 100-106，以及延迟的预指纹恢复分支。
 

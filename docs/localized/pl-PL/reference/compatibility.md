@@ -1,6 +1,6 @@
 # Zgodność
 
-<!-- l10n: source=reference/compatibility.md source-sha256=bd2e58f38c45a35819751b568f389c9b567f45ecef4a5a5f5a1b68e2f1160907 -->
+<!-- l10n: source=reference/compatibility.md source-sha256=9f3a7654d57410845e20c92eccc746868cbac665b4d937581f16c3818d7b7b88 -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/compatibility.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 OmsiLaunch współpracuje z zainstalowanym **OMSI 2**. Nie wymaga jednego konkretnego pliku `Omsi.exe`: każde natywne założenie, jakie przyjmuje wewnątrz OMSI (funkcja, miejsce łatania, klasa, slot VMT, zmienna globalna, przesunięcie pola), jest rozwiązywane i weryfikowane osobno, w procesie, zanim zostanie użyte, a możliwość jest dostępna tylko wtedy, gdy wszystkie jej założenia zostały zweryfikowane. Ta strona określa, co oznacza „zainstalowany OMSI 2”, jak identyfikowane są buildy, jak rozwiązywane są możliwości oraz jakie są wymagania dotyczące systemu operacyjnego i runtime. Źródła: `src/OmsiLaunch.Builds.Omsi23004/OmsiBuildDetection.cs`, `src/OmsiLaunch.Builds.Omsi23004/NativeTargetCatalog.cs`, `src/OmsiLaunch.NativeResolution/`, `src/OmsiLaunch.Plugin/PluginNativeTargets.cs`, `src/OmsiLaunch.Core/SessionPlanner.cs`, `src/OmsiLaunch.Process/RuntimePlatform.cs`.
@@ -87,7 +87,7 @@ Windows 7, Windows 8.x, Windows XP oraz inne systemy NT 6 i starsze znajdują si
 ## Uwagi dotyczące Steam i Large Address Aware
 
 - Kopia Large Address Aware, która różni się od oryginału tylko nagłówkami, ma tę samą tożsamość kodu co oryginał i używa tego samego znanego układu.
-- Plik wykonywalny Steam jest na dysku chroniony DRM, więc jego plik może różnić się od załadowanego obrazu: plan może zgłaszać `OL_W_CAPABILITY_PENDING`, a rozstrzyga rozwiązywanie w procesie. Sesja z oryginalnym plikiem wykonywalnym Steam nie została zweryfikowana w runtime (zob. [stan weryfikacji w runtime](../status/runtime-validation-status.md)).
+- Plik wykonywalny Steam jest na dysku chroniony DRM, więc jego plik może różnić się od załadowanego obrazu: plan może zgłaszać `OL_W_CAPABILITY_PENDING`, a rozstrzyga rozwiązywanie w procesie. Sesja z oryginalnym plikiem wykonywalnym Steam nie została zweryfikowana w runtime (zob.
 - Steam sam uruchamia OMSI; sesję należy uruchomić przez `OmsiLaunch.exe`, aby istniało przekazanie (handoff). Po uruchomieniu ze Steam stała wtyczka pozostaje nieaktywna (brak przekazania, brak hooków).
 
 <a id="related-pages"></a>

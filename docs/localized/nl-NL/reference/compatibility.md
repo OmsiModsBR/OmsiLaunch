@@ -1,6 +1,6 @@
 # Compatibiliteit
 
-<!-- l10n: source=reference/compatibility.md source-sha256=bd2e58f38c45a35819751b568f389c9b567f45ecef4a5a5f5a1b68e2f1160907 -->
+<!-- l10n: source=reference/compatibility.md source-sha256=9f3a7654d57410845e20c92eccc746868cbac665b4d937581f16c3818d7b7b88 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/compatibility.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 OmsiLaunch werkt met een geïnstalleerde **OMSI 2**. Het vereist geen bepaald bestand `Omsi.exe`: elke native aanname die het binnen OMSI doet (een functie, een patchlocatie, een klasse, een VMT-slot, een global, een veldoffset) wordt afzonderlijk, in het proces, opgelost en geverifieerd voordat ze wordt gebruikt, en een capability is alleen beschikbaar wanneer al haar aannames zijn geverifieerd. Deze pagina beschrijft wat "OMSI 2 geïnstalleerd" betekent, hoe builds worden geïdentificeerd, hoe capabilities worden opgelost en welke eisen het besturingssysteem en de runtime stellen. Bronnen: `src/OmsiLaunch.Builds.Omsi23004/OmsiBuildDetection.cs`, `src/OmsiLaunch.Builds.Omsi23004/NativeTargetCatalog.cs`, `src/OmsiLaunch.NativeResolution/`, `src/OmsiLaunch.Plugin/PluginNativeTargets.cs`, `src/OmsiLaunch.Core/SessionPlanner.cs`, `src/OmsiLaunch.Process/RuntimePlatform.cs`.
@@ -86,7 +86,7 @@ Windows 7, Windows 8.x, Windows XP en andere systemen met NT 6 en ouder vallen b
 ## Opmerkingen over Steam en Large Address Aware
 
 - Een Large Address Aware-kopie die alleen in haar headers verschilt, heeft dezelfde code-identiteit als haar origineel en gebruikt dezelfde bekende indeling.
-- Het Steam-uitvoerbare bestand is op schijf DRM-beschermd, dus zijn bestand kan van het geladen image verschillen: het plan kan `OL_W_CAPABILITY_PENDING` melden en de oplossing in het proces beslist. Een sessie met het echte Steam-uitvoerbare bestand is niet runtime-gevalideerd (zie [status van de runtimevalidatie](../status/runtime-validation-status.md)).
+- Het Steam-uitvoerbare bestand is op schijf DRM-beschermd, dus zijn bestand kan van het geladen image verschillen: het plan kan `OL_W_CAPABILITY_PENDING` melden en de oplossing in het proces beslist.
 - Steam start OMSI zelf; een sessie moet via `OmsiLaunch.exe` worden gestart, zodat de handoff bestaat. Bij een start vanuit Steam blijft de permanente plugin inactief (geen handoff, geen hooks).
 
 <a id="related-pages"></a>

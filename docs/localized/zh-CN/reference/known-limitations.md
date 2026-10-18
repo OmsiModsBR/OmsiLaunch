@@ -1,6 +1,6 @@
 # 已知限制
 
-<!-- l10n: source=reference/known-limitations.md source-sha256=005074ec3caf17e2c206f7d659c5a2cf975a19e91d01ba4a6c6bd197777e658b -->
+<!-- l10n: source=reference/known-limitations.md source-sha256=fe1eccc6b9e4b3d93fff33deeecda6b97abd139d7295dba1d6542fb6e57231a7 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/known-limitations.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页依据代码列出 OmsiLaunch 0.1.0-beta4 中所有 `UNAVAILABLE`、`PARTIAL` 或属于已接受的风险的内容，以免用户和集成方依赖产品并未提供的行为。每一行给出限制内容、其稳定性、存在的原因，以及详细说明所在的位置。英文文档具有规范性；`docs/localized/` 下的本地化副本的维护程度与英文不同，可能会滞后（见最后一节）。
@@ -11,7 +11,6 @@
 | 限制 | 稳定性 | 详细说明 |
 | --- | --- | --- |
 | 读取对象布局的能力（车辆、人物对象、天气、地图、摄像机、时刻表、脚本、司机、车票）仅在已知布局（`Omsi23004`）上经过校验；在其他 OMSI 2 版本上，在结构校验器出现之前它们不可用（`OL_E_CAPABILITY_UNRESOLVED`） | 未知版本上为 `PARTIAL` | [兼容性](compatibility.md) |
-| 正版 Steam 可执行文件（受 DRM 保护）尚未经过运行时验证；受控的 LAA 副本已经过验证 | Steam 为 `PARTIAL` | [兼容性](compatibility.md) |
 | 只有已知布局经过运行时验证；与版本无关的解析是在隐去其标识的参考可执行文件上离线验证的 | 未知版本上为 `EXPERIMENTAL` | [运行时验证状态](../status/runtime-validation-status.md) |
 | 仅支持 Windows 10+ x64；不支持 Windows 7/8、XP 和 ARM64 | `UNAVAILABLE` | [兼容性](compatibility.md) |
 | 除控制器使用的 x64 运行时之外，插件还需要 **x86** .NET 6 运行时 | | [兼容性](compatibility.md) |
