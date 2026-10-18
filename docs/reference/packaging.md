@@ -7,8 +7,8 @@ This page describes the OmsiLaunch `0.1.0-beta4` release package: what `tools\Ne
 | Property | Value | Used for |
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Manifest `product`, Windows `ProductName` |
-| `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchCompanyName` | `LMonteiro and OmsiModsBR Team` | Windows `CompanyName` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR` | Windows `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | Manifest `product_version`, Windows `ProductVersion`, assembly informational version (`/version`), public ZIP name |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Managed assembly version base |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Assembly and Windows file version |

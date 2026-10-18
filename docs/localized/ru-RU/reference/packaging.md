@@ -1,6 +1,6 @@
 # Упаковка и структура релиза
 
-<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
+<!-- l10n: source=reference/packaging.md source-sha256=56dbb36369fb47d7531d84d9ff8e6e2050d220420d970194822e6b13afd3d812 -->
 > Перевод [исходной страницы на английском языке](../../../reference/packaging.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 На этой странице описан релизный пакет OmsiLaunch `0.1.0-beta4`: что создаёт `tools\New-ReleasePackage.ps1`, поля `release-manifest.json`, как контроллер использует манифест во время работы для проверки замыкания постоянного плагина (набора его файлов), как пакет устанавливается в корневой каталог установки OMSI и удаляется из него, что содержит каталог `.omsilaunch` после использования, а также скрипты проверки (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). Идентичность продукта берётся из `OmsiLaunch.Version.props`. Шаги установки для пользователей приведены на странице [установка](../getting-started/installation.md); роль замыкания плагина во время работы описана на странице [постоянный плагин](../concepts/permanent-plugin.md).
@@ -11,8 +11,8 @@
 | Свойство | Значение | Где используется |
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | `product` в манифесте, `ProductName` в Windows |
-| `OmsiLaunchCompanyName` | `LMonteiro` | `CompanyName` в Windows |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | `LegalCopyright` в Windows |
+| `OmsiLaunchCompanyName` | `LMonteiro and OmsiModsBR Team` | `CompanyName` в Windows |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR` | `LegalCopyright` в Windows |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | `product_version` в манифесте, `ProductVersion` в Windows, информационная версия сборки (`/version`), имя публичного ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Основа версии управляемых сборок |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Версия сборки и версия файла Windows |

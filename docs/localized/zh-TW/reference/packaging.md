@@ -1,6 +1,6 @@
 # 封裝與發行配置
 
-<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
+<!-- l10n: source=reference/packaging.md source-sha256=56dbb36369fb47d7531d84d9ff8e6e2050d220420d970194822e6b13afd3d812 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/packaging.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁說明 OmsiLaunch `0.1.0-beta4` 的發行套件：`tools\New-ReleasePackage.ps1` 產生哪些內容、`release-manifest.json` 的各個欄位、控制器在執行階段如何利用資訊清單（manifest）驗證永久外掛程式封閉集（closure）、套件如何安裝到 OMSI 安裝根目錄以及如何從中移除、使用後 `.omsilaunch` 目錄包含哪些內容，以及各驗證指令碼（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）。產品識別資訊來自 `OmsiLaunch.Version.props`。給使用者的安裝步驟請見[安裝](../getting-started/installation.md)；外掛程式封閉集在執行階段扮演的角色請見[永久外掛程式](../concepts/permanent-plugin.md)。
@@ -11,8 +11,8 @@
 | 屬性 | 值 | 用途 |
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | 資訊清單的 `product`、Windows 的 `ProductName` |
-| `OmsiLaunchCompanyName` | `LMonteiro` | Windows 的 `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows 的 `LegalCopyright` |
+| `OmsiLaunchCompanyName` | `LMonteiro and OmsiModsBR Team` | Windows 的 `CompanyName` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR` | Windows 的 `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | 資訊清單的 `product_version`、Windows 的 `ProductVersion`、組件資訊版本（`/version`）、公開 ZIP 檔名 |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Managed 組件版本的基準 |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | 組件版本與 Windows 檔案版本 |

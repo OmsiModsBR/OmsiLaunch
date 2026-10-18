@@ -1,6 +1,6 @@
 # 打包与发行布局
 
-<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
+<!-- l10n: source=reference/packaging.md source-sha256=56dbb36369fb47d7531d84d9ff8e6e2050d220420d970194822e6b13afd3d812 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/packaging.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页说明 OmsiLaunch `0.1.0-beta4` 发行包：`tools\New-ReleasePackage.ps1` 生成什么、`release-manifest.json` 的字段、控制器在运行时如何使用清单校验永久插件闭包、如何将包安装到 OMSI 安装根目录以及如何从中删除、使用后 `.omsilaunch` 目录包含哪些内容，以及验证脚本（`tools\Test-ReleaseIdentity.ps1`、`tools\Test-ReleasePresentation.ps1`、`tools\Invoke-OfflineValidation.ps1`）。产品标识来自 `OmsiLaunch.Version.props`。面向用户的安装步骤见[安装](../getting-started/installation.md)；插件闭包在运行时的作用见[永久插件](../concepts/permanent-plugin.md)。
@@ -11,8 +11,8 @@
 | 属性 | 值 | 用途 |
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | 清单 `product`、Windows `ProductName` |
-| `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchCompanyName` | `LMonteiro and OmsiModsBR Team` | Windows `CompanyName` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR` | Windows `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | 清单 `product_version`、Windows `ProductVersion`、程序集信息版本（`/version`）、公开 ZIP 名称 |
 | `OmsiLaunchManagedVersion` | `0.1.0` | 托管程序集版本基数 |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | 程序集版本和 Windows 文件版本 |

@@ -1,6 +1,6 @@
 # Pakketindeling en releasestructuur
 
-<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
+<!-- l10n: source=reference/packaging.md source-sha256=56dbb36369fb47d7531d84d9ff8e6e2050d220420d970194822e6b13afd3d812 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/packaging.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta4`: wat `tools\New-ReleasePackage.ps1` oplevert, de velden van `release-manifest.json`, hoe de controller het manifest tijdens runtime gebruikt om de permanente plugin-closure te verifiëren, hoe het pakket in een OMSI-installatiemap wordt geïnstalleerd en daaruit wordt verwijderd, wat de map `.omsilaunch` na gebruik bevat, en de validatiescripts (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). De productidentiteit komt uit `OmsiLaunch.Version.props`. De installatiestappen voor gebruikers staan in [installatie](../getting-started/installation.md); de rol van de plugin-closure tijdens runtime staat in [permanente plugin](../concepts/permanent-plugin.md).
@@ -11,8 +11,8 @@ Deze pagina beschrijft het releasepakket van OmsiLaunch `0.1.0-beta4`: wat `tool
 | Eigenschap | Waarde | Gebruikt voor |
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | Manifest `product`, Windows `ProductName` |
-| `OmsiLaunchCompanyName` | `LMonteiro` | Windows `CompanyName` |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | Windows `LegalCopyright` |
+| `OmsiLaunchCompanyName` | `LMonteiro and OmsiModsBR Team` | Windows `CompanyName` |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR` | Windows `LegalCopyright` |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | Manifest `product_version`, Windows `ProductVersion`, informatieve assemblyversie (`/version`), naam van de openbare ZIP |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Basis van de managed assemblyversie |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Assemblyversie en Windows-bestandsversie |
