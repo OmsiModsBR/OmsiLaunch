@@ -1,6 +1,6 @@
 # Empacotamento e estrutura da versão
 
-<!-- l10n: source=reference/packaging.md source-sha256=6fff256ee354401567ab45240b0f155822e6321212dc63ea33ed6bc938b945ad -->
+<!-- l10n: source=reference/packaging.md source-sha256=56dbb36369fb47d7531d84d9ff8e6e2050d220420d970194822e6b13afd3d812 -->
 > Tradução da [página original em inglês](../../../reference/packaging.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
 
 Esta página descreve o pacote de lançamento do OmsiLaunch `0.1.0-beta4`: o que `tools\New-ReleasePackage.ps1` produz, os campos de `release-manifest.json`, como o controlador usa o manifesto em runtime para verificar o conjunto de ficheiros do plugin permanente, como o pacote é instalado numa raiz de instalação do OMSI e removido dela, o que o diretório `.omsilaunch` contém após utilização e os scripts de validação (`tools\Test-ReleaseIdentity.ps1`, `tools\Test-ReleasePresentation.ps1`, `tools\Invoke-OfflineValidation.ps1`). A identidade do produto provém de `OmsiLaunch.Version.props`. Os passos de instalação para utilizadores estão em [instalação](../getting-started/installation.md); o papel em runtime do conjunto de ficheiros do plugin está em [plugin permanente](../concepts/permanent-plugin.md).
@@ -11,8 +11,8 @@ Esta página descreve o pacote de lançamento do OmsiLaunch `0.1.0-beta4`: o que
 | Propriedade | Valor | Utilizado para |
 |---|---|---|
 | `OmsiLaunchProductName` | `OmsiLaunch` | `product` do manifesto, `ProductName` do Windows |
-| `OmsiLaunchCompanyName` | `LMonteiro` | `CompanyName` do Windows |
-| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch` | `LegalCopyright` do Windows |
+| `OmsiLaunchCompanyName` | `LMonteiro and OmsiModsBR Team` | `CompanyName` do Windows |
+| `OmsiLaunchLegalCopyright` | `Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR` | `LegalCopyright` do Windows |
 | `OmsiLaunchProductVersion` | `0.1.0-beta4` | `product_version` do manifesto, `ProductVersion` do Windows, versão informativa do assembly (`/version`), nome do ZIP público |
 | `OmsiLaunchManagedVersion` | `0.1.0` | Base da versão dos assemblies geridos |
 | `OmsiLaunchAssemblyVersion` / `OmsiLaunchFileVersion` | `0.1.0.0` | Versão do assembly e versão de ficheiro do Windows |

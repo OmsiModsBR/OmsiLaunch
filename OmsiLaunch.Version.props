@@ -3,8 +3,8 @@
        are deliberately separate from Windows product-version metadata. -->
   <PropertyGroup>
     <OmsiLaunchProductName>OmsiLaunch</OmsiLaunchProductName>
-    <OmsiLaunchCompanyName>LMonteiro</OmsiLaunchCompanyName>
-    <OmsiLaunchLegalCopyright>Copyright © 2026 LMonteiro - https://github.com/OmsiModsBR/OmsiLaunch</OmsiLaunchLegalCopyright>
+    <OmsiLaunchCompanyName>LMonteiro and OmsiModsBR Team</OmsiLaunchCompanyName>
+    <OmsiLaunchLegalCopyright>Copyright © 2026 LMonteiro - github.com/lmonteirotech and OmsiModsBR Team - github.com/OmsiModsBR</OmsiLaunchLegalCopyright>
     <OmsiLaunchProductVersion>0.1.0-beta4</OmsiLaunchProductVersion>
     <OmsiLaunchManagedVersion>0.1.0</OmsiLaunchManagedVersion>
     <OmsiLaunchAssemblyVersion>0.1.0.0</OmsiLaunchAssemblyVersion>
