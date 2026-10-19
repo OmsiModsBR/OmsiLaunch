@@ -1,6 +1,6 @@
 # 错误码与诊断码
 
-<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+<!-- l10n: source=reference/errors.md source-sha256=a3335bf22fcb58419c25d20745f040077113f1db8f973e0cb47d0469e852c5f9 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/errors.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页是 `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）中每个代码的规范性参考：共 167 个 `OL_E_` 错误码和 4 个 `OL_W_` 警告，按目录类别分组，另附不属于错误的信息性诊断码。对于每个代码，本页说明当前代码在何处引发它、它的含义、它以何种方式到达您（抛出的异常、结果字段、诊断信息、控制平面回复或 CLI 信封）以及应如何处理。含义取自各引发位置；如果某个代码已定义但当前没有引发路径，本页会明确说明。
@@ -258,6 +258,16 @@
 | `OL_E_RESTORE_DEFERRED` | `OmsiLaunchService`（启动失败 / 监管器） | 无法确认 OMSI 已退出，因此在它可能仍在使用这些文件时没有替换它们；事务日志被保留。 | 会话诊断信息（`Failed`） | 在 `Omsi.exe` 退出后运行 `/recover`（或由下一次启动自动恢复）。 |
 | `OL_E_RESTORE_FAILED` | `OmsiLaunchService`（启动失败 / 监管器） | `RestoreAsync` 抛出异常；消息携带内部代码；事务日志被保留。 | 会话诊断信息（`Failed`）；从 `/recover` 抛出时 CLI 退出码 8 | 根据内部代码处理，然后执行 `/recover`。 |
 
+## Ui
+
+原生暂停菜单操作（`ui.pause.*`）的错误码。
+
+| 代码 | 引发位置 | 含义 | 途径 | 处理方法 |
+| --- | --- | --- | --- | --- |
+| `OL_E_UI_NOT_PAUSED` | `CurrentRuntimeControl` | 该操作需要 OMSI 处于暂停状态且显示其原生暂停菜单（接管、执行操作），而当前并非如此。 | 运行时结果 | 等待用户暂停 OMSI。 |
+| `OL_E_UI_BUSY` | `CurrentRuntimeControl` | 某个暂停菜单操作已被调度或正在运行（它可能停留在原生模态对话框中），或者调用到达时位于 OMSI 的帧内。 | 运行时结果 | 轮询 `ui.pause.state`，直到 `busy` 为 `false`，然后重试。 |
+| `OL_E_UI_ALREADY_TAKEN_OVER` | `CurrentRuntimeControl` | 原生暂停菜单已被接管时再次执行 `ui.pause.take-over`。 | 运行时结果 | 使用 `ui.pause.state`，或先执行 `ui.pause.restore-native`。 |
+
 ## Warning
 
 | 代码 | 引发位置 | 含义 | 途径 | 处理方法 |
@@ -293,6 +303,9 @@
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` 为 `fail-session` 的模块失败；会话被停止并还原。 | 会话诊断信息（状态 `Failed`） | 参见前面的模块代码。 |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 请求的模块设置无效或未由该模块声明，某个模块同时被启用和禁用，设置名称不是 `<module-id>.<key>`，或某个模块参数由多个模块声明。 | 计划诊断信息（不可运行）；CLI 错误 | 更正请求；`/list:RuntimeModules` 会显示每个模块的设置。 |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | 模块在 `conflicts.plugins` 下列出的某个 OMSI 插件已被启用（`plugins\*.opl`），或已在 OMSI 中加载。原因会指明 `.opl`。 | 计划诊断信息；会话诊断信息 | 关闭或移除该插件。OmsiLaunch 绝不会更改它。 |
+| `OL_E_MODULE_OPERATION_NOT_DECLARED` | `ModuleHost` | 模块请求在进程内运行某个目录操作（`IRuntimeModuleContext.Runtime`、原生 `run_operation`），而其清单没有在 `runtime_operations` 中列出该操作。该调用不会到达 OMSI。 | 运行时结果 | 在 `runtime_operations` 中列出该操作（它需要 `bridge.runtime` 以及 `bridge_protocol.min` 为 3）。 |
+| `OL_E_MODULE_CONTENT_INPUT_UNDECLARED` | `ModuleHost` | 模块请求定位社区内容（`IRuntimeModuleContext.Content`），而其种类并未在清单的 `content_inputs` 中声明。 | 上下文结果 | 在 `content_inputs` 中声明该种类。 |
+| `OL_E_MODULE_CONTENT_INPUT_INVALID` | `RealmapPackage` | 无法安全读取该地图的 `openomsi-realmap` 包：它是通过重解析点访问的、包含重解析点、文件超过 50,000 个或大小超过 4 GiB，或无法读取。 | 上下文结果 | 修复或重新生成该包；模块按资源降级。 |
 | `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生组件会改为收到[运行时模块](runtime-modules.md#native-components-and-hooks)中描述的数值钩子结果。 | 无 | 无 |
 
 <a id="non-error-diagnostic-codes"></a>

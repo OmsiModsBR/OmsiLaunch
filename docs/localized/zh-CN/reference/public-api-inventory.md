@@ -1,6 +1,6 @@
 # 公共 API 清单
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=1038165496fa7e22c0b936388cb2dde7b90ed33b193b8f77d462d10d9eff149a -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/public-api-inventory.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页由 `tests/OmsiLaunch.DocumentationTests` 根据编译后的程序集生成（`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`）；当本页与代码不再一致时，文档检查会失败。本页列出 `OmsiLaunch.Api`、`OmsiLaunch.Core` 和 `OmsiLaunch.Process` 导出的每个类型及其稳定性，以及每个公共成员的签名。语义、前置条件、错误和示例记录在各标题所指的页面中（默认：[公共 API](public-api.md)）。稳定性术语：`STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`（出于技术原因而公开，不属于集成接口）、`UNAVAILABLE`（参见[公共 API](public-api.md#stability-vocabulary)）。编译器生成的 record 成员（`Equals`、`GetHashCode`、`ToString`、`Deconstruct`、`<Clone>$`、`EqualityContract`）不予列出。
@@ -429,7 +429,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| 构造函数 | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null, IReadOnlyList<string> RuntimeOperations = null, int TickMilliseconds = 0, string SnapshotSha256 = null)` |
 | 常量 | `string Eligible = "ELIGIBLE"` |
 | 常量 | `string Rejected = "REJECTED"` |
 | 常量 | `string ActivationRequested = "requested"` |
@@ -447,8 +447,12 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 属性 | `string ManifestSha256 { get; init; }` |
 | 属性 | `string Activation { get; init; }` |
 | 属性 | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| 属性 | `IReadOnlyList<string> RuntimeOperations { get; init; }` |
+| 属性 | `int TickMilliseconds { get; init; }` |
+| 属性 | `string SnapshotSha256 { get; init; }` |
 | 属性 | `bool IsEligible { get; }` |
 | 属性 | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+| 属性 | `IReadOnlyList<string> EffectiveRuntimeOperations { get; }` |
 
 ### `PlannedModuleSetting`
 
@@ -736,6 +740,12 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 常量 | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
 | 常量 | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
 | 常量 | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
+| 常量 | `string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED"` |
+| 常量 | `string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED"` |
+| 常量 | `string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID"` |
+| 常量 | `string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED"` |
+| 常量 | `string UI_BUSY = "OL_E_UI_BUSY"` |
+| 常量 | `string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER"` |
 | 常量 | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | 常量 | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | 常量 | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -1201,7 +1211,7 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 | 成员 | 签名 |
 | --- | --- |
 | 常量 | `uint Magic = 1330402120` |
-| 常量 | `ushort Version = 7` |
+| 常量 | `ushort Version = 8` |
 | 常量 | `int MaxModules = 64` |
 | 静态方法 | `byte[] Serialize(StartupHandoff value)` |
 | 静态方法 | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
@@ -1212,10 +1222,11 @@ record struct，位于 `OmsiLaunch.Api`。稳定性：`STABLE_BETA`。语义： 
 
 | 成员 | 签名 |
 | --- | --- |
-| 构造函数 | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| 构造函数 | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "")` |
 | 属性 | `string RelativeDirectory { get; init; }` |
 | 属性 | `string ManifestSha256 { get; init; }` |
 | 属性 | `string Settings { get; init; }` |
+| 属性 | `string SnapshotSha256 { get; init; }` |
 
 ### `TelemetryRingWire`
 

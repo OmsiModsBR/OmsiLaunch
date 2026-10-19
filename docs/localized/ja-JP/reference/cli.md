@@ -1,6 +1,6 @@
 # CLI リファレンス
 
-<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+<!-- l10n: source=reference/cli.md source-sha256=cb5d0ea7b7ffe1315a6690239af6e0ae85d483e06995f7092e4d92cb75af3737 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/cli.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、OmsiLaunch `0.1.0-beta4` のコマンドラインに関する完全かつ規範的なリファレンスです。3 つの実行ファイル、引数の文法、ディスパッチ順序、すべてのコマンドワード、すべての階層ルート、すべてのフラグ、出力エンベロープ、および各コマンドのエラー時の動作を扱います。本ページは `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs`、および `tools\OmsiLaunch.Bootstrapper` 配下の 2 つのネイティブシムから生成されています。プロセスの結果は[終了コード](exit-codes.md)に、エラーコードは[エラー](errors.md)に、実際の呼び出し例は [CLI の使用例](cli-examples.md)に記載しています。
@@ -94,6 +94,7 @@
 | `weather` | `weather get`、`weather set`、`weather metar set`、`weather actual get` | クライアントルート | |
 | `map` | `map get` | クライアントルート | |
 | `camera` | `camera get`、`camera set`、`camera lock`、`camera unlock` | クライアントルート | |
+| `ui` | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action` | クライアントルート | |
 | `vehicles` | `vehicles list`、`vehicles get`、`vehicles summary`、`vehicles spawn`、`vehicles place-random` | クライアントルート | |
 | `player` | `player get` | クライアントルート | |
 | `humans` | `humans list`、`humans get`、`humans summary` | クライアントルート | |
@@ -124,6 +125,10 @@
 | `camera set` | `camera.set` | Write | はい | はい（カメラのスカラー値。例: `--field_of_view=`） | なし、元に戻されない | EXPERIMENTAL | FOV の書き込み/読み戻しは検証済み。 |
 | `camera lock` | `camera.lock` | Action | はい | はい（セッションスコープのポリシー） | なし | EXPERIMENTAL | `--family=<0..3>`（運転席=0、乗客=1、外部=2、マップ=3）が必須、`--preset=<n>` は任意（family 0 または 1）。プレイヤー車両が必要です（例: 保存済みシチュエーション）。ランタイムクロージャ（`CAM01`）でランタイム検証済みですが、レジストリの `RuntimeValidation` 文字列は依然として `STATICALLY_VALIDATED` のままです（[ケイパビリティ](capabilities.md)を参照）。 |
 | `camera unlock` | `camera.unlock` | Action | はい | はい | なし | EXPERIMENTAL | `camera lock` で設定したポリシーを解除します（`CAM01`）。 |
+| `ui pause-state` | `ui.pause.state` | Read | はい | いいえ | なし | EXPERIMENTAL | OMSI のポーズバイトと、ネイティブポーズメニューの状態。 |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | はい | はい（VCL を通じてネイティブポーズメニューを非表示にします。OMSI は一時停止のままです） | なし、元に戻されない | EXPERIMENTAL | OMSI が一時停止しメニューが表示されている必要があります。実際のセッションではまだ観測されていません。 |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | はい | はい（ネイティブポーズメニューを再び表示します） | なし | EXPERIMENTAL | ネイティブメニューを返します。 |
+| `ui pause-action` | `ui.pause.action` | Action | はい | はい（ネイティブメニュー自身のアクション） | なし、元に戻されない | EXPERIMENTAL | `--action=<resume|new-game|save|options|quit>` が必須。応答の後に実行されるため、結果は `ui pause-state` から読み取ってください。 |
 | `vehicles list` | `road-vehicles.list` | Read | はい | いいえ | なし | STABLE_BETA | セッションスコープの `rv-NNNNNN` ハンドルを返します。 |
 | `vehicles get` | `road-vehicle.read` | Read | はい | いいえ | なし | STABLE_BETA | `--handle=` が必須。失効したハンドル: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`。 |
 | `vehicles summary` | `road-vehicles.read` | Read | はい | いいえ | なし | STABLE_BETA | 件数とプレイヤーの状態。ハンドルは含みません。 |
@@ -318,6 +323,8 @@
 | `/recovery-status` | `/recovery-status` | オフ | ローカル | STABLE_BETA | `<root>\.omsilaunch\journal.json` が保留中かどうか（`pending`）を報告し、復元は決して行いません。終了コード `0`。インストールリースを取得します。オーナーがリースを保持している間は `OL_E_INSTALLATION_BUSY`（終了コード `7`）です。 |
 | `/recover` | `/recover` | オフ | ローカル | STABLE_BETA | 保留中のジャーナルを復元します（まずバックアップをスナップショットの SHA-256 と照合して検証します。`OL_E_RECOVERY_BACKUP_CORRUPT`、`OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`、`OL_W_RESTORE_FOREIGN_FILE_RETAINED` は `diagnostics` に報告されます）。何も保留されていなかった場合、または復元が完了した場合は終了コード `0`。ジャーナルが保留中で、そのまま残っている場合は `8`。ジャーナルに記録された OMSI プロセス（PID、作成時刻、exe パス）、または PID を持たない `HandoffCreated` 以降のジャーナルの場合はそのルートの任意の `Omsi.exe` が生存している間は、`OL_E_INSTALLATION_BUSY` で拒否されます。すべてのセッション開始時には、インストール環境を読み取る前に同じリカバリが自動的に実行されます。 |
 | `/clear-module-data` | `/clear-module-data:<module id>` | なし | ローカル、セッション不要 | EXPERIMENTAL | モジュールのデータディレクトリ `<root>\.omsilaunch\module-data\<id>` だけを削除します。エンベロープ `module-data.clear` に `module` と `cleared`（削除対象がなかった場合は `false`）を含み、終了コード `0`。インストールリースを取得します。セッションがインストール環境を所有している間は `OL_E_INSTALLATION_BUSY`（終了コード `7`）。リンク経由で到達したモジュールデータフォルダーは拒否されます（`OL_E_MODULE_INTEGRITY`）。その内部のリンクはリンクとして削除されます。 |
+| `/pack-module` | `/pack-module:<module directory>` | なし | ローカル、セッション不要 | EXPERIMENTAL | ディレクトリの `module.json` が挙げるファイル（コンポーネントとアセット）の SHA-256 ピンを書き込み、それらの値だけを書き換えます。エンベロープ `module.pack`（`module`、`directory`、`written`、`intact`、`files`）。終了コード `0`、解析できないマニフェストまたは存在しないファイルでは `2`。インストール環境には一切触れません。[モジュールのパッキング](runtime-modules.md#packing-a-module)を参照してください。 |
+| `/verify-module` | `/verify-module:<module directory>` | なし | ローカル、セッション不要 | EXPERIMENTAL | 書き込まずに同じ内容を報告します（`module.verify`）。固定されたすべてのファイルが一致すれば終了コード `0`（ピンのないファイルは不一致ではありません）、ピンが一致しない場合は `7`、解析できないマニフェストまたは存在しないファイルでは `2`。 |
 
 <a id="output-formats"></a>
 ## 出力形式

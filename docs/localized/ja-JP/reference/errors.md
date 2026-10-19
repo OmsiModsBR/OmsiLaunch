@@ -1,6 +1,6 @@
 # エラーコードと診断コード
 
-<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+<!-- l10n: source=reference/errors.md source-sha256=a3335bf22fcb58419c25d20745f040077113f1db8f973e0cb47d0469e852c5f9 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/errors.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）に含まれるすべてのコードの規範的なリファレンスです。対象はカタログのカテゴリ別に分類した 167 個の `OL_E_` エラーコードと 4 個の `OL_W_` 警告、およびエラーではない情報提供用の診断コードです。各コードについて、現在のコードのどこで発生するか、何を意味するか、どのような形で呼び出し元に届くか（スローされる例外、結果フィールド、診断、コントロールプレーンの応答、CLI エンベロープ）、そしてどう対処すべきかを示します。意味は発生箇所から導いています。コードが定義されているものの現在は発生経路がない場合は、その旨を記載しています。
@@ -258,6 +258,16 @@
 | `OL_E_RESTORE_DEFERRED` | `OmsiLaunchService`（開始失敗時 / スーパーバイザー） | OMSI の終了を確認できなかったため、OMSI がまだ使用している可能性のあるファイルは置き換えられませんでした。ジャーナルは保持されます。 | セッション診断（`Failed`） | `Omsi.exe` が終了した後に `/recover` を実行してください（または次回の開始時に自動的にリカバリされます）。 |
 | `OL_E_RESTORE_FAILED` | `OmsiLaunchService`（開始失敗時 / スーパーバイザー） | `RestoreAsync` が例外をスローしました。メッセージに内側のコードが含まれます。ジャーナルは保持されます。 | セッション診断（`Failed`）。`/recover` からスローされた場合は CLI 終了コード 8 | 内側のコードに応じて対処してから、`/recover` を実行してください。 |
 
+## Ui
+
+ネイティブポーズメニュー操作（`ui.pause.*`）のコード。
+
+| コード | 発生元 | 意味 | 経路 | 対処 |
+| --- | --- | --- | --- | --- |
+| `OL_E_UI_NOT_PAUSED` | `CurrentRuntimeControl` | 操作には、OMSI が一時停止しネイティブポーズメニューが表示されている状態が必要です（take-over、action）が、そうなっていません。 | ランタイム結果 | ユーザーが OMSI を一時停止するまで待ってください。 |
+| `OL_E_UI_BUSY` | `CurrentRuntimeControl` | ポーズメニューのアクションがスケジュール済みまたは実行中です（ネイティブのモーダルダイアログ内にとどまることがあります）。または、呼び出しが OMSI のフレーム内に届きました。 | ランタイム結果 | `busy` が `false` になるまで `ui.pause.state` をポーリングしてから再試行してください。 |
+| `OL_E_UI_ALREADY_TAKEN_OVER` | `CurrentRuntimeControl` | ネイティブポーズメニューがすでに引き継がれているときの `ui.pause.take-over` です。 | ランタイム結果 | `ui.pause.state` を使うか、先に `ui.pause.restore-native` を実行してください。 |
+
 ## Warning
 
 | コード | 発生元 | 意味 | 経路 | 対処 |
@@ -293,6 +303,9 @@
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` が `fail-session` のモジュールが失敗しました。セッションは停止され、復元されます。 | セッション診断（状態 `Failed`） | 直前のモジュールコードを参照してください。 |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 要求されたモジュール設定が無効、またはモジュールが宣言していません。あるいはモジュールが有効化と無効化の両方をされている、設定名が `<module-id>.<key>` ではない、または複数のモジュールが同じモジュールフラグを宣言しています。 | プラン診断（実行不可）、CLI エラー | リクエストを修正してください。`/list:RuntimeModules` が各モジュールの設定を示します。 |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | モジュールが `conflicts.plugins` に挙げている OMSI プラグインが有効（`plugins\*.opl`）、または OMSI に読み込まれています。理由に `.opl` が示されます。 | プラン診断、セッション診断 | そのプラグインを無効化または削除してください。OmsiLaunch がそれを変更することはありません。 |
+| `OL_E_MODULE_OPERATION_NOT_DECLARED` | `ModuleHost` | モジュールが、マニフェストの `runtime_operations` に挙げていないカタログ操作のプロセス内実行（`IRuntimeModuleContext.Runtime`、ネイティブの `run_operation`）を要求しました。呼び出しは OMSI に到達しません。 | ランタイム結果 | 操作を `runtime_operations` に挙げてください（`bridge.runtime` と `bridge_protocol.min` 3 が必要です）。 |
+| `OL_E_MODULE_CONTENT_INPUT_UNDECLARED` | `ModuleHost` | モジュールが、マニフェストの `content_inputs` で宣言していない種類のコミュニティコンテンツの検索（`IRuntimeModuleContext.Content`）を要求しました。 | コンテキスト結果 | その種類を `content_inputs` で宣言してください。 |
+| `OL_E_MODULE_CONTENT_INPUT_INVALID` | `RealmapPackage` | マップの `openomsi-realmap` パッケージを安全に読み取れません。リパースポイント経由で到達している、リパースポイントを含んでいる、ファイル数が 50,000 を超えている、サイズが 4 GiB を超えている、または読み取れません。 | コンテキスト結果 | パッケージを修復または再生成してください。モジュールはリソース単位で縮退します。 |
 | `OL_E_MODULE_HOOK_UNAVAILABLE` | 予約済み | 予約済みです。ネイティブコンポーネントは代わりに、[ランタイムモジュール](runtime-modules.md#native-components-and-hooks)で説明されている数値のフック結果を受け取ります。 | なし | なし |
 
 <a id="non-error-diagnostic-codes"></a>

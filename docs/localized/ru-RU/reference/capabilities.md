@@ -1,6 +1,6 @@
 # Возможности
 
-<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+<!-- l10n: source=reference/capabilities.md source-sha256=e6d9d063c2365c007efc79c0057a4843d1f91b88ba68448cc8b8d7579308de23 -->
 > Перевод [исходной страницы на английском языке](../../../reference/capabilities.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 На этой странице описано, что умеет OmsiLaunch. Её источник — канонический каталог возможностей `PublicCapabilityRegistry` (`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`): там один раз объявлены каждая возможность, каждая публичная runtime-операция с её аргументами, маршрутами CLI и нативной возможностью, а также одно состояние подтверждения для каждой возможности. Набор runtime-операций, проверка аргументов, маршруты команд CLI, нативная проверка каждой операции в плагине, `GetCapabilitiesAsync` и [таблица каталога](#capability-catalog) ниже выводятся из него. Для каждой runtime-операции на странице указаны аргументы, ключи результата и ошибки. Как вызывать операцию (маршруты CLI, конверт API, тайм-ауты, handle), описано в разделе [runtime-управление](runtime-control.md); подтверждения по сеансам приведены на странице [статус проверки в runtime](../status/runtime-validation-status.md).
@@ -112,6 +112,7 @@
 | `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
 | `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
 | `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | Требуется PlayerVehicle (его даёт сохранённая ситуация); при headless NEW_MAP — OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE. |
+| `ui.pause` | `PublicExperimental` | Action | Running | `ui.pause.state`, `ui.pause.take-over` (omsi-state), `ui.pause.restore-native` (omsi-state), `ui.pause.action` (omsi-state) | `ui.pause-menu.replace` | RUNTIME_VALIDATION_REQUIRED | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action --action=<resume|new-game|save|options|quit>` | Beta 5: статически проверенный дизайн (research beta4-static pause-menu-and-input.md); нативные вызовы в реальном сеансе пока не наблюдались. |
 | `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` (paged) | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
 | `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | Для обнаружения устаревшего handle после естественного удаления (RV-002) нет безопасного способа воспроизвести в runtime; проверено офлайн-тестами. |
 | `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
@@ -195,6 +196,18 @@
 | `camera.set` | Write | необязательные `family` (0..3), `field_of_view` (10..170); хотя бы один | ключи `camera.read` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` |
 | `camera.lock` | Action | обязательный `family` (0..3); необязательный `preset` (0..255, только с семейством 0 или 1) | `locked` (`true`), `family`, `preset`, `head_look` (`preserved`), `field_of_view` (`preserved`) | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`, `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`. Политика применяется повторно каждые 100 ms до вызова `camera.unlock`; неудачное повторное применение порождает событие `camera.lock.degraded` один раз для каждой отличающейся ошибки. |
 | `camera.unlock` | Action | нет | `locked` (`false`) | |
+
+<a id="user-interface-pause-menu"></a>
+### Пользовательский интерфейс (меню паузы)
+
+Перехват нативного меню паузы OMSI для собственного меню модуля (возможность `ui.pause-menu.replace`, определяется только на известной идентичности кода). Собственный байт паузы OMSI остаётся установленным, поэтому симуляция, рендеринг, 3D-клики и команды DirectInput остаются удержанными; нативная форма скрывается через VCL, а её действия вызываются напрямую (без клика, без отправленного сообщения, без перемещённого окна). `ui.pause.action` запускает нативный обработчик из одноразового таймера UI-потока после отправки своего ответа, потому что обработчик может войти в нативный модальный диалог: результат читайте из `ui.pause.state` (`busy` равно `false`, затем `last_result`).
+
+| Операция | Вид | Аргументы | Ключи результата | Ошибки |
+| --- | --- | --- | --- | --- |
+| `ui.pause.state` | Read | нет | `paused`, `native_menu_visible`, `main_form_ready`, `in_frame`, `taken_over`, `busy`, `pending_action`, `last_action`, `last_result` (`none`, `resumed`, `game-started`, `returned`, `quit-requested`, `exception`, `refused`) | `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.take-over` | Action | нет | ключи `ui.pause.state` после перехвата | `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_UI_ALREADY_TAKEN_OVER`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.restore-native` | Action | нет | ключи `ui.pause.state`; снова показывает нативное меню (выполняется его собственный `FormShow`: OMSI остаётся на паузе) | `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.action` | Action | обязательный `action`: `resume`, `new-game`, `save`, `options` или `quit` | ключи `ui.pause.state` плюс `scheduled` (`true`) и `action` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
 
 <a id="road-vehicles-and-player"></a>
 ### Дорожные транспортные средства и игрок

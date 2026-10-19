@@ -1,11 +1,11 @@
 # Moduły runtime
 
-<!-- l10n: source=reference/runtime-modules.md source-sha256=faf61b29436d1f69013b0c49667534ef079e31f7b34300b538935788654a55df -->
+<!-- l10n: source=reference/runtime-modules.md source-sha256=242dc9ea597f243b633862d5e39528d52f684968ee8c4f94f8e2cd965ab36323 -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/runtime-modules.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 Moduł runtime dodaje zachowanie do zarządzanej sesji OMSI: funkcję działającą razem z sesją (na przykład HUD mapy lub optymalizacje wczytywania), która nie staje się częścią samego OmsiLaunch. Mostek wczytuje moduł, udostępnia mu wyłącznie to, co moduł zadeklarował, i usuwa wszystko, co moduł przechowuje, gdy sesja się kończy lub moduł ulega awarii. Ta strona jest normatywnym opisem modułów runtime w postaci zaimplementowanej w `src/OmsiLaunch.Runtime.Modules` (manifest, ustawienia, kwalifikowanie, host cyklu życia), w planerze, w programach sesji kontrolera (`ModuleSessionPrograms`, `ModuleSessionProcess`), w środowisku modułów wtyczki oraz we flagach modułów w [CLI](cli.md).
 
-Stabilność: `EXPERIMENTAL`. Protokół mostka 1 został zweryfikowany w runtime w rundzie B (moduły zarządzane, aktywacja zawartości, operacje, `disable-module` i `fail-session`; komponenty natywne z hookami IAT; zob. [stan weryfikacji w runtime](../status/runtime-validation-status.md)). Protokół mostka 2 (ustawienia, aktywacja domyślna, plik ustawień, programy sesji, konflikty wtyczek, powiadomienia, `get_value`) jest zweryfikowany tylko offline. Bramki offline: bramki `module.*` z `tests/OmsiLaunch.ModuleTests` (manifest, integralność, wybór i aktywacja, ustawienia, plik ustawień, konflikty wtyczek, programy sesji uruchamiane przez swoje zadanie, awaria wstrzyknięta w każdej fazie przy każdej polityce awarii, cykl życia komponentu natywnego, czyszczenie, przekazanie uruchomieniowe), `plugin-runtime.modules-lifecycle` (rzeczywisty moduł zarządzany wczytany przez środowisko wtyczki), `runtime-modules.native-component` (rzeczywisty komponent natywny hookujący import i odczytujący wartości przez mostek), `runtime-modules.plugin-conflict` oraz `native-hooks.self-check` (silnik hooków).
+Stabilność: `EXPERIMENTAL`. Protokół mostka 1 został zweryfikowany w runtime w rundzie B (moduły zarządzane, aktywacja zawartości, operacje, `disable-module` i `fail-session`; komponenty natywne z hookami IAT; zob. [stan weryfikacji w runtime](../status/runtime-validation-status.md)). Protokół mostka 2 (ustawienia, aktywacja domyślna, plik ustawień, programy sesji, konflikty wtyczek, powiadomienia, `get_value`) jest zweryfikowany tylko offline. Bramki offline: bramki `module.*` z `tests/OmsiLaunch.ModuleTests` (manifest, integralność, wybór i aktywacja, ustawienia, plik ustawień, konflikty wtyczek, programy sesji uruchamiane przez swoje zadanie, awaria wstrzyknięta w każdej fazie przy każdej polityce awarii, cykl życia komponentu natywnego, czyszczenie, przekazanie uruchomieniowe), `plugin-runtime.modules-lifecycle` (rzeczywisty moduł zarządzany wczytany przez środowisko wtyczki), `runtime-modules.native-component` (rzeczywisty komponent natywny hookujący import i odczytujący wartości przez mostek), `runtime-modules.plugin-conflict` oraz `native-hooks.self-check` (silnik hooków). Protokół mostka 3 (Beta 5: operacje katalogu w procesie, tick, przechwytywanie wejścia, dane wejściowe zawartości społeczności, opcjonalne przypięcia z migawką z czasu planowania, `module pack`, opcje zadania programów pomocniczych, wersja OMSI) jest zweryfikowany tylko offline: bramki `module.*` z `tests/OmsiLaunch.ModuleTests` (`manifest.protocol-3`, `manifest.optional-pins`, `catalog.snapshot`, `content.realmap-package`, `packer.pins`, `handoff.v8-snapshot`, `lifecycle.runtime-operations`, `lifecycle.tick.*`, `lifecycle.input-capture`, `lifecycle.auxiliary-options`, `lifecycle.snapshot-before-components`), `runtime-modules.protocol-3`, `runtime-modules.auxiliary-job`, `ui-pause.fails-closed` i `ui-input.hook-self-check` z testów integracyjnych wtyczki oraz `omsi-version.literal` z testów jednostkowych. Przejęcie menu pauzy i przechwytywanie wejścia nie zostały zaobserwowane w rzeczywistej sesji OMSI.
 
 Wczytywanie jest otwarte: można wczytać każdy moduł zainstalowany poniżej `plugins\OmsiLaunch.Modules`, bez względu na to, kto go wykonał. OmsiLaunch nie ręczy za to, co moduł robi wewnątrz OMSI. Gwarantuje natomiast [granicę bezpieczeństwa](#security-boundary): moduły nigdy nie działają wewnątrz procesu OmsiLaunch, a nic, co oferuje OmsiLaunch, nie pozwala modułowi wyjść poza uprawnienia samego OMSI.
 
@@ -32,23 +32,26 @@ Schemat `omsilaunch.runtime-module/v1`. Nieznane klucze są odrzucane, więc man
 | `id` | tak | Identyfikator modułu: małe litery, cyfry i `-`, od 2 do 48 znaków, zaczyna się od litery lub cyfry. Jest to także nazwa jego katalogu i jego przestrzeń nazw operacji. |
 | `version` | tak | `major.minor.patch`, opcjonalnie `-suffix`. |
 | `name` | nie | Nazwa wyświetlana (najwyżej 128 znaków). |
-| `bridge_protocol` | tak | `{ "min": n, "max": n }`: protokoły mostka, z którymi moduł działa. Ten build obsługuje protokoły `1` i `2`; moduł jest akceptowany, gdy jego zakres obejmuje jeden z nich. |
+| `bridge_protocol` | tak | `{ "min": n, "max": n }`: protokoły mostka, z którymi moduł działa. Ten build obsługuje protokoły `1`, `2` i `3`; moduł jest akceptowany, gdy jego zakres obejmuje jeden z nich. |
 | `activation` | nie | `requested` (domyślnie): wczytywany, gdy sesja o to prosi. `content`: wczytywany także wtedy, gdy sesja uruchamia powiązaną mapę (wymaga `content_binding`). `default` (protokół 2): wczytywany w każdej sesji, chyba że jest wyłączony (zob. [wybór modułów](#choosing-modules-for-a-session)); nie może mieć `content_binding`. |
 | `required_capabilities` | nie | Możliwości, bez których moduł nie może działać (zob. [możliwości](#capabilities)). |
 | `optional_capabilities` | nie | Możliwości, których moduł używa, gdy są dostępne; sprawdza je przez `IsCapabilityAvailable`. |
 | `content_binding` | nie | `{ "map": "maps\\<folder>\\global.cfg", "files": [ { "path", "sha256" } ] }`: moduł działa tylko na tej mapie, z tymi plikami w stanie niezmienionym. |
-| `assets` | nie | Pliki, które moduł odczytuje, każdy jako `{ "path", "sha256" }`. |
-| `components` | tak | Dokładnie jeden komponent `managed` `{ "kind": "managed", "path": "<file>.dll", "sha256", "entry": "<Namespace.Type>" }`; opcjonalnie jeden komponent `native` (`.dll`), komponenty `auxiliary` (`.exe`) i, w protokole 2, jeden komponent `host` (`.exe`, [program sesji](#session-programs) modułu). |
+| `assets` | nie | Pliki, które moduł odczytuje, każdy jako `{ "path", "sha256" }`. Od protokołu 3 `sha256` jest opcjonalny (zob. [integralność](#integrity)). |
+| `components` | tak | Dokładnie jeden komponent `managed` `{ "kind": "managed", "path": "<file>.dll", "sha256", "entry": "<Namespace.Type>" }`; opcjonalnie jeden komponent `native` (`.dll`), komponenty `auxiliary` (`.exe`) i, w protokole 2, jeden komponent `host` (`.exe`, [program sesji](#session-programs) modułu). Od protokołu 3 `sha256` komponentu jest opcjonalny, a komponent `auxiliary` może mieć `priority` (`normal`, `below-normal` lub `idle`) i `memory_limit_mb` (od 64 do 65536): obiekt zadania (job object) programu stosuje je od jego pierwszej instrukcji (zob. [programy pomocnicze](#auxiliary-programs)). |
 | `failure_policy` | tak | `fail-session`, `disable-module` lub `degrade` (zob. [awarie](#failures)). |
 | `operations` | nie | Operacje, które moduł udostępnia, gdy sesja działa: `{ "id", "kind": "read"\|"write"\|"action", "arguments": [ { "name", "required" } ], "timeout_ms" }`. |
 | `settings` | nie | Protokół 2. Ustawienia akceptowane przez moduł (zob. [ustawienia](#settings)). |
 | `conflicts` | nie | Protokół 2. `{ "plugins": [ "<file>.dll" ] }`: pliki DLL wtyczek OMSI, które nie mogą działać obok modułu (zob. [konflikty](#conflicts-with-omsi-plugins)). |
+| `runtime_operations` | nie | Protokół 3. Operacje publicznego katalogu możliwości, które moduł wykonuje w procesie, na przykład `["time.read", "camera.set"]` (zob. [operacje w procesie](#operations-in-process)). Wymaga możliwości `bridge.runtime`. |
+| `tick_ms` | nie | Protokół 3. Moduł chce okresowego wywołania zwrotnego co `tick_ms` milisekund: wielokrotność 50, od 50 do 1000 (zob. [tick](#tick)). Wymaga możliwości `bridge.tick`. |
+| `content_inputs` | nie | Protokół 3. Zawartość społeczności, którą moduł odczytuje, lokalizowana przez mostek: `[ { "kind": "realmap-package", "required": false } ]` (zob. [zawartość społeczności](#community-content)). |
 | `timeouts` | nie | Budżety w milisekundach: `arm_ms`, `gameplay_ready_ms`, `stop_ms` (domyślnie po 5000, najwyżej 30000); w protokole 2 także `prepare_ms` (domyślnie 120000, najwyżej 1800000) i `host_stop_ms` (domyślnie 10000, najwyżej 60000) dla programu sesji. Operacje domyślnie mają 2000 ms. |
 | `diagnostics` | nie | `{ "trace": true\|false }`. |
 
-Manifest, który używa funkcji protokołu 2 (`settings`, `conflicts`, aktywacja `default`, komponent `host`, `prepare_ms` lub `host_stop_ms`), musi deklarować `bridge_protocol.min` równe 2.
+Manifest, który używa funkcji protokołu 2 (`settings`, `conflicts`, aktywacja `default`, komponent `host`, `prepare_ms` lub `host_stop_ms`), musi deklarować `bridge_protocol.min` równe 2. Manifest, który używa funkcji protokołu 3 (`runtime_operations`, `tick_ms`, `content_inputs`, możliwość `bridge.runtime`, `bridge.tick` lub `bridge.input`, `priority` lub `memory_limit_mb` komponentu pomocniczego albo komponent lub zasób bez `sha256`), musi deklarować `bridge_protocol.min` równe 3.
 
-Każdy plik wymieniony w `components` i `assets` jest przypięty swoim SHA-256. `module.json` nie może przypiąć samego siebie.
+Każdy plik wymieniony w `components` i `assets` może być przypięty swoim SHA-256 (wymagane przed protokołem 3, opcjonalne od niego: zob. [integralność](#integrity)). `module.json` nie może przypiąć samego siebie.
 
 ```json
 {
@@ -76,9 +79,16 @@ Każdy plik wymieniony w `components` i `assets` jest przypięty swoim SHA-256. 
 <a id="integrity"></a>
 ## Integralność
 
-Każdy przypięty plik musi istnieć, nie może być osiągany przez punkt połączenia (junction) ani dowiązanie symboliczne i musi mieć przypięty SHA-256; w przeciwnym razie moduł jest odrzucany z kodem `OL_E_MODULE_INTEGRITY`. Dzięki temu wykrywany jest moduł uszkodzony lub zaktualizowany do połowy. Nie jest to decyzja o zaufaniu: moduł nie jest sprawdzany względem żadnej listy, podpisu ani wydawcy.
+Każdy plik wymieniony w manifeście musi istnieć i nie może być osiągany przez punkt połączenia (junction) ani dowiązanie symboliczne, a każdy plik przypięty przez autora musi mieć przypięty SHA-256; w przeciwnym razie moduł jest odrzucany z kodem `OL_E_MODULE_INTEGRITY`. Dzięki temu wykrywany jest moduł uszkodzony lub zaktualizowany do połowy. Nie jest to decyzja o zaufaniu: moduł nie jest sprawdzany względem żadnej listy, podpisu ani wydawcy.
 
-Sprawdzenie jest powtarzane tam, gdzie startuje kod modułu: wtyczka wczytuje moduł tylko wtedy, gdy jego `module.json` nadal ma SHA-256, który ocenił plan, i każde przypięcie nadal jest spełnione, a kontroler uruchamia program sesji dopiero po zweryfikowaniu przypięcia tego programu.
+Od protokołu 3 przypięcie jest opcjonalne, więc autor nigdy nie musi ręcznie utrzymywać skrótów, a plan zawsze robi **migawkę** (snapshot): jeden SHA-256 z każdego pliku wymienionego w manifeście i jego zawartości, zapisany w planie (`PlannedModule.SnapshotSha256`) i przekazany wtyczce w przekazaniu uruchomieniowym (wersja formatu 8). Migawka gwarantuje, że pliki ocenione przez plan są plikami, które działają: wtyczka wczytuje moduł tylko wtedy, gdy jego `module.json` ma SHA-256, który ocenił plan, a jego pliki nadal mają zawartość z migawki, a kontroler i mostek porównują migawkę ponownie tuż przed uruchomieniem programu sesji, komponentu natywnego lub programu pomocniczego. Moduł, którego pliki zmieniły się po planowaniu, nie jest wczytywany (`OL_E_MODULE_INTEGRITY`, „the module's files changed after planning”). Migawka obejmuje każdy moduł, przypięty lub nie; przypięcie dodatkowo pozwala temu, kto publikuje moduł, wykryć uszkodzoną lub zaktualizowaną do połowy kopię, gdy tylko zostanie wykryta.
+
+Sprawdzenie jest powtarzane tam, gdzie startuje kod modułu: wtyczka wczytuje moduł tylko wtedy, gdy jego `module.json` nadal ma SHA-256, który ocenił plan, a każde przypięcie i migawka nadal są spełnione, a kontroler uruchamia program sesji dopiero po zweryfikowaniu przypięcia tego programu i migawki.
+
+<a id="packing-a-module"></a>
+### Pakowanie modułu
+
+`OmsiLaunch.exe /pack-module:<module directory>` zapisuje przypięcia dla plików, które wymienia `module.json` (jego komponenty i zasoby), więc autor nigdy nie edytuje SHA-256 ręcznie. Przepisuje wyłącznie wartości `sha256` (reszta manifestu jest zachowana; plik jest ponownie wcinany), przed zapisaniem czegokolwiek ponownie odczytuje wynik parserem manifestu i raportuje każdy plik (koperta `module.pack`: `module`, `directory`, `written`, `intact`, `files` z `path`, `sha256`, `pinned`, `mismatch`, `written`). Działa na katalogu, który otrzymał, i nigdy nie dotyka instalacji. `/verify-module:<module directory>` raportuje to samo bez zapisu (`module.verify`); kończy się kodem `7`, gdy przypięty plik nie zgadza się ze swoim przypięciem (plik bez przypięcia nie jest niezgodnością). Oba kończą się kodem `2` dla manifestu, którego nie da się sparsować, lub brakującego pliku.
 
 <a id="security-boundary"></a>
 ## Granica bezpieczeństwa
@@ -104,6 +114,9 @@ OmsiLaunch nie kontroluje tego, co moduł robi wewnątrz OMSI: jego komponenty z
 | `bridge.auxiliary-processes` | `StartAuxiliaryProcess`: procesy pomocnicze powiązane z sesją. |
 | `bridge.hooks.iat` | Komponent natywny: hooki na importach `Omsi.exe` (`iat:<dll>!<function>`). |
 | `bridge.hooks.d3d9` | Komponent natywny: hooki na metodach działającego urządzenia Direct3D 9 (`d3d9:device.<method>`). Wymaga możliwości natywnej `d3d.texture`. |
+| `bridge.runtime` | Protokół 3. `IRuntimeModuleContext.Runtime` i natywne `run_operation`: operacje katalogu, które manifest wymienia w `runtime_operations`. |
+| `bridge.tick` | Protokół 3. Okresowe wywołanie zwrotne: `ITickingModule.Tick` i eksport natywny `omsilaunch_module_native_v1_tick`. |
+| `bridge.input` | Protokół 3. `IRuntimeModuleContext.Input`: przechwytywanie komunikatów klawiatury i myszy gry na potrzeby własnego menu modułu. Wymaga możliwości natywnej `ui.input.capture`. |
 
 Nazwa, która nie jest żadną z nich, jest odrzucana podczas planowania (`OL_E_MODULE_CAPABILITY_UNRESOLVED`). W buildzie OMSI 2 bez znanego układu możliwość natywna, której plik wykonywalny nie rozstrzyga, jest rozstrzygana w procesie; jeśli nie zostanie tam rozstrzygnięta, moduł nie jest wczytywany.
 
@@ -233,7 +246,7 @@ Zdarzenie modułu o nazwie `notice` (z `Emit("notice", ...)`, z `emit` komponent
 | 3. Przygotowanie | kontroler, podczas startu | [Programy sesji](#session-programs) modułów są uruchamiane i oczekiwane. Następnie kwalifikujące się moduły trafiają do wtyczki w przekazaniu uruchomieniowym (wersja 6): ich katalogi, SHA-256 każdego ocenionego `module.json` oraz ich efektywne ustawienia. |
 | 4. Uzbrojenie | wtyczka, przed startem świata | Każdy moduł jest ponownie weryfikowany i wczytywany (komponent zarządzany we własnym kontekście wczytywania). Jego komponent natywny, jeśli istnieje, jest wczytywany i uruchamiany jako pierwszy, po czym wywoływane jest `Arm(context)`. |
 | 5. Gotowość rozgrywki | wtyczka | Po `gameplay.entered`, gdy wczytany moduł deklaruje `bridge.hooks.d3d9`, mostek zaczyna obserwować urządzenie Direct3D (`d3d.ready`); następnie wywołuje `gameplay_ready` komponentu natywnego i `GameplayReady()`. W sesji NEW_MAP powiązana mapa jest sprawdzana ponownie względem mapy wczytanej przez start. |
-| 6. Runtime | wtyczka | Operacje `module.<id>.<operation>` trafiają do `Execute`. |
+| 6. Runtime | wtyczka | Operacje `module.<id>.<operation>` trafiają do `Execute`. Moduł z `tick_ms` otrzymuje tick (zob. [tick](#tick)); moduł z `runtime_operations` wykonuje je w procesie (zob. [operacje w procesie](#operations-in-process)). |
 | 7. Zatrzymanie | wtyczka, następnie kontroler | Gdy sesja się kończy (lub moduł ulega awarii), wywoływane jest `Stop()`. Po zakończeniu OMSI programy sesji są zatrzymywane. |
 | 8. Czyszczenie | wtyczka | Wszystko, co moduł śledził, jest zwalniane w odwrotnej kolejności i weryfikowane jako usunięte; komponent natywny jest zatrzymywany jako ostatni, a jego hooki są usuwane; jego DLL pozostaje wczytany, nieaktywny, do zakończenia OMSI (wątek może jeszcze wracać przez detour). |
 
@@ -242,7 +255,7 @@ Każde wywołanie zwrotne w procesie działa w wątku interfejsu użytkownika OM
 <a id="failures"></a>
 ## Awarie
 
-Awarią jest wyjątek lub przekroczenie budżetu w dowolnej fazie lub operacji, możliwość nierozstrzygnięta w procesie, powiązanie zawartości, które nie jest spełnione w procesie, konfliktująca wtyczka wczytana w OMSI albo program sesji, który nie staje się gotowy. To, co następuje dalej, rozstrzyga `failure_policy` modułu. W każdym przypadku zasoby modułu są zwalniane.
+Awarią jest wyjątek lub przekroczenie budżetu w dowolnej fazie lub operacji, możliwość nierozstrzygnięta w procesie, powiązanie zawartości, które nie jest spełnione w procesie, konfliktująca wtyczka wczytana w OMSI albo program sesji, który nie staje się gotowy. To, co następuje dalej, rozstrzyga `failure_policy` modułu. W każdym przypadku zasoby modułu są zwalniane. Tick, który zgłasza wyjątek, zwraca wartość niezerową lub przekracza swój interwał, jest awarią tak samo jak operacja.
 
 | Polityka | Awaria w przygotowaniu, wczytywaniu, uzbrojeniu lub gotowości rozgrywki | Awaria w operacji | Awaria w zatrzymaniu |
 | --- | --- | --- | --- |
@@ -270,7 +283,7 @@ Komponent natywny to 32-bitowy plik DLL implementujący interfejs C z `src/OmsiL
 | `int omsilaunch_module_native_v1_gameplay_ready(const omsilaunch_bridge_v1*)` | Opcjonalnie; po wejściu do rozgrywki. |
 | `void omsilaunch_module_native_v1_stop(void)` | Przy zatrzymaniu lub awarii, przed usunięciem jego hooków. Potem tabela mostka odrzuca każde wywołanie, a DLL pozostaje wczytany, nieaktywny, do zakończenia OMSI. |
 
-Tabela mostka daje komponentowi `request_hook`, `emit` (zdarzenia runtime `module.<id>.<name>` z obiektem JSON złożonym z ciągów znaków) oraz, od protokołu 2, `get_value`. Komponent odczytuje `size` tabeli przed użyciem `get_value` (`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_GET_VALUE`). `get_value(context, name, buffer, capacity, length)` kopiuje wartość jako UTF-8 z kończącym zerem i ustawia `*length` na liczbę potrzebnych bajtów bez niego; zwraca `0`, `1` (argument), `2` (nieznana nazwa), `11` (po zatrzymaniu) lub `12` (bufor za mały). Nazwy:
+Tabela mostka daje komponentowi `request_hook`, `emit` (zdarzenia runtime `module.<id>.<name>` z obiektem JSON złożonym z ciągów znaków) oraz, od protokołu 2, `get_value`. Komponent odczytuje `size` tabeli przed użyciem `get_value` (`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_GET_VALUE`). `get_value(context, name, buffer, capacity, length)` kopiuje wartość jako UTF-8 z kończącym zerem i ustawia `*length` na liczbę potrzebnych bajtów bez niego; zwraca `0`, `1` (argument), `2` (nieznana nazwa), `11` (po zatrzymaniu) lub `12` (bufor za mały). Od protokołu 3 tabela zawiera także `run_operation` (zob. [operacje w procesie](#operations-in-process)) oraz `d3d_is_game_device(context, device)`: czy wskaźnik urządzenia, który otrzymał hook Direct3D, jest własnym urządzeniem gry (`1`), czy innym (`0`; formularz wyboru pojazdu tworzy drugie urządzenie z tą samą tabelą metod, więc detour `Present` jest wywoływany dla obu i powinien rysować tylko dla urządzenia gry), `10`, gdy nie obserwuje się jeszcze żadnego urządzenia, `11`, gdy `bridge.hooks.d3d9` nie jest zadeklarowane lub po zatrzymaniu. Wskaźnik jest tylko porównywany, nigdy używany, a mostek nigdy go nie udostępnia. Moduł, który trzyma zasoby Direct3D w puli domyślnej, sam hookuje `d3d9:device.Reset` (to, co robi przed wywołaniem oryginału, to „utrata urządzenia”, a to, co robi po powrocie z sukcesem, to „przywrócenie urządzenia”). Komponent sprawdza `size` tabeli przed użyciem składowej protokołu 3 (`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_RUN_OPERATION`, `OMSILAUNCH_BRIDGE_V1_SIZE_WITH_D3D_IS_GAME_DEVICE`). Dwa opcjonalne eksporty uzupełniają komponent: `int omsilaunch_module_native_v1_tick(const omsilaunch_bridge_v1*, uint32_t elapsed_ms)` (zob. [tick](#tick)) oraz `int omsilaunch_module_native_v1_execute(const omsilaunch_bridge_v1*, const char* operation, const char* arguments_json, char* buffer, uint32_t capacity, uint32_t* length)`, w taki sposób, w jaki komponent zarządzany wywołuje natywny przez `IRuntimeModuleContext.NativeComponent.Execute` (JSON na wejściu, JSON na wyjściu, ta sama konwencja bufora co w `run_operation`). Nazwy, na które odpowiada `get_value`:
 
 | Nazwa | Wartość |
 | --- | --- |
@@ -281,6 +294,7 @@ Tabela mostka daje komponentowi `request_hook`, `emit` (zdarzenia runtime `modul
 | `module_version` | Wersja z manifestu. |
 | `product_version` | Wersja produktu OmsiLaunch. |
 | `session_channel` | Potok [programu sesji](#session-programs); nieznany dla modułu bez takiego programu. |
+| `omsi_version` | Wersja produktu OMSI, którą gra podaje o sobie (protokół 3; zob. [wersja OMSI](#the-omsi-version)). |
 
 Hooki są żądane wyłącznie przez cel symboliczny, podczas `start` lub `gameplay_ready`, dla celu, którego możliwość manifest deklaruje:
 
@@ -310,6 +324,43 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /module:nu
 OmsiLaunch.exe /runtime:module.null-test.ping /runtime-arg:text=hello
 ```
 
+<a id="auxiliary-programs"></a>
+## Programy pomocnicze
+
+Moduł uruchamia jeden ze swoich komponentów `auxiliary` (przypięty `.exe` z własnego katalogu) przez `StartAuxiliaryProcess`. Od protokołu 3 mostek tworzy program **wstrzymany**, umieszcza go w obiekcie zadania sesji i dopiero potem go wznawia, więc proces potomny uruchomiony od razu nie może działać poza zadaniem. Zadanie kończy program i wszystko, co ten uruchomił, gdy moduł się zatrzymuje lub OMSI kończy działanie (kill on close), i stosuje `priority` (`below-normal`, `idle`) oraz `memory_limit_mb` z manifestu od pierwszej instrukcji programu. W odróżnieniu od [programu sesji](#session-programs) zadanie programu pomocniczego dopuszcza procesy potomne (program osadzający widok sieciowy ich potrzebuje); każdy z nich jest w zadaniu. Przed uruchomieniem program jest weryfikowany ponownie: jego przypięcie, jeśli je ma, oraz zawsze migawka planu.
+
+<a id="operations-in-process"></a>
+## Operacje w procesie
+
+`IRuntimeModuleContext.Runtime.Execute(operation, arguments)` (zarządzane) i `run_operation` (natywne) wykonują operację [publicznego katalogu możliwości](capabilities.md#public-runtime-operations) w procesie, w wątku interfejsu użytkownika OMSI, z tym samym rejestrem, tymi samymi typowanymi wynikami `OL_E_*`, tymi samymi kontrolami argumentów i tą samą polityką mutacji co kanał sterowania runtime, a bez samego kanału. Dozwolone są tylko operacje, które manifest wymienia w `runtime_operations`: każda inna otrzymuje odpowiedź `OL_E_MODULE_OPERATION_NOT_DECLARED`, zanim dotrze do OMSI, a operacji `internal.*` i `module.*` nigdy nie można wymienić. Operacja, której możliwości natywnej build nie rozstrzyga, odpowiada `OL_E_CAPABILITY_UNRESOLVED`, jak wszędzie indziej.
+
+Lista jest informacją dla przejrzystości i planowania, a nie granicą bezpieczeństwa: moduł już działa wewnątrz OMSI z uprawnieniami użytkownika. Plan ją pokazuje (`PlannedModule.RuntimeOperations`), a operacja zmieniająca stan OMSI niesie tam swoją politykę mutacji, na przykład `camera.set (omsi-state)`. Moduł może wykonywać operacje od `Arm` (świat może jeszcze nie istnieć; operacja odpowiada wtedy własnym typowanym błędem). Wyniki są ograniczone (1 MiB); większy wynik to `OL_E_RUNTIME_RESPONSE_TOO_LARGE`. Po zatrzymaniu modułu każde wywołanie odpowiada `OL_E_MODULE_DISABLED`.
+
+Natywne `run_operation(context, operation, arguments_json, buffer, capacity, length)` przyjmuje identyfikator z katalogu i obiekt JSON złożony z ciągów znaków (lub null) i zapisuje `{"succeeded":bool,"error_code":null|"OL_E_...","values":{...}}`. Zwraca `0`, gdy odpowiedziało (własna awaria operacji jest wewnątrz JSON), `1` dla argumentu, `11` po zatrzymaniu i `12`, gdy bufor jest za mały (`*length` to potrzebny rozmiar).
+
+## Tick
+
+Moduł, który deklaruje `tick_ms` i możliwość `bridge.tick`, jest wywoływany mniej więcej co `tick_ms` milisekund, w wątku interfejsu użytkownika OMSI, z 50-milisekundowego zegara interfejsu wtyczki: `ITickingModule.Tick(TimeSpan elapsed)` w komponencie zarządzanym i opcjonalny eksport natywny `omsilaunch_module_native_v1_tick(bridge, elapsed_ms)`. Interwał jest wielokrotnością 50 z zakresu od 50 do 1000. Tick nie przypada na klatkę: moduł, który rysuje, hookuje metodę Direct3D `Present` i używa ticku do odczytu danych. Ticki zaczynają się po `gameplay.entered` i kończą wraz z modułem. Tick, który zgłasza wyjątek, zwraca wartość niezerową (natywny) lub trwa dłużej niż jego interwał, jest awarią tego modułu: przy `degrade` jest zgłaszany raz dla każdego kodu (`module.degraded`), a moduł działa dalej (pominięte ticki są pomijane, nigdy kolejkowane); przy `disable-module` i `fail-session` obowiązuje polityka. Zagnieżdżona pętla modalna OMSI nadal uruchamia zegar interfejsu, więc tick nigdy nie wchodzi w siebie ponownie.
+
+<a id="community-content"></a>
+## Zawartość społeczności
+
+`content_inputs` deklaruje zawartość, którą moduł odczytuje, a której jego autor nie może znać podczas budowania modułu, ponieważ tworzy ją społeczność, dla mapy, po module. Nie ma SHA-256 do przypięcia; mostek tylko ją lokalizuje i sprawdza, czy jej odczyt jest bezpieczny. Jedynym rodzajem na dziś jest `realmap-package`: folder `openomsi-realmap` mapy, `<OMSI root>\maps\<folder>\openomsi-realmap`, zapisany przez narzędzia pakietu map openOMSI.
+
+`IRuntimeModuleContext.Content.LocateRealmapPackage("maps\\<folder>\\global.cfg")` odpowiada, czy mapa ma pakiet (brak pakietu nie jest błędem) i, jeśli ma, podaje jego katalog, liczbę plików, łączny rozmiar i `Fingerprint`. Odcisk jest wykrywaczem zmian na podstawie względnej ścieżki, rozmiaru i czasu zapisu każdego pliku: należy go używać jako klucza pamięci podręcznej; nigdy nie jest kontrolą integralności ani decyzją o zaufaniu. Pakiet musi znajdować się wewnątrz instalacji, żadna jego część nie może być punktem reparse i jest ograniczony (50,000 plików, 4 GiB); w przeciwnym razie odpowiedzią jest `OL_E_MODULE_CONTENT_INPUT_INVALID`. Moduł, który nie zadeklarował tego rodzaju, otrzymuje `OL_E_MODULE_CONTENT_INPUT_UNDECLARED`. Pakiet to dane wytworzone przez osoby trzecie: należy je odczytywać w kodzie zarządzanym, traktować każdą wartość jako niezaufaną i degradować zasób po zasobie. Wejście z `required: true` powoduje, że plan odrzuca moduł (`OL_E_MODULE_CONTENT_BINDING`), gdy mapa sesji nie ma pakietu.
+
+<a id="input-capture"></a>
+## Przechwytywanie wejścia
+
+Moduł, który zastępuje menu pauzy OMSI własnym, potrzebuje klawiatury i myszy gry. OMSI odczytuje klawisze symulacji przez DirectInput, a mysz przez komunikaty okna do okna widoku głównego formularza; gdy włączona jest jego własna pauza (natywny bajt pauzy), symulację, renderowanie, kliknięcia 3D i polecenia DirectInput wstrzymuje sam OMSI. `IRuntimeModuleContext.Input` (możliwość `bridge.input`, możliwość natywna `ui.input.capture`) dodaje resztę: `Capture(true)` instaluje jeden lokalny dla wątku hook `WH_GETMESSAGE` w wątku interfejsu użytkownika, a komunikaty klawiatury i myszy należące do drzewa okien gry (formularz główny, jego elementy potomne i ukryty natywny formularz pauzy) są zapisywane jako zwykłe wartości `ModuleInputEvent` (rodzaj, kod wirtualnego klawisza, współrzędne klienta okna widoku, przycisk, delta kółka, modyfikatory) i usuwane z kolejki, więc ani OMSI, ani VCL nie reagują na nie. `Drain()` zwraca zdarzenia (przechowywanych jest najwyżej 256). Nic nie jest poddawane subclassingowi, żadna funkcja stanu klawiszy z user32 nie jest hookowana i nic nie jest wysyłane.
+
+Jednocześnie przechwytuje jeden moduł. Przechwytywanie jest zwalniane, gdy moduł się zatrzymuje lub ulega awarii, bez względu na to, co zrobiło `Stop`. Natywne okna modalne (zapis, opcje, nowa gra) wymagają prawdziwego wejścia: przed wyświetleniem takiego okna należy zwolnić przechwytywanie. Mechanika hooka jest zweryfikowana offline za pomocą okna zastępczego (`ui-input.hook-self-check`); jego zachowanie względem rzeczywistego okna gry nie zostało jeszcze zaobserwowane.
+
+<a id="the-omsi-version"></a>
+## Wersja OMSI
+
+`IRuntimeModuleContext.OmsiVersion` i `get_value("omsi_version")` podają wersję produktu OMSI, którą gra podaje o sobie, na przykład `2.3.004`: tekst, który OMSI zapisuje po `Version:` w wierszu 7 swojego `logfile.txt`, odczytany z działającego obrazu. **Nigdy** nie jest to wersja pliku PE pliku wykonywalnego (build referencyjny ma `FileVersion` `2.2.032`). Gdy obraz nie zawiera jednego takiego tekstu, używana jest wersja profilu buildu, jeśli tożsamość kodu jest znana, a w przeciwnym razie `unknown`. Skrót pliku wykonywalnego, rozmiar jego kodu, adresy i nazwa profilu nie są udostępniane. Wersji należy używać do tekstu i do wyboru zachowania; możliwości (`IsCapabilityAvailable`) pozostają źródłem prawdy o tym, co działa.
+
 <a id="writing-a-module-contracts"></a>
 ## Pisanie modułu (kontrakty)
 
@@ -322,12 +373,13 @@ Komponent zarządzany odwołuje się do `OmsiLaunch.Runtime.Modules` i `OmsiLaun
 | `IReadOnlyDictionary<string, string> Execute(string operation, IReadOnlyDictionary<string, string> arguments)` | Krok 6, dla każdej zadeklarowanej operacji (bez prefiksu `module.<id>.`). Dla typowanej awarii należy zgłosić `ModuleOperationException(code, message)`. |
 | `void Stop()` | Krok 7. |
 
-`IRuntimeModuleContext` oferuje `SessionId`, `ModuleId`, `ModuleDirectory`, `Settings`, `DataDirectory`, `ProductVersion`, `SessionChannelName`, `Stopping` (token anulowania), `IsCapabilityAvailable`, `Emit`, `Track`, `RunBackground` i `StartAuxiliaryProcess`. Nic w nim nie ujawnia adresów, pliku wykonywalnego ani jego tożsamości. Komponent musi dać się wczytać przez 32-bitową wtyczkę (AnyCPU lub x86, .NET 6). Należy przypiąć każdy plik wczytywany przez programy modułu (dla programu .NET: jego `.dll` obok `.exe`), aby integralność je obejmowała.
+`IRuntimeModuleContext` oferuje `SessionId`, `ModuleId`, `ModuleDirectory`, `Settings`, `DataDirectory`, `ProductVersion`, `OmsiVersion`, `SessionChannelName`, `Stopping` (token anulowania), `IsCapabilityAvailable`, `Emit`, `Track`, `RunBackground`, `StartAuxiliaryProcess`, a od protokołu 3 `Runtime` (zob. [operacje w procesie](#operations-in-process)), `Content` (zob. [zawartość społeczności](#community-content)), `Input` (zob. [przechwytywanie wejścia](#input-capture)) i `NativeComponent` (wczytany komponent natywny lub null). Komponent zarządzany, który chce otrzymywać ticki, implementuje także `ITickingModule`. Nic w kontekście nie ujawnia adresów, skrótu pliku wykonywalnego ani układu jego kodu. Komponent musi dać się wczytać przez 32-bitową wtyczkę (AnyCPU lub x86, .NET 6); kopia `OmsiLaunch.Runtime.Modules` lub `OmsiLaunch.Api` obok niego jest ignorowana. Należy przypiąć każdy plik wczytywany przez programy modułu (dla programu .NET: jego `.dll` obok `.exe`), aby integralność je obejmowała.
 
 <a id="known-limitations"></a>
 ## Znane ograniczenia
 
 - Komponenty natywne mogą hookować importy `Omsi.exe` i metody urządzenia Direct3D; hooki na prologach funkcji OMSI i miejscach wywołań nie są jeszcze oferowane modułom.
+- Przejęcie menu pauzy (`ui.pause.*`) i przechwytywanie wejścia są zaprojektowane statycznie i zweryfikowane offline; nie zostały zaobserwowane w rzeczywistej sesji OMSI, a `ui.pause-menu.replace` jest rozstrzygane tylko dla znanej tożsamości kodu (niektóre jego pola nie mają wyprowadzenia niezależnego od buildu).
 - Sprawdzenie powiązania zawartości w procesie używa mapy zażądanej przez start (NEW_MAP); dla zapisanej sytuacji powiązanie jest sprawdzane podczas planowania względem mapy tej sytuacji.
 - Hooki urządzenia są hookami vtable. Jeśli inny komponent zapisuje z powrotem oryginalne metody urządzenia (zaobserwowano to w instalacji regresyjnej krótko po rozpoczęciu rozgrywki), hook urządzenia przestaje być wywoływany i nie można go usunąć; czyszczenie zgłasza wtedy `OL_E_MODULE_CLEANUP_INCOMPLETE`, a komponent pozostaje wczytany. Metoda urządzenia już zahookowana przez coś spoza rejestru jest odrzucana (4); zdarzenie odmowy wskazuje moduł będący właścicielem tej metody.
 - Moduły są zatrzymywane przy normalnym zakończeniu OMSI; zatrzymanie sesji kończy OMSI, więc czyszczenie modułów wewnątrz sesji odbywa się wyłącznie przez politykę awarii.

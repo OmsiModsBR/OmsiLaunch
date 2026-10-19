@@ -1,6 +1,6 @@
 # CLI-referentie
 
-<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+<!-- l10n: source=reference/cli.md source-sha256=cb5d0ea7b7ffe1315a6690239af6e0ae85d483e06995f7092e4d92cb75af3737 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/cli.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina is de volledige, normatieve referentie voor de opdrachtregel van OmsiLaunch `0.1.0-beta4`: de drie uitvoerbare bestanden, de argumentgrammatica, de dispatchvolgorde, elk opdrachtwoord, elke hiërarchische route, elke vlag, de uitvoer-envelopes en het foutgedrag van elke opdracht. De pagina is gegenereerd uit `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` en de twee native shims onder `tools\OmsiLaunch.Bootstrapper`. Procesresultaten staan in [exitcodes](exit-codes.md), foutcodes in [fouten](errors.md) en uitgewerkte aanroepen in [CLI-voorbeelden](cli-examples.md).
@@ -94,6 +94,7 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Clientroute | |
 | `map` | `map get` | Clientroute | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Clientroute | |
+| `ui` | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action` | Clientroute | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Clientroute | |
 | `player` | `player get` | Clientroute | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Clientroute | |
@@ -124,6 +125,10 @@ Elk woord dat op de eerste positie wordt geaccepteerd (`CliInput.CommandWordsAcc
 | `camera set` | `camera.set` | Write | Ja | Ja (camerascalairen, bijv. `--field_of_view=`) | Geen, niet teruggedraaid | EXPERIMENTAL | Schrijven/teruglezen van FOV gevalideerd. |
 | `camera lock` | `camera.lock` | Action | Ja | Ja (beleid binnen de sessie) | Geen | EXPERIMENTAL | Vereist `--family=<0..3>` (chauffeur=0, passagier=1, extern=2, kaart=3), optioneel `--preset=<n>` (familie 0 of 1). Heeft een spelersvoertuig nodig (bijvoorbeeld een opgeslagen situatie). Runtime-gevalideerd in de runtime-closure (`CAM01`); de `RuntimeValidation`-tekenreeks van het register zegt nog steeds `STATICALLY_VALIDATED` (zie [capabilities](capabilities.md)). |
 | `camera unlock` | `camera.unlock` | Action | Ja | Ja | Geen | EXPERIMENTAL | Heft het beleid op dat door `camera lock` is ingesteld (`CAM01`). |
+| `ui pause-state` | `ui.pause.state` | Read | Ja | Nee | Geen | EXPERIMENTAL | De pauzebyte van OMSI en de status van het native pauzemenu. |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | Ja | Ja (verbergt het native pauzemenu via de VCL; OMSI blijft gepauzeerd) | Geen, niet teruggedraaid | EXPERIMENTAL | Vereist dat OMSI gepauzeerd is met het menu zichtbaar. Nog niet waargenomen in een echte sessie. |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | Ja | Ja (toont het native pauzemenu opnieuw) | Geen | EXPERIMENTAL | Geeft het native menu terug. |
+| `ui pause-action` | `ui.pause.action` | Action | Ja | Ja (de eigen actie van het native menu) | Geen, niet teruggedraaid | EXPERIMENTAL | Vereist `--action=<resume|new-game|save|options|quit>`; wordt uitgevoerd na het antwoord, lees de uitkomst uit `ui pause-state`. |
 | `vehicles list` | `road-vehicles.list` | Read | Ja | Nee | Geen | STABLE_BETA | Retourneert `rv-NNNNNN`-handles binnen de sessie. |
 | `vehicles get` | `road-vehicle.read` | Read | Ja | Nee | Geen | STABLE_BETA | Vereist `--handle=`. Verouderde handle: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Ja | Nee | Geen | STABLE_BETA | Aantallen en spelerstoestand, geen handles. |
@@ -318,6 +323,8 @@ Geaccepteerd en bepaald aan de hand van de installatie, maar niet toegepast door
 | `/recovery-status` | `/recovery-status` | uit | lokaal | STABLE_BETA | Rapporteert of `<root>\.omsilaunch\journal.json` openstaat (`pending`), herstelt nooit; exit `0`. Neemt de installatielease: `OL_E_INSTALLATION_BUSY` (exit `7`) zolang een eigenaar die vasthoudt. |
 | `/recover` | `/recover` | uit | lokaal | STABLE_BETA | Herstelt een openstaand journal (back-ups worden eerst gecontroleerd tegen de SHA-256 van de snapshot; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` worden gemeld in `diagnostics`). Exit `0` als er niets openstond of het herstel is voltooid; `8` als er een journal openstond en dat blijft openstaan. Geweigerd met `OL_E_INSTALLATION_BUSY` zolang het in het journal vastgelegde OMSI-proces (PID, aanmaaktijd, exe-pad) actief is, of, voor een journal voorbij `HandoffCreated` zonder PID, zolang enige `Omsi.exe` uit die root actief is. Elke sessiestart voert dezelfde recovery automatisch uit voordat de installatie wordt gelezen. |
 | `/clear-module-data` | `/clear-module-data:<module id>` | geen | lokaal, geen sessie | EXPERIMENTAL | Verwijdert de gegevensmap van de module `<root>\.omsilaunch\module-data\<id>` en niets anders; envelope `module-data.clear` met `module` en `cleared` (`false` als er niets te verwijderen was); exit `0`. Neemt de installatielease: `OL_E_INSTALLATION_BUSY` (exit `7`) zolang een sessie de installatie bezit. Een gegevensmap van een module die via een link wordt bereikt, wordt geweigerd (`OL_E_MODULE_INTEGRITY`); een link erin wordt als link verwijderd. |
+| `/pack-module` | `/pack-module:<module directory>` | geen | lokaal, geen sessie | EXPERIMENTAL | Schrijft de SHA-256-vastzettingen van de bestanden die de `module.json` van de map noemt (componenten en assets) en herschrijft alleen die waarden; envelope `module.pack` (`module`, `directory`, `written`, `intact`, `files`); exitcode `0`, `2` bij een manifest dat niet kan worden geparseerd of een ontbrekend bestand. Raakt nooit een installatie aan. Zie [een module inpakken](runtime-modules.md#packing-a-module). |
+| `/verify-module` | `/verify-module:<module directory>` | geen | lokaal, geen sessie | EXPERIMENTAL | Meldt hetzelfde zonder te schrijven (`module.verify`); exitcode `0` wanneer elk vastgezet bestand overeenkomt (een bestand zonder vastzetting is geen afwijking), `7` wanneer een vastzetting niet overeenkomt, `2` bij een manifest dat niet kan worden geparseerd of een ontbrekend bestand. |
 
 <a id="output-formats"></a>
 ## Uitvoerformaten

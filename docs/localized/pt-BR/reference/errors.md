@@ -1,6 +1,6 @@
 # Códigos de erro e de diagnóstico
 
-<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+<!-- l10n: source=reference/errors.md source-sha256=a3335bf22fcb58419c25d20745f040077113f1db8f973e0cb47d0469e852c5f9 -->
 > Tradução da [página original em inglês](../../../reference/errors.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.
 
 Esta página é a referência normativa para todos os códigos em `PublicErrorCodes` (`src/OmsiLaunch.Api/PublicErrorCodes.cs`): 167 códigos de erro `OL_E_` e 4 avisos `OL_W_`, agrupados por categoria do catálogo, além dos códigos de diagnóstico informativos que não são erros. Para cada código, ela indica onde o código atual o gera, o que ele significa, como ele chega até você (exceção lançada, campo de resultado, diagnóstico, resposta do plano de controle ou envelope da CLI) e o que fazer. Os significados foram extraídos dos pontos onde os códigos são gerados; quando um código está definido mas não tem caminho de geração atual, a página informa isso.
@@ -266,6 +266,17 @@ Consulte [transações e recuperação](../concepts/transactions-and-recovery.md
 | `OL_E_RESTORE_DEFERRED` | `OmsiLaunchService` (falha no início / supervisor) | O término do OMSI não pôde ser confirmado, então os arquivos não foram substituídos enquanto ele ainda poderia usá-los; o journal é mantido. | Diagnóstico da sessão (`Failed`) | Depois que o `Omsi.exe` terminar, execute `/recover` (ou o próximo início recupera automaticamente). |
 | `OL_E_RESTORE_FAILED` | `OmsiLaunchService` (falha no início / supervisor) | `RestoreAsync` lançou uma exceção; a mensagem traz o código interno; o journal é mantido. | Diagnóstico da sessão (`Failed`); código de saída 8 da CLI quando lançado a partir de `/recover` | Aja de acordo com o código interno, depois use `/recover`. |
 
+<a id="ui"></a>
+## Interface do usuário (Ui)
+
+Códigos das operações do menu de pausa nativo (`ui.pause.*`).
+
+| Código | Gerado por | Significado | Superfície | O que fazer |
+| --- | --- | --- | --- | --- |
+| `OL_E_UI_NOT_PAUSED` | `CurrentRuntimeControl` | A operação exige o OMSI pausado com o menu de pausa nativo exibido (take-over, action), e ele não está. | Resultado de runtime | Aguarde até que o usuário pause o OMSI. |
+| `OL_E_UI_BUSY` | `CurrentRuntimeControl` | Uma ação do menu de pausa está agendada ou em execução (pode estar em uma caixa de diálogo modal nativa), ou a chamada chegou dentro do frame do OMSI. | Resultado de runtime | Consulte `ui.pause.state` até `busy` ser `false` e tente novamente. |
+| `OL_E_UI_ALREADY_TAKEN_OVER` | `CurrentRuntimeControl` | `ui.pause.take-over` quando o menu de pausa nativo já está assumido. | Resultado de runtime | Use `ui.pause.state` ou `ui.pause.restore-native` primeiro. |
+
 <a id="warning"></a>
 ## Aviso
 
@@ -303,6 +314,9 @@ Módulos de runtime (consulte [módulos de runtime](runtime-modules.md)). No pla
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | Um módulo cuja `failure_policy` é `fail-session` falhou; a sessão é parada e restaurada. | Diagnóstico da sessão (estado `Failed`) | Consulte o código de módulo anterior. |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`, `ModuleSettings`, CLI | Uma configuração de módulo solicitada é inválida ou não é declarada pelo módulo, um módulo está ao mesmo tempo ativado e desativado, o nome de uma configuração não é `<module-id>.<key>`, ou uma flag de módulo é declarada por vários módulos. | Diagnóstico do plano (não apto para execução); erro da CLI | Corrija a requisição; `/list:RuntimeModules` mostra as configurações de cada módulo. |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`, `ModuleHost` | Um plugin do OMSI que o módulo lista em `conflicts.plugins` está ativado (`plugins\*.opl`) ou carregado no OMSI. O motivo nomeia o `.opl`. | Diagnóstico do plano; diagnóstico da sessão | Desative ou remova esse plugin. O OmsiLaunch nunca o altera. |
+| `OL_E_MODULE_OPERATION_NOT_DECLARED` | `ModuleHost` | Um módulo pediu para executar uma operação do catálogo em processo (`IRuntimeModuleContext.Runtime`, `run_operation` nativo) que seu manifesto não lista em `runtime_operations`. A chamada nunca chega ao OMSI. | Resultado de runtime | Liste a operação em `runtime_operations` (ela exige `bridge.runtime` e `bridge_protocol.min` 3). |
+| `OL_E_MODULE_CONTENT_INPUT_UNDECLARED` | `ModuleHost` | Um módulo pediu para localizar conteúdo da comunidade (`IRuntimeModuleContext.Content`) de um tipo que seu manifesto não declara em `content_inputs`. | Resultado de contexto | Declare o tipo em `content_inputs`. |
+| `OL_E_MODULE_CONTENT_INPUT_INVALID` | `RealmapPackage` | O pacote `openomsi-realmap` do mapa não pode ser lido com segurança: é alcançado por um ponto de reanálise (reparse point), contém um, tem mais de 50,000 arquivos ou mais de 4 GiB, ou não pode ser lido. | Resultado de contexto | Repare ou gere o pacote novamente; o módulo se degrada por recurso. |
 | `OL_E_MODULE_HOOK_UNAVAILABLE` | reservado | Reservado; um componente nativo recebe, em vez disso, os resultados numéricos de hook descritos em [módulos de runtime](runtime-modules.md#native-components-and-hooks). | nenhuma | nenhum |
 
 <a id="non-error-diagnostic-codes"></a>

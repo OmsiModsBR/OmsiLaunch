@@ -83,6 +83,7 @@ Every word accepted in the first position (`CliInput.CommandWordsAccepted`):
 | `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Client route | |
 | `map` | `map get` | Client route | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Client route | |
+| `ui` | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action` | Client route | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Client route | |
 | `player` | `player get` | Client route | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Client route | |
@@ -112,6 +113,10 @@ Every word accepted in the first position (`CliInput.CommandWordsAccepted`):
 | `camera set` | `camera.set` | Write | Yes | Yes (camera scalars, e.g. `--field_of_view=`) | None, not reverted | EXPERIMENTAL | FOV write/read-back validated. |
 | `camera lock` | `camera.lock` | Action | Yes | Yes (session-scoped policy) | None | EXPERIMENTAL | Requires `--family=<0..3>` (driver=0, passenger=1, external=2, map=3), optional `--preset=<n>` (family 0 or 1). Needs a player vehicle (for example a saved situation). Runtime-validated in the runtime closure (`CAM01`); the registry's `RuntimeValidation` string still says `STATICALLY_VALIDATED` (see [capabilities](capabilities.md)). |
 | `camera unlock` | `camera.unlock` | Action | Yes | Yes | None | EXPERIMENTAL | Releases the policy set by `camera lock` (`CAM01`). |
+| `ui pause-state` | `ui.pause.state` | Read | Yes | No | None | EXPERIMENTAL | OMSI's pause byte and the native pause menu's state. |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | Yes | Yes (hides the native pause menu through the VCL; OMSI stays paused) | None, not reverted | EXPERIMENTAL | Needs OMSI paused with the menu shown. Not observed in a real session yet. |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | Yes | Yes (shows the native pause menu again) | None | EXPERIMENTAL | Gives the native menu back. |
+| `ui pause-action` | `ui.pause.action` | Action | Yes | Yes (the native menu's own action) | None, not reverted | EXPERIMENTAL | Requires `--action=<resume|new-game|save|options|quit>`; runs after the answer, read the outcome from `ui pause-state`. |
 | `vehicles list` | `road-vehicles.list` | Read | Yes | No | None | STABLE_BETA | Returns session-scoped `rv-NNNNNN` handles. |
 | `vehicles get` | `road-vehicle.read` | Read | Yes | No | None | STABLE_BETA | Requires `--handle=`. Stale handle: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Yes | No | None | STABLE_BETA | Counts and player state, no handles. |
@@ -292,6 +297,8 @@ Accepted and resolved against the installation, but not applied by the runtime: 
 | `/recovery-status` | `/recovery-status` | off | local | STABLE_BETA | Report whether `<root>\.omsilaunch\journal.json` is pending (`pending`), never restores; exit `0`. Takes the installation lease: `OL_E_INSTALLATION_BUSY` (exit `7`) while an owner holds it. |
 | `/recover` | `/recover` | off | local | STABLE_BETA | Restore a pending journal (backups verified against the snapshot SHA-256 first; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` reported in `diagnostics`). Exit `0` when nothing was pending or the restore completed; `8` when a journal was pending and remains. Refused with `OL_E_INSTALLATION_BUSY` while the journaled OMSI process (PID, creation time, exe path) or, for a journal past `HandoffCreated` without a PID, any `Omsi.exe` from that root is alive. Every session start performs the same recovery automatically before reading the installation. |
 | `/clear-module-data` | `/clear-module-data:<module id>` | none | local, no session | EXPERIMENTAL | Deletes the module's data directory `<root>\.omsilaunch\module-data\<id>` and nothing else; envelope `module-data.clear` with `module` and `cleared` (`false` when there was nothing to delete); exit `0`. Takes the installation lease: `OL_E_INSTALLATION_BUSY` (exit `7`) while a session owns the installation. A module-data folder reached through a link is refused (`OL_E_MODULE_INTEGRITY`); a link inside it is removed as a link. |
+| `/pack-module` | `/pack-module:<module directory>` | none | local, no session | EXPERIMENTAL | Writes the SHA-256 pins of the files the directory's `module.json` names (components and assets) and rewrites only those values; envelope `module.pack` (`module`, `directory`, `written`, `intact`, `files`); exit `0`, `2` for a manifest that does not parse or a missing file. Never touches an installation. See [packing a module](runtime-modules.md#packing-a-module). |
+| `/verify-module` | `/verify-module:<module directory>` | none | local, no session | EXPERIMENTAL | Reports the same without writing (`module.verify`); exit `0` when every pinned file matches (a file without a pin is not a mismatch), `7` when a pin does not match, `2` for a manifest that does not parse or a missing file. |
 
 ## Output formats
 

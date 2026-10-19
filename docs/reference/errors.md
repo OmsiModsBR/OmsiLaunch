@@ -254,6 +254,16 @@ See [transactions and recovery](../concepts/transactions-and-recovery.md).
 | `OL_E_RESTORE_DEFERRED` | `OmsiLaunchService` (start failure / supervisor) | OMSI's exit could not be confirmed, so files were not replaced while it may still use them; the journal is retained. | Session diagnostic (`Failed`) | After `Omsi.exe` has exited, run `/recover` (or the next start recovers automatically). |
 | `OL_E_RESTORE_FAILED` | `OmsiLaunchService` (start failure / supervisor) | `RestoreAsync` threw; the message carries the inner code; the journal is retained. | Session diagnostic (`Failed`); CLI exit 8 when thrown from `/recover` | Act on the inner code, then `/recover`. |
 
+## Ui
+
+Codes of the native pause menu operations (`ui.pause.*`).
+
+| Code | Emitted by | Meaning | Channel | Action |
+| --- | --- | --- | --- | --- |
+| `OL_E_UI_NOT_PAUSED` | `CurrentRuntimeControl` | The operation needs OMSI paused with its native pause menu shown (take-over, action), and it is not. | Runtime result | Wait until the user paused OMSI. |
+| `OL_E_UI_BUSY` | `CurrentRuntimeControl` | A pause menu action is scheduled or running (it can sit in a native modal dialog), or the call arrived inside OMSI's frame. | Runtime result | Poll `ui.pause.state` until `busy` is `false`, then retry. |
+| `OL_E_UI_ALREADY_TAKEN_OVER` | `CurrentRuntimeControl` | `ui.pause.take-over` while the native pause menu is already taken over. | Runtime result | Use `ui.pause.state`, or `ui.pause.restore-native` first. |
+
 ## Warning
 
 | Code | Raised by | Meaning | Surface | What to do |
@@ -289,6 +299,9 @@ Runtime modules (see [runtime modules](runtime-modules.md)). At planning a code 
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | A module whose `failure_policy` is `fail-session` failed; the session is stopped and restored. | Session diagnostic (state `Failed`) | See the preceding module code. |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`, `ModuleSettings`, CLI | A requested module setting is invalid or not declared by the module, a module is both enabled and disabled, a setting name is not `<module-id>.<key>`, or a module flag is declared by several modules. | Plan diagnostic (not runnable); CLI error | Correct the request; `/list:RuntimeModules` shows each module's settings. |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`, `ModuleHost` | An OMSI plugin the module lists under `conflicts.plugins` is switched on (`plugins\*.opl`), or loaded in OMSI. The reason names the `.opl`. | Plan diagnostic; session diagnostic | Switch off or remove that plugin. OmsiLaunch never changes it. |
+| `OL_E_MODULE_OPERATION_NOT_DECLARED` | `ModuleHost` | A module asked to run a catalog operation in process (`IRuntimeModuleContext.Runtime`, native `run_operation`) that its manifest does not list in `runtime_operations`. The call never reaches OMSI. | Runtime result | List the operation in `runtime_operations` (it needs `bridge.runtime` and `bridge_protocol.min` 3). |
+| `OL_E_MODULE_CONTENT_INPUT_UNDECLARED` | `ModuleHost` | A module asked to locate community content (`IRuntimeModuleContext.Content`) of a kind its manifest does not declare in `content_inputs`. | Context result | Declare the kind in `content_inputs`. |
+| `OL_E_MODULE_CONTENT_INPUT_INVALID` | `RealmapPackage` | The `openomsi-realmap` package of the map cannot be read safely: it is reached through a reparse point, contains one, has more than 50,000 files or is larger than 4 GiB, or cannot be read. | Context result | Repair or regenerate the package; the module degrades by resource. |
 | `OL_E_MODULE_HOOK_UNAVAILABLE` | reserved | Reserved; a native component receives the numeric hook results described in [runtime modules](runtime-modules.md#native-components-and-hooks) instead. | none | none |
 
 ## Non-error diagnostic codes

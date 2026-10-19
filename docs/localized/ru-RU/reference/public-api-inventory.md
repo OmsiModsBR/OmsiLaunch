@@ -1,6 +1,6 @@
 # Перечень публичного API
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=1038165496fa7e22c0b936388cb2dde7b90ed33b193b8f77d462d10d9eff149a -->
 > Перевод [исходной страницы на английском языке](../../../reference/public-api-inventory.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Эта страница генерируется из скомпилированных сборок с помощью `tests/OmsiLaunch.DocumentationTests` (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); проверка документации завершается ошибкой, если страница перестаёт соответствовать коду. Здесь перечислены все экспортируемые типы `OmsiLaunch.Api`, `OmsiLaunch.Core` и `OmsiLaunch.Process` с уровнем стабильности и сигнатурой каждого публичного члена. Семантика, предусловия, ошибки и примеры описаны на странице, указанной в каждом заголовке (по умолчанию: [публичный API](public-api.md)). Уровни стабильности: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (публичный по техническим причинам, не является интерфейсом интеграции), `UNAVAILABLE` (см. [публичный API](public-api.md#stability-vocabulary)). Члены записей, сгенерированные компилятором (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`), не приводятся.
@@ -429,7 +429,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| конструктор | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null, IReadOnlyList<string> RuntimeOperations = null, int TickMilliseconds = 0, string SnapshotSha256 = null)` |
 | константа | `string Eligible = "ELIGIBLE"` |
 | константа | `string Rejected = "REJECTED"` |
 | константа | `string ActivationRequested = "requested"` |
@@ -447,8 +447,12 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | свойство | `string ManifestSha256 { get; init; }` |
 | свойство | `string Activation { get; init; }` |
 | свойство | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| свойство | `IReadOnlyList<string> RuntimeOperations { get; init; }` |
+| свойство | `int TickMilliseconds { get; init; }` |
+| свойство | `string SnapshotSha256 { get; init; }` |
 | свойство | `bool IsEligible { get; }` |
 | свойство | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+| свойство | `IReadOnlyList<string> EffectiveRuntimeOperations { get; }` |
 
 ### `PlannedModuleSetting`
 
@@ -736,6 +740,12 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | константа | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
 | константа | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
 | константа | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
+| константа | `string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED"` |
+| константа | `string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED"` |
+| константа | `string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID"` |
+| константа | `string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED"` |
+| константа | `string UI_BUSY = "OL_E_UI_BUSY"` |
+| константа | `string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER"` |
 | константа | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | константа | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | константа | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -1201,7 +1211,7 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 | Член | Сигнатура |
 | --- | --- |
 | константа | `uint Magic = 1330402120` |
-| константа | `ushort Version = 7` |
+| константа | `ushort Version = 8` |
 | константа | `int MaxModules = 64` |
 | статический метод | `byte[] Serialize(StartupHandoff value)` |
 | статический метод | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
@@ -1212,10 +1222,11 @@ Record struct в `OmsiLaunch.Api`. Стабильность: `STABLE_BETA`. Се
 
 | Член | Сигнатура |
 | --- | --- |
-| конструктор | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| конструктор | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "")` |
 | свойство | `string RelativeDirectory { get; init; }` |
 | свойство | `string ManifestSha256 { get; init; }` |
 | свойство | `string Settings { get; init; }` |
+| свойство | `string SnapshotSha256 { get; init; }` |
 
 ### `TelemetryRingWire`
 

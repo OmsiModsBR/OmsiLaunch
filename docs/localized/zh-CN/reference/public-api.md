@@ -1,6 +1,6 @@
 # 公共 API 参考（`OmsiLaunch.Api`）
 
-<!-- l10n: source=reference/public-api.md source-sha256=84642bb43094a73ea13c435992e09e49f1a9328928880336e171182bb1ad6851 -->
+<!-- l10n: source=reference/public-api.md source-sha256=03d2b00af2df06cdc28d5fbbec294f9f480584c4817b1dfe8b805a914621f734 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/public-api.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页是 OmsiLaunch 0.1.0-beta4 托管公共 API 的规范性参考：包括 `OmsiLaunch.Api` 程序集（契约）以及 `OmsiLaunch.Core` 中面向集成方的入口点 `OmsiLaunchService`。本页只记录当前代码的实际行为。集成方可以调用、接收或观察到的一切内容都连同其稳定性级别列于此处；未列出的内容均不属于集成接口。
@@ -384,7 +384,7 @@ finally
 | `SessionProfileMetadata` | 已编译会话配置档的来源信息（`Id`、`Name`、`Version`、`Author`、`PresetId`、`PresetIndex`、`PresetName`、`PackagePath`）。 | `STABLE_BETA` |
 | `HofManagementSpec` | 会话 [HOF 管理](hof-management.md)：`Operations`（`HofOperationSpec` 列表）。字段 `LaunchSpec.HofManagement`；访问器 `EffectiveHofManagement`。 | `STABLE_BETA` |
 | `RuntimeModulesSpec` | 会话的[运行时模块](runtime-modules.md)：`Enable`（模块 id）、`Disable`（被排除的模块 id）、`Settings`（`"<module id>.<key>"` 到值）；访问器 `EffectiveDisable`、`EffectiveSettings`。字段 `LaunchSpec.Modules`；访问器 `EffectiveModules`。 | `EXPERIMENTAL` |
-| `PlannedModule` | 模块的计划评估：`Id`、`Version`、`Status`（`ELIGIBLE` 或 `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` 或 `default`）、`Settings`；`IsEligible`、`EffectiveSettings`。常量 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
+| `PlannedModule` | 模块的计划评估：`Id`、`Version`、`Status`（`ELIGIBLE` 或 `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` 或 `default`）、`Settings`、`RuntimeOperations`（模块在进程内运行的目录操作，改变 OMSI 的操作各附其变更策略，例如 `camera.set (omsi-state)`）、`TickMilliseconds`、`SnapshotSha256`（模块文件在计划时的摘要，参见[运行时模块](runtime-modules.md#integrity)）；`IsEligible`、`EffectiveSettings`、`EffectiveRuntimeOperations`。常量 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
 | `PlannedModuleSetting` | 一个生效的模块设置项：`Key`、`Value`、`Source`（`request`、`settings-file` 或 `default`）。 | `EXPERIMENTAL` |
 | `RuntimeModuleSummary` | 已安装模块的发现视图；参见 `ListRuntimeModulesAsync`。 | `EXPERIMENTAL` |
 | `RuntimeModuleSettingSummary` | 模块声明的一个设置项：`Key`、`Type`、`Default`、`AllowsAuto`、`Minimum`、`Maximum`、`Choices`、`Flag`、`Description`。 | `EXPERIMENTAL` |
@@ -426,9 +426,9 @@ finally
 | `RuntimeCommandResult` | `(Guid SessionId, ulong RequestId, bool Succeeded, string? ErrorCode, IReadOnlyDictionary<string, string>? Values)` | `STABLE_BETA` |
 | `RuntimeCommandWire` | 宿主和插件用于邮箱信封（envelope）的静态编解码器：魔数 `0x4F4C5243`（“OLRC”），版本 1，72 字节小端序头部（魔数、版本、种类 1 = 请求 / 2 = 响应、总长度、会话 `Guid`、请求 id、负载长度、负载的 SHA-256），后跟 UTF-8 JSON 负载。`SerializeRequest`、`SerializeResponse`、`TryDeserializeRequest`、`TryDeserializeResponse`、`TryReadRequestId`。 | `INTERNAL`：因桥的两端共享而为 public；不是集成接口；格式可能随协议版本变化。 |
 | `StartupHandoff` | `(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity, string SituationIdentity, IReadOnlyList<StartupModule>? Modules, bool PluginTrace, bool NativeTrace, StartDateTime? Start)`——宿主在内存映射文件 `OmsiLaunch.Handoff.<sessionId>` 中发布给插件的内容。 | `INTERNAL` |
-| `StartupModule` | `(string RelativeDirectory, string ManifestSha256)`：由交接（`StartupHandoff.Modules`）携带的已计划模块。 | `INTERNAL` |
+| `StartupModule` | `(string RelativeDirectory, string ManifestSha256, string Settings, string SnapshotSha256)`：由交接（`StartupHandoff.Modules`）携带的已计划模块；`SnapshotSha256`（线路版本 8）是计划时获取的模块文件摘要，计划未携带时为空。 | `INTERNAL` |
 | `StartDateTime` | `(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)`，`IsEmpty`：由交接（`StartupHandoff.Start`）携带的 NEW_MAP 会话已解析的启动时钟；字段为 null 时保留 OMSI 自身的值。 | `INTERNAL` |
-| `StartupHandoffWire` | 编解码器：魔数 `0x4F4C5348`，版本 7（可读取 3 至 7；版本 5 追加已计划的模块，版本 6 追加每个模块的生效设置，版本 7 追加启动日期/时间；标志位 0x04 和 0x08 分别携带 `PluginTrace` 和 `NativeTrace`），64 字节头部，使用 SHA-256 保证负载完整性。 | `INTERNAL` |
+| `StartupHandoffWire` | 编解码器：魔数 `0x4F4C5348`，版本 8（可读取 3 至 8；版本 5 追加已计划的模块，版本 6 追加每个模块的生效设置，版本 7 追加启动日期/时间，版本 8 追加每个模块在计划时的文件快照；标志位 0x04 和 0x08 分别携带 `PluginTrace` 和 `NativeTrace`），64 字节头部，使用 SHA-256 保证负载完整性。 | `INTERNAL` |
 | `TelemetryRingWire` | 插件到宿主的事件环，位于映射 `OMSILAUNCH_TELEMETRY_NAME` 中：魔数 `0x52544C4F`（"OLTR"），版本 1，64 个带编号的 2048 字节槽。`Initialize`、`Write`、`IsRing`、`ReadSince`（返回某个序号之后的事件以及丢失了多少个）。 | `INTERNAL` |
 
 除非 `WorldMode` 为 `NewMap` 或 `SavedSituation`、`HeadlessStart` 为 true、`PlayerVehicleEnabled` 为 false、日期/时间模式均为 `Unset`，并且已保存情景具有非空标识，否则插件会拒绝该交接（`plugin.request.unsupported` → `OL_E_CAPABILITY_UNAVAILABLE`）。规划器会更早地强制执行相同的约束，因此可运行的计划永远不会触发这种情况。

@@ -1,6 +1,6 @@
 # 公開 API 參考（`OmsiLaunch.Api`）
 
-<!-- l10n: source=reference/public-api.md source-sha256=84642bb43094a73ea13c435992e09e49f1a9328928880336e171182bb1ad6851 -->
+<!-- l10n: source=reference/public-api.md source-sha256=03d2b00af2df06cdc28d5fbbec294f9f480584c4817b1dfe8b805a914621f734 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/public-api.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁是 OmsiLaunch 0.1.0-beta4 受控（managed）公開 API 的規範性參考：涵蓋 `OmsiLaunch.Api` 組件（合約）以及 `OmsiLaunch.Core` 中供整合者使用的進入點 `OmsiLaunchService`。本頁只記載目前程式碼實際的行為。整合者可以呼叫、接收或觀察的一切，皆連同其穩定性等級列於此處；未列出者即不屬於整合介面。
@@ -384,7 +384,7 @@ finally
 | `SessionProfileMetadata` | 已編譯工作階段設定檔的來源資訊（`Id`、`Name`、`Version`、`Author`、`PresetId`、`PresetIndex`、`PresetName`、`PackagePath`）。 | `STABLE_BETA` |
 | `HofManagementSpec` | 工作階段 [HOF 管理](hof-management.md)：`Operations`（`HofOperationSpec` 清單）。欄位 `LaunchSpec.HofManagement`；存取子 `EffectiveHofManagement`。 | `STABLE_BETA` |
 | `RuntimeModulesSpec` | 工作階段的[執行階段模組](runtime-modules.md)：`Enable`（模組 id）、`Disable`（被排除的模組 id）、`Settings`（`"<module id>.<key>"` 對應值）；存取子 `EffectiveDisable`、`EffectiveSettings`。欄位 `LaunchSpec.Modules`；存取子 `EffectiveModules`。 | `EXPERIMENTAL` |
-| `PlannedModule` | 模組的計畫評估：`Id`、`Version`、`Status`（`ELIGIBLE` 或 `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` 或 `default`）、`Settings`；`IsEligible`、`EffectiveSettings`。常數 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
+| `PlannedModule` | 模組的計畫評估：`Id`、`Version`、`Status`（`ELIGIBLE` 或 `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` 或 `default`）、`Settings`、`RuntimeOperations`（模組在處理程序內執行的目錄操作，變更 OMSI 時各附其變更原則，例如 `camera.set (omsi-state)`）、`TickMilliseconds`、`SnapshotSha256`（規劃時模組檔案的摘要，請參閱[執行階段模組](runtime-modules.md#integrity)）；`IsEligible`、`EffectiveSettings`、`EffectiveRuntimeOperations`。常數 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
 | `PlannedModuleSetting` | 一個有效的模組設定：`Key`、`Value`、`Source`（`request`、`settings-file` 或 `default`）。 | `EXPERIMENTAL` |
 | `RuntimeModuleSummary` | 已安裝模組的探索檢視；請參閱 `ListRuntimeModulesAsync`。 | `EXPERIMENTAL` |
 | `RuntimeModuleSettingSummary` | 模組所宣告的設定：`Key`、`Type`、`Default`、`AllowsAuto`、`Minimum`、`Maximum`、`Choices`、`Flag`、`Description`。 | `EXPERIMENTAL` |
@@ -426,9 +426,9 @@ finally
 | `RuntimeCommandResult` | `(Guid SessionId, ulong RequestId, bool Succeeded, string? ErrorCode, IReadOnlyDictionary<string, string>? Values)` | `STABLE_BETA` |
 | `RuntimeCommandWire` | 主機與外掛程式用於信箱封套的靜態編解碼器：magic `0x4F4C5243`（"OLRC"）、版本 1、72 位元組 little-endian 標頭（magic、版本、種類 1 = 要求／2 = 回應、總長度、工作階段 `Guid`、要求 id、承載長度、承載的 SHA-256），後接 UTF-8 JSON 承載。`SerializeRequest`、`SerializeResponse`、`TryDeserializeRequest`、`TryDeserializeResponse`、`TryReadRequestId`。 | `INTERNAL`：因橋接兩端共用而為公開；不屬於整合介面；格式可能隨協定版本變更。 |
 | `StartupHandoff` | `(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity, string SituationIdentity, IReadOnlyList<StartupModule>? Modules, bool PluginTrace, bool NativeTrace, StartDateTime? Start)`——主機在記憶體對應檔案 `OmsiLaunch.Handoff.<sessionId>` 中發佈給外掛程式的內容。 | `INTERNAL` |
-| `StartupModule` | `(string RelativeDirectory, string ManifestSha256)`：由 handoff 攜帶的已規劃模組（`StartupHandoff.Modules`）。 | `INTERNAL` |
+| `StartupModule` | `(string RelativeDirectory, string ManifestSha256, string Settings, string SnapshotSha256)`：由 handoff 攜帶的已規劃模組（`StartupHandoff.Modules`）；`SnapshotSha256`（線路版本 8）是規劃時所取得的模組檔案摘要，計畫未攜帶時為空。 | `INTERNAL` |
 | `StartDateTime` | `(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)`、`IsEmpty`：由 handoff 攜帶的 NEW_MAP 工作階段已解析的起始時鐘（`StartupHandoff.Start`）；欄位為 null 時保留 OMSI 自己的值。 | `INTERNAL` |
-| `StartupHandoffWire` | 編解碼器：magic `0x4F4C5348`、版本 7（可讀取 3 至 7；版本 5 附加已規劃的模組，版本 6 附加每個模組的有效設定，版本 7 附加起始日期／時間；旗標位元 0x04 與 0x08 攜帶 `PluginTrace` 與 `NativeTrace`）、具 SHA-256 承載完整性的 64 位元組標頭。 | `INTERNAL` |
+| `StartupHandoffWire` | 編解碼器：magic `0x4F4C5348`、版本 8（可讀取 3 至 8；版本 5 附加已規劃的模組，版本 6 附加每個模組的有效設定，版本 7 附加起始日期／時間，版本 8 附加每個模組在規劃時的檔案快照；旗標位元 0x04 與 0x08 攜帶 `PluginTrace` 與 `NativeTrace`）、具 SHA-256 承載完整性的 64 位元組標頭。 | `INTERNAL` |
 | `TelemetryRingWire` | 外掛程式到主機的事件環狀緩衝區，位於對應 `OMSILAUNCH_TELEMETRY_NAME`：magic `0x52544C4F`（"OLTR"）、版本 1、64 個編號槽位，每個 2048 位元組。`Initialize`、`Write`、`IsRing`、`ReadSince`（回傳某個序號之後的事件以及遺失了多少）。 | `INTERNAL` |
 
 除非 `WorldMode` 為 `NewMap` 或 `SavedSituation`、`HeadlessStart` 為 true、`PlayerVehicleEnabled` 為 false、日期／時間兩種模式皆為 `Unset`，且已儲存情境具有非空的識別，否則外掛程式會拒絕交接（`plugin.request.unsupported` → `OL_E_CAPABILITY_UNAVAILABLE`）。規劃器會更早強制執行相同的限制，因此可執行的計畫永遠不會觸發此情況。

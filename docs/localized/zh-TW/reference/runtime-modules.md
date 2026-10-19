@@ -1,11 +1,11 @@
 # 執行階段模組
 
-<!-- l10n: source=reference/runtime-modules.md source-sha256=faf61b29436d1f69013b0c49667534ef079e31f7b34300b538935788654a55df -->
+<!-- l10n: source=reference/runtime-modules.md source-sha256=242dc9ea597f243b633862d5e39528d52f684968ee8c4f94f8e2cd965ab36323 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/runtime-modules.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 執行階段模組（runtime module）為受管理的 OMSI 工作階段增添行為：一項隨工作階段執行的功能（例如地圖的 HUD 或載入最佳化），而不會成為 OmsiLaunch 本身的一部分。橋接層會載入它、只提供它所宣告的內容，並在工作階段結束或模組失敗時移除它持有的一切。本頁是執行階段模組的規範性參考，涵蓋 `src/OmsiLaunch.Runtime.Modules`（資訊清單、設定、資格、生命週期主機）、規劃器、控制器的工作階段程式（`ModuleSessionPrograms`、`ModuleSessionProcess`）、外掛程式的模組環境，以及 [CLI](cli.md) 的模組旗標。
 
-穩定性：`EXPERIMENTAL`。橋接協定 1 已在 B 輪次於執行階段驗證（受管理模組、內容啟用、操作、`disable-module` 與 `fail-session`；含 IAT hook 的原生元件；請見[執行階段驗證狀態](../status/runtime-validation-status.md)）。橋接協定 2（設定、預設啟用、設定檔、工作階段程式、外掛程式衝突、通知、`get_value`）僅經離線驗證。離線關卡：`tests/OmsiLaunch.ModuleTests` 的 `module.*` 關卡（資訊清單、完整性、選取與啟用、設定、設定檔、外掛程式衝突、透過其 job 啟動的工作階段程式、在每個階段於每種失敗原則下注入的失敗、原生元件生命週期、清理、交接）、`plugin-runtime.modules-lifecycle`（由外掛程式環境載入的真實受管理模組）、`runtime-modules.native-component`（掛接匯入並透過橋接層讀取值的真實原生元件）、`runtime-modules.plugin-conflict` 與 `native-hooks.self-check`（hook 引擎）。
+穩定性：`EXPERIMENTAL`。橋接協定 1 已在 B 輪次於執行階段驗證（受管理模組、內容啟用、操作、`disable-module` 與 `fail-session`；含 IAT hook 的原生元件；請見[執行階段驗證狀態](../status/runtime-validation-status.md)）。橋接協定 2（設定、預設啟用、設定檔、工作階段程式、外掛程式衝突、通知、`get_value`）僅經離線驗證。離線關卡：`tests/OmsiLaunch.ModuleTests` 的 `module.*` 關卡（資訊清單、完整性、選取與啟用、設定、設定檔、外掛程式衝突、透過其 job 啟動的工作階段程式、在每個階段於每種失敗原則下注入的失敗、原生元件生命週期、清理、交接）、`plugin-runtime.modules-lifecycle`（由外掛程式環境載入的真實受管理模組）、`runtime-modules.native-component`（掛接匯入並透過橋接層讀取值的真實原生元件）、`runtime-modules.plugin-conflict` 與 `native-hooks.self-check`（hook 引擎）。橋接協定 3（Beta 5：處理程序內的目錄操作、tick、輸入擷取、社群內容輸入、帶有規劃時快照的選用釘選值、`module pack`、輔助工作選項、OMSI 版本）僅經離線驗證：`tests/OmsiLaunch.ModuleTests` 的 `module.*` 關卡（`manifest.protocol-3`、`manifest.optional-pins`、`catalog.snapshot`、`content.realmap-package`、`packer.pins`、`handoff.v8-snapshot`、`lifecycle.runtime-operations`、`lifecycle.tick.*`、`lifecycle.input-capture`、`lifecycle.auxiliary-options`、`lifecycle.snapshot-before-components`）、外掛程式整合測試的 `runtime-modules.protocol-3`、`runtime-modules.auxiliary-job`、`ui-pause.fails-closed` 與 `ui-input.hook-self-check`，以及單元測試的 `omsi-version.literal`。暫停選單接管與輸入擷取尚未在真實的 OMSI 工作階段中觀察到。
 
 載入是開放的：安裝在 `plugins\OmsiLaunch.Modules` 之下的任何模組都可被載入，不論由誰製作。OmsiLaunch 不為模組在 OMSI 內的行為背書。它所保證的是[邊界](#security-boundary)：模組絕不在 OmsiLaunch 處理程序內執行，且 OmsiLaunch 提供的任何功能都不會讓模組超出 OMSI 自身的權限。
 
@@ -33,23 +33,26 @@
 | `id` | 是 | 模組 id：小寫字母、數字與 `-`，2 至 48 個字元，以字母或數字開頭。同時也是其目錄名稱與操作命名空間。 |
 | `version` | 是 | `major.minor.patch`，可選擇性加上 `-suffix`。 |
 | `name` | 否 | 顯示名稱（最多 128 個字元）。 |
-| `bridge_protocol` | 是 | `{ "min": n, "max": n }`：模組可搭配運作的橋接協定。此組建提供協定 `1` 與 `2`；當模組的範圍包含其中之一時即被接受。 |
+| `bridge_protocol` | 是 | `{ "min": n, "max": n }`：模組可搭配運作的橋接協定。此組建提供協定 `1`、`2` 與 `3`；當模組的範圍包含其中之一時即被接受。 |
 | `activation` | 否 | `requested`（預設）：在工作階段要求時載入。`content`：在工作階段執行所繫結的地圖時也會載入（需要 `content_binding`）。`default`（協定 2）：除非被停用，否則每個工作階段都會載入（請見[為工作階段選擇模組](#choosing-modules-for-a-session)）；不可有 `content_binding`。 |
 | `required_capabilities` | 否 | 模組缺少即無法運作的功能（請見[功能](#capabilities)）。 |
 | `optional_capabilities` | 否 | 模組在可用時使用的功能；模組以 `IsCapabilityAvailable` 檢查。 |
 | `content_binding` | 否 | `{ "map": "maps\\<folder>\\global.cfg", "files": [ { "path", "sha256" } ] }`：模組只在該地圖上、且這些檔案未變更時才執行。 |
-| `assets` | 否 | 模組讀取的檔案，每個為 `{ "path", "sha256" }`。 |
-| `components` | 是 | 恰好一個 `managed` 元件 `{ "kind": "managed", "path": "<file>.dll", "sha256", "entry": "<Namespace.Type>" }`；可選擇性加上一個 `native` 元件（`.dll`）、`auxiliary` 元件（`.exe`），以及在協定 2 下的一個 `host` 元件（`.exe`，即模組的[工作階段程式](#session-programs)）。 |
+| `assets` | 否 | 模組讀取的檔案，每個為 `{ "path", "sha256" }`。從協定 3 起 `sha256` 為選用（請參閱[完整性](#integrity)）。 |
+| `components` | 是 | 恰好一個 `managed` 元件 `{ "kind": "managed", "path": "<file>.dll", "sha256", "entry": "<Namespace.Type>" }`；可選擇性加上一個 `native` 元件（`.dll`）、`auxiliary` 元件（`.exe`），以及在協定 2 下的一個 `host` 元件（`.exe`，即模組的[工作階段程式](#session-programs)）。從協定 3 起，元件的 `sha256` 為選用，且 `auxiliary` 元件可帶有 `priority`（`normal`、`below-normal` 或 `idle`）與 `memory_limit_mb`（64 至 65536）：程式的 job 物件自其第一個指令起就會套用它們（請參閱[輔助程式](#auxiliary-programs)）。 |
 | `failure_policy` | 是 | `fail-session`、`disable-module` 或 `degrade`（請見[失敗](#failures)）。 |
 | `operations` | 否 | 模組在工作階段執行期間公開的操作：`{ "id", "kind": "read"\|"write"\|"action", "arguments": [ { "name", "required" } ], "timeout_ms" }`。 |
 | `settings` | 否 | 協定 2。模組接受的設定（請見[設定](#settings)）。 |
 | `conflicts` | 否 | 協定 2。`{ "plugins": [ "<file>.dll" ] }`：不得與模組並行執行的 OMSI 外掛程式 DLL（請見[與 OMSI 外掛程式的衝突](#conflicts-with-omsi-plugins)）。 |
+| `runtime_operations` | 否 | 協定 3。模組在處理程序內執行的公開功能目錄操作，例如 `["time.read", "camera.set"]`（請參閱[處理程序內的操作](#operations-in-process)）。需要 `bridge.runtime` 功能。 |
+| `tick_ms` | 否 | 協定 3。模組希望每 `tick_ms` 毫秒收到一次週期性回呼：50 的倍數，介於 50 至 1000（請參閱 [tick](#tick)）。需要 `bridge.tick` 功能。 |
+| `content_inputs` | 否 | 協定 3。模組讀取、由橋接層定位的社群內容：`[ { "kind": "realmap-package", "required": false } ]`（請參閱[社群內容](#community-content)）。 |
 | `timeouts` | 否 | 以毫秒為單位的預算：`arm_ms`、`gameplay_ready_ms`、`stop_ms`（各預設 5000，上限 30000）；在協定 2 下，工作階段程式另有 `prepare_ms`（預設 120000，上限 1800000）與 `host_stop_ms`（預設 10000，上限 60000）。操作預設為 2000 ms。 |
 | `diagnostics` | 否 | `{ "trace": true\|false }`。 |
 
-使用協定 2 功能（`settings`、`conflicts`、啟用 `default`、`host` 元件、`prepare_ms` 或 `host_stop_ms`）的資訊清單必須宣告 `bridge_protocol.min` 為 2。
+使用協定 2 功能（`settings`、`conflicts`、啟用 `default`、`host` 元件、`prepare_ms` 或 `host_stop_ms`）的資訊清單必須宣告 `bridge_protocol.min` 為 2。使用協定 3 功能（`runtime_operations`、`tick_ms`、`content_inputs`、`bridge.runtime`、`bridge.tick` 或 `bridge.input` 功能、輔助的 `priority` 或 `memory_limit_mb`，或沒有 `sha256` 的元件或資產）的資訊清單必須宣告 `bridge_protocol.min` 為 3。
 
-`components` 與 `assets` 所指名的每個檔案都以其 SHA-256 固定。`module.json` 無法固定自身。
+`components` 與 `assets` 所指名的每個檔案都可以其 SHA-256 固定（協定 3 之前為必要，從協定 3 起為選用：請參閱[完整性](#integrity)）。`module.json` 無法固定自身。
 
 ```json
 {
@@ -77,9 +80,15 @@
 <a id="integrity"></a>
 ## 完整性
 
-每個固定的檔案都必須存在、不得經由連接點（junction）或符號連結到達，且必須符合其固定的 SHA-256；否則模組會以 `OL_E_MODULE_INTEGRITY` 被拒絕。這能攔下損毀或只更新一半的模組。這不是信任決策：模組不會對照任何清單、簽章或發行者進行檢查。
+資訊清單所指名的每個檔案都必須存在且不得經由連接點（junction）或符號連結到達，作者所固定的每個檔案都必須符合其固定的 SHA-256；否則模組會以 `OL_E_MODULE_INTEGRITY` 被拒絕。這能攔下損毀或只更新一半的模組。這不是信任決策：模組不會對照任何清單、簽章或發行者進行檢查。
 
-在模組程式碼啟動之處會重複此檢查：外掛程式只有在模組的 `module.json` 仍具有規劃所評估的 SHA-256、且每個固定項仍成立時才載入該模組；控制器只有在驗證該程式的固定項之後，才會啟動工作階段程式。
+從協定 3 起，固定值為選用，因此作者不必手動維護雜湊，而計畫一律會取得**快照**：對資訊清單所指名的每個檔案及其內容計算的單一 SHA-256，記錄於計畫中（`PlannedModule.SnapshotSha256`），並透過啟動 handoff 傳遞給外掛程式（線路版本 8）。快照保證計畫所評估的檔案就是實際執行的檔案：外掛程式只有在模組的 `module.json` 具有規劃所評估的 SHA-256、且其檔案仍具有快照的內容時才載入該模組；控制器與橋接層會在工作階段程式、原生元件或輔助程式啟動前，再次比對快照。規劃之後檔案已變更的模組不會被載入（`OL_E_MODULE_INTEGRITY`，「模組的檔案在規劃之後已變更」）。快照涵蓋每個模組，無論是否有固定值；固定值則讓發行模組的人在模組被探索到時，就能偵測損毀或只更新一半的副本。
+
+在模組程式碼啟動之處會重複此檢查：外掛程式只有在模組的 `module.json` 仍具有規劃所評估的 SHA-256、且每個固定項與快照仍成立時才載入該模組；控制器只有在驗證該程式的固定項與快照之後，才會啟動工作階段程式。
+
+### Packing a module
+
+`OmsiLaunch.exe /pack-module:<module directory>` 會為 `module.json` 所指名的檔案（其元件與資產）寫入固定值，因此作者不必手動編輯 SHA-256。它只改寫 `sha256` 值（資訊清單其餘部分會保留；檔案會重新縮排），在寫入任何內容之前先以資訊清單剖析器重新讀取結果，並回報每個檔案（`module.pack` 封套：`module`、`directory`、`written`、`intact`、`files`，其中含 `path`、`sha256`、`pinned`、`mismatch`、`written`）。它作用於所給定的目錄，絕不會動到任何安裝。`/verify-module:<module directory>` 回報相同內容但不寫入（`module.verify`）；當已固定的檔案與其固定值不相符時，結束代碼為 `7`（沒有固定值的檔案不算不相符）。對於無法剖析的資訊清單或遺失的檔案，兩者的結束代碼皆為 `2`。
 
 <a id="security-boundary"></a>
 ## 安全邊界
@@ -105,6 +114,9 @@ OmsiLaunch 不控制模組在 OMSI 內做什麼：其受管理與原生元件在
 | `bridge.auxiliary-processes` | `StartAuxiliaryProcess`：繫結到工作階段的輔助處理程序。 |
 | `bridge.hooks.iat` | 原生元件：對 `Omsi.exe` 匯入的 hook（`iat:<dll>!<function>`）。 |
 | `bridge.hooks.d3d9` | 原生元件：對執行中 Direct3D 9 裝置之方法的 hook（`d3d9:device.<method>`）。需要原生功能 `d3d.texture`。 |
+| `bridge.runtime` | 協定 3。`IRuntimeModuleContext.Runtime` 與原生 `run_operation`：資訊清單在 `runtime_operations` 中列出的目錄操作。 |
+| `bridge.tick` | 協定 3。週期性回呼：`ITickingModule.Tick` 與原生匯出 `omsilaunch_module_native_v1_tick`。 |
+| `bridge.input` | 協定 3。`IRuntimeModuleContext.Input`：為模組自己的選單擷取遊戲的鍵盤與滑鼠訊息。需要原生功能 `ui.input.capture`。 |
 
 兩者皆不是的名稱會在規劃時被拒絕（`OL_E_MODULE_CAPABILITY_UNRESOLVED`）。在沒有已知配置的 OMSI 2 組建上，可執行檔無法解析的原生功能會在處理程序內判定；若在那裡也無法解析，則不載入模組。
 
@@ -234,7 +246,7 @@ monitor=false
 | 3. 準備 | 控制器，啟動時 | 啟動並等待模組的[工作階段程式](#session-programs)。接著符合資格的模組透過啟動交接（版本 6）傳送給外掛程式：其目錄、每個已評估 `module.json` 的 SHA-256，以及其有效設定。 |
 | 4. 裝配（Arm） | 外掛程式，世界啟動之前 | 每個模組都會重新驗證並載入（受管理元件位於其自己的載入內容中）。其原生元件（若有）會先載入並啟動，然後呼叫 `Arm(context)`。 |
 | 5. 遊戲就緒 | 外掛程式 | 在 `gameplay.entered` 之後，當已載入的模組宣告 `bridge.hooks.d3d9` 時，橋接層開始觀察 Direct3D 裝置（`d3d.ready`）；然後呼叫原生元件的 `gameplay_ready` 與 `GameplayReady()`。對於 NEW_MAP 工作階段，會再次檢查繫結的地圖與啟動所載入的地圖是否一致。 |
-| 6. 執行階段 | 外掛程式 | 操作 `module.<id>.<operation>` 抵達 `Execute`。 |
+| 6. 執行階段 | 外掛程式 | 操作 `module.<id>.<operation>` 抵達 `Execute`。具有 `tick_ms` 的模組會收到 tick（請參閱 [tick](#tick)）；具有 `runtime_operations` 的模組會在處理程序內執行它們（請參閱[處理程序內的操作](#operations-in-process)）。 |
 | 7. 停止 | 外掛程式，然後是控制器 | 工作階段結束時（或模組失敗時），呼叫 `Stop()`。OMSI 結束之後，停止工作階段程式。 |
 | 8. 清理 | 外掛程式 | 模組追蹤的一切都以相反順序釋放並驗證已消失；原生元件最後停止並移除其 hook；其 DLL 保持載入、處於惰性狀態，直到 OMSI 結束（執行緒可能仍正從 detour 返回）。 |
 
@@ -243,7 +255,7 @@ monitor=false
 <a id="failures"></a>
 ## 失敗
 
-失敗是指任何階段或操作中的例外或超時、在處理程序內未解析的功能、在處理程序內不成立的內容繫結、在 OMSI 中載入的衝突外掛程式，或未就緒的工作階段程式。模組的 `failure_policy` 決定後續處理。在每種情況下，模組的資源都會被釋放。
+失敗是指任何階段或操作中的例外或超時、在處理程序內未解析的功能、在處理程序內不成立的內容繫結、在 OMSI 中載入的衝突外掛程式，或未就緒的工作階段程式。模組的 `failure_policy` 決定後續處理。在每種情況下，模組的資源都會被釋放。拋出例外、回傳非零或超出其間隔的 tick，與操作一樣屬於失敗。
 
 | 原則 | 在準備、載入、裝配或遊戲就緒中失敗 | 在操作中失敗 | 在停止中失敗 |
 | --- | --- | --- | --- |
@@ -271,7 +283,7 @@ monitor=false
 | `int omsilaunch_module_native_v1_gameplay_ready(const omsilaunch_bridge_v1*)` | 選用；在進入遊戲之後。 |
 | `void omsilaunch_module_native_v1_stop(void)` | 在停止或失敗時，早於其 hook 被移除。之後橋接表拒絕每個呼叫，而 DLL 保持載入、處於惰性狀態，直到 OMSI 結束。 |
 
-橋接表提供給元件 `request_hook`、`emit`（執行階段事件 `module.<id>.<name>`，帶有字串的 JSON 物件），以及從協定 2 起的 `get_value`。元件在使用 `get_value` 之前會讀取表的 `size`（`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_GET_VALUE`）。`get_value(context, name, buffer, capacity, length)` 將值以 UTF-8 並以結尾零複製，並將 `*length` 設為不含結尾零所需的位元組數；它回傳 `0`、`1`（引數）、`2`（未知名稱）、`11`（停止之後）或 `12`（緩衝區太小）。名稱：
+橋接表提供給元件 `request_hook`、`emit`（執行階段事件 `module.<id>.<name>`，帶有字串的 JSON 物件），以及從協定 2 起的 `get_value`。元件在使用 `get_value` 之前會讀取表的 `size`（`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_GET_VALUE`）。`get_value(context, name, buffer, capacity, length)` 將值以 UTF-8 並以結尾零複製，並將 `*length` 設為不含結尾零所需的位元組數；它回傳 `0`、`1`（引數）、`2`（未知名稱）、`11`（停止之後）或 `12`（緩衝區太小）。從協定 3 起，該表還包含 `run_operation`（請參閱[處理程序內的操作](#operations-in-process)）與 `d3d_is_game_device(context, device)`：Direct3D hook 收到的裝置指標是否為遊戲自己的裝置（`1`）或另一個裝置（`0`；車輛選擇表單會以相同的方法表建立第二個裝置，因此 `Present` detour 會為兩者呼叫，且應只為遊戲的裝置繪製），尚未觀察到任何裝置時為 `10`，未宣告 `bridge.hooks.d3d9` 或停止之後為 `11`。該指標只會被比較，絕不會被使用，且橋接層絕不會交出任何指標。在預設集區中保留 Direct3D 資源的模組，需自行 hook `d3d9:device.Reset`（呼叫原始函式之前所做的是「裝置遺失」，回傳成功之後所做的是「裝置已還原」）。元件在使用協定 3 成員之前會檢查表的 `size`（`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_RUN_OPERATION`、`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_D3D_IS_GAME_DEVICE`）。兩個選用匯出完成元件：`int omsilaunch_module_native_v1_tick(const omsilaunch_bridge_v1*, uint32_t elapsed_ms)`（請參閱 [tick](#tick)）與 `int omsilaunch_module_native_v1_execute(const omsilaunch_bridge_v1*, const char* operation, const char* arguments_json, char* buffer, uint32_t capacity, uint32_t* length)`，這是受管理元件透過 `IRuntimeModuleContext.NativeComponent.Execute` 呼叫原生元件的方式（輸入 JSON、輸出 JSON，緩衝區慣例與 `run_operation` 相同）。`get_value` 回答的名稱：
 
 | 名稱 | 值 |
 | --- | --- |
@@ -282,6 +294,7 @@ monitor=false
 | `module_version` | 資訊清單版本。 |
 | `product_version` | OmsiLaunch 產品版本。 |
 | `session_channel` | [工作階段程式的](#session-programs)管道；對沒有工作階段程式的模組為未知。 |
+| `omsi_version` | 遊戲對自身回報的 OMSI 產品版本（協定 3；請參閱 [OMSI 版本](#the-omsi-version)）。 |
 
 hook 僅以符號目標要求，在 `start` 或 `gameplay_ready` 期間，且目標的功能須為資訊清單所宣告者：
 
@@ -311,6 +324,38 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /module:nu
 OmsiLaunch.exe /runtime:module.null-test.ping /runtime-arg:text=hello
 ```
 
+## Auxiliary programs
+
+模組以 `StartAuxiliaryProcess` 啟動其某個 `auxiliary` 元件（其自身目錄中已固定的 `.exe`）。從協定 3 起，橋接層會以**暫停**狀態建立該程式，將它放入工作階段的 job 物件，然後才恢復執行，因此它立即啟動的子處理程序不可能在 job 之外執行。當模組停止或 OMSI 結束時，job 會終止該程式及其啟動的所有項目（關閉時終止），並自該程式的第一個指令起套用資訊清單的 `priority`（`below-normal`、`idle`）與 `memory_limit_mb`。與[工作階段程式](#session-programs)不同，輔助程式的 job 允許子處理程序（內嵌 Web 檢視的程式需要它們）；每一個子處理程序都在 job 之中。啟動之前會再次驗證該程式：有固定值時驗證其固定值，並一律驗證計畫的快照。
+
+## Operations in process
+
+`IRuntimeModuleContext.Runtime.Execute(operation, arguments)`（受管理）與 `run_operation`（原生）會在處理程序內、於 OMSI 的 UI 執行緒上，執行[公開功能目錄](capabilities.md#public-runtime-operations)中的操作，使用與執行階段控制通道相同的登錄、相同的具型別 `OL_E_*` 結果、相同的引數檢查與相同的變更原則，且不經過該通道。只有資訊清單在 `runtime_operations` 中列出的操作才被允許：任何其他操作會在抵達 OMSI 之前以 `OL_E_MODULE_OPERATION_NOT_DECLARED` 回應，且 `internal.*` 與 `module.*` 操作絕不能被列出。若組建未解析某操作的原生功能，則與其他各處一樣回應 `OL_E_CAPABILITY_UNRESOLVED`。
+
+此清單是透明度與規劃資訊，而非安全邊界：模組本來就以使用者的權限在 OMSI 內執行。計畫會顯示它（`PlannedModule.RuntimeOperations`），而變更 OMSI 狀態的操作會在其中帶有其變更原則，例如 `camera.set (omsi-state)`。模組自 `Arm` 起即可執行操作（此時世界可能尚不存在；該操作隨後會回應它自己的具型別錯誤）。結果有上限（1 MiB）；更大的結果為 `OL_E_RUNTIME_RESPONSE_TOO_LARGE`。模組停止之後，每次呼叫都回應 `OL_E_MODULE_DISABLED`。
+
+原生 `run_operation(context, operation, arguments_json, buffer, capacity, length)` 接受目錄 id 與字串的 JSON 物件（或 null），並寫入 `{"succeeded":bool,"error_code":null|"OL_E_...","values":{...}}`。當它已回應時回傳 `0`（操作本身的失敗在 JSON 之內），引數問題回傳 `1`，停止之後回傳 `11`，緩衝區太小時回傳 `12`（`*length` 為所需大小）。
+
+## Tick
+
+宣告了 `tick_ms` 與 `bridge.tick` 功能的模組，大約每 `tick_ms` 毫秒會被呼叫一次，在 OMSI 的 UI 執行緒上，由外掛程式的 50 ms UI 計時器觸發：受管理元件上的 `ITickingModule.Tick(TimeSpan elapsed)`，以及選用的原生匯出 `omsilaunch_module_native_v1_tick(bridge, elapsed_ms)`。間隔為 50 的倍數，介於 50 與 1000 之間。tick 並非逐訊框：要繪圖的模組應 hook Direct3D 的 `Present` 方法，並以 tick 讀取資料。tick 在 `gameplay.entered` 之後開始，並隨模組一起停止。拋出例外、回傳非零（原生）或耗時超過其間隔的 tick，屬於該模組的失敗：在 `degrade` 下，每個代碼只回報一次（`module.degraded`），模組繼續執行（錯過的 tick 會被略過，絕不會排入佇列）；在 `disable-module` 與 `fail-session` 下則套用該原則。OMSI 的巢狀強制回應迴圈會讓 UI 計時器持續觸發，因此 tick 絕不會重入自身。
+
+## Community content
+
+`content_inputs` 宣告模組所讀取的內容，其作者在建置模組時無法得知，因為這些內容是由社群在模組之後為某張地圖製作的。沒有 SHA-256 可固定；橋接層只負責定位它並檢查讀取是否安全。目前唯一的種類是 `realmap-package`：地圖的 `openomsi-realmap` 資料夾，即 `<OMSI root>\maps\<folder>\openomsi-realmap`，由 openOMSI 地圖套件工具寫入。
+
+`IRuntimeModuleContext.Content.LocateRealmapPackage("maps\\<folder>\\global.cfg")` 回答該地圖是否有套件（沒有套件不是錯誤），有的話則回傳其目錄、檔案數、總大小與 `Fingerprint`。指紋是針對每個檔案的相對路徑、大小與寫入時間的變更偵測器：請將它當作快取鍵；它絕不是完整性檢查或信任決策。套件必須位於安裝之內，其任何部分都不得是重新分析點，且有上限（50,000 個檔案、4 GiB）；否則回應為 `OL_E_MODULE_CONTENT_INPUT_INVALID`。未宣告該種類的模組會收到 `OL_E_MODULE_CONTENT_INPUT_UNDECLARED`。套件是第三方製作的資料：請在受管理程式碼中讀取，將每個值視為不受信任，並依資源降級。當工作階段的地圖沒有套件時，`required: true` 的輸入會使計畫拒絕該模組（`OL_E_MODULE_CONTENT_BINDING`）。
+
+## Input capture
+
+以自己的選單取代 OMSI 暫停選單的模組，需要遊戲的鍵盤與滑鼠。OMSI 透過 DirectInput 讀取模擬按鍵，並透過傳給主表單檢視視窗的視窗訊息讀取滑鼠；當其自身的暫停開啟時（原生暫停位元組），模擬、轉譯、3D 點擊與 DirectInput 命令由 OMSI 自己擱置。`IRuntimeModuleContext.Input`（功能 `bridge.input`，原生功能 `ui.input.capture`）補上其餘部分：`Capture(true)` 會在 UI 執行緒上安裝一個執行緒區域的 `WH_GETMESSAGE` hook，屬於遊戲視窗樹（主表單、其子項與隱藏的原生暫停表單）的鍵盤與滑鼠訊息會被記錄為單純的 `ModuleInputEvent` 值（種類、虛擬鍵、檢視視窗的用戶端座標、按鈕、滾輪差量、修飾鍵）並從佇列中移除，因此 OMSI 與 VCL 都不會對其採取動作。`Drain()` 回傳這些事件（最多保留 256 個）。沒有任何東西被子類別化，沒有 hook 任何 user32 按鍵狀態函式，也沒有送出任何東西。
+
+一次只有一個模組可以擷取。無論 `Stop` 做了什麼，擷取都會在模組停止或失敗時釋放。原生強制回應對話方塊（儲存、選項、新遊戲）需要真實輸入：請在要求之前先釋放擷取。hook 的機制已以替身視窗於離線驗證（`ui-input.hook-self-check`）；它們對真實遊戲視窗的行為尚未被觀察到。
+
+## The OMSI version
+
+`IRuntimeModuleContext.OmsiVersion` 與 `get_value("omsi_version")` 提供遊戲對自身回報的 OMSI 產品版本，例如 `2.3.004`：即 OMSI 寫在其 `logfile.txt` 第 7 行 `Version:` 之後的文字，由執行中的映像讀取。它**絕不是**可執行檔的 PE 檔案版本（參考組建帶有 `FileVersion` `2.2.032`）。當映像沒有唯一的這類文字時，若已知程式碼身分則使用組建設定檔的版本，否則為 `unknown`。可執行檔的雜湊、其程式碼大小、位址與設定檔名稱都不會公開。請將版本用於文字與選擇行為；功能（`IsCapabilityAvailable`）仍是判斷何者可運作的唯一可信來源。
+
 <a id="writing-a-module-contracts"></a>
 ## 撰寫模組（合約）
 
@@ -323,12 +368,13 @@ OmsiLaunch.exe /runtime:module.null-test.ping /runtime-arg:text=hello
 | `IReadOnlyDictionary<string, string> Execute(string operation, IReadOnlyDictionary<string, string> arguments)` | 步驟 6，針對每個已宣告的操作（不含 `module.<id>.` 前綴）。對具型別失敗擲回 `ModuleOperationException(code, message)`。 |
 | `void Stop()` | 步驟 7。 |
 
-`IRuntimeModuleContext` 提供 `SessionId`、`ModuleId`、`ModuleDirectory`、`Settings`、`DataDirectory`、`ProductVersion`、`SessionChannelName`、`Stopping`（取消權杖）、`IsCapabilityAvailable`、`Emit`、`Track`、`RunBackground` 與 `StartAuxiliaryProcess`。其中沒有任何內容公開位址、可執行檔或其身分識別。元件必須可由 32 位元外掛程式載入（AnyCPU 或 x86，.NET 6）。請固定模組的程式載入的每個檔案（對 .NET 程式而言：位於 `.exe` 旁的 `.dll`），使完整性涵蓋它們。
+`IRuntimeModuleContext` 提供 `SessionId`、`ModuleId`、`ModuleDirectory`、`Settings`、`DataDirectory`、`ProductVersion`、`OmsiVersion`、`SessionChannelName`、`Stopping`（取消權杖）、`IsCapabilityAvailable`、`Emit`、`Track`、`RunBackground`、`StartAuxiliaryProcess`，以及從協定 3 起的 `Runtime`（請參閱[處理程序內的操作](#operations-in-process)）、`Content`（請參閱[社群內容](#community-content)）、`Input`（請參閱[輸入擷取](#input-capture)）與 `NativeComponent`（已載入的原生元件，或 null）。想要 tick 的受管理元件還要實作 `ITickingModule`。context 中沒有任何內容公開位址、可執行檔的雜湊或其程式碼配置。元件必須可由 32 位元外掛程式載入（AnyCPU 或 x86，.NET 6）；放在它旁邊的 `OmsiLaunch.Runtime.Modules` 或 `OmsiLaunch.Api` 副本會被忽略。
 
 <a id="known-limitations"></a>
 ## 已知限制
 
 - 原生元件可以 hook `Omsi.exe` 的匯入與 Direct3D 裝置方法；對 OMSI 函式 prologue 與呼叫位置的 hook 目前尚未向模組提供。
+- 暫停選單接管（`ui.pause.*`）與輸入擷取經過靜態設計並於離線驗證；它們尚未在真實的 OMSI 工作階段中觀察到，且 `ui.pause-menu.replace` 僅在已知程式碼身分上解析（其部分欄位沒有與組建無關的推導方式）。
 - 處理程序內的內容繫結檢查使用啟動所要求的地圖（NEW_MAP）；對於已儲存情境，繫結會在規劃時對照該情境的地圖檢查。
 - 裝置 hook 是 vtable hook。當另一個元件將裝置的原始方法寫回時（在迴歸安裝上於遊戲開始後不久觀察到），裝置 hook 會停止被呼叫且無法移除；清理接著會回報 `OL_E_MODULE_CLEANUP_INCOMPLETE`，且元件保持載入。已被登錄以外對象 hook 的裝置方法會被拒絕（4）；拒絕事件會指出擁有該方法的模組。
 - 模組在 OMSI 正常結束時停止；工作階段停止會終止 OMSI，因此工作階段內的模組清理只會透過失敗原則發生。

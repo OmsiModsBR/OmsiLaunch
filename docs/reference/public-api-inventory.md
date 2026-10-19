@@ -426,7 +426,7 @@ Sealed record in `OmsiLaunch.Api`. Stability: `STABLE_BETA`. Semantics: [public-
 
 | Member | Signature |
 | --- | --- |
-| constructor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| constructor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null, IReadOnlyList<string> RuntimeOperations = null, int TickMilliseconds = 0, string SnapshotSha256 = null)` |
 | constant | `string Eligible = "ELIGIBLE"` |
 | constant | `string Rejected = "REJECTED"` |
 | constant | `string ActivationRequested = "requested"` |
@@ -444,8 +444,12 @@ Sealed record in `OmsiLaunch.Api`. Stability: `STABLE_BETA`. Semantics: [public-
 | property | `string ManifestSha256 { get; init; }` |
 | property | `string Activation { get; init; }` |
 | property | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| property | `IReadOnlyList<string> RuntimeOperations { get; init; }` |
+| property | `int TickMilliseconds { get; init; }` |
+| property | `string SnapshotSha256 { get; init; }` |
 | property | `bool IsEligible { get; }` |
 | property | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+| property | `IReadOnlyList<string> EffectiveRuntimeOperations { get; }` |
 
 ### `PlannedModuleSetting`
 
@@ -733,6 +737,12 @@ Static class in `OmsiLaunch.Api`. Stability: `STABLE_BETA`. Semantics: [errors](
 | constant | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
 | constant | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
 | constant | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
+| constant | `string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED"` |
+| constant | `string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED"` |
+| constant | `string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID"` |
+| constant | `string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED"` |
+| constant | `string UI_BUSY = "OL_E_UI_BUSY"` |
+| constant | `string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER"` |
 | constant | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | constant | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | constant | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -1198,7 +1208,7 @@ Static class in `OmsiLaunch.Api`. Stability: `INTERNAL`. Semantics: [public-api]
 | Member | Signature |
 | --- | --- |
 | constant | `uint Magic = 1330402120` |
-| constant | `ushort Version = 7` |
+| constant | `ushort Version = 8` |
 | constant | `int MaxModules = 64` |
 | static method | `byte[] Serialize(StartupHandoff value)` |
 | static method | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
@@ -1209,10 +1219,11 @@ Sealed record in `OmsiLaunch.Api`. Stability: `STABLE_BETA`. Semantics: [public-
 
 | Member | Signature |
 | --- | --- |
-| constructor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| constructor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "")` |
 | property | `string RelativeDirectory { get; init; }` |
 | property | `string ManifestSha256 { get; init; }` |
 | property | `string Settings { get; init; }` |
+| property | `string SnapshotSha256 { get; init; }` |
 
 ### `TelemetryRingWire`
 

@@ -1,6 +1,6 @@
 # Inwentarz publicznego API
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=1038165496fa7e22c0b936388cb2dde7b90ed33b193b8f77d462d10d9eff149a -->
 > Tłumaczenie [oryginalnej strony w języku angielskim](../../../reference/public-api-inventory.md) dla OmsiLaunch 0.1.0-beta4. Wiążąca jest strona angielska: w razie rozbieżności obowiązują strona angielska i kod.
 
 Ta strona jest generowana z skompilowanych assembly przez `tests/OmsiLaunch.DocumentationTests` (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); kontrola dokumentacji kończy się błędem, gdy strona przestaje odpowiadać kodowi. Wymienia każdy eksportowany typ z `OmsiLaunch.Api`, `OmsiLaunch.Core` i `OmsiLaunch.Process` wraz z jego stabilnością i sygnaturą każdej publicznej składowej. Semantyka, warunki wstępne, błędy i przykłady są opisane na stronie wskazanej w każdym nagłówku (domyślnie: [publiczne API](public-api.md)). Słownik stabilności: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (publiczne z przyczyn technicznych, nie jest powierzchnią integracji), `UNAVAILABLE` (zob. [publiczne API](public-api.md#stability-vocabulary)). Składowe rekordów generowane przez kompilator (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`) zostały pominięte.
@@ -429,7 +429,7 @@ Zapieczętowany rekord w `OmsiLaunch.Api`. Stabilność: `STABLE_BETA`. Semantyk
 
 | Składowa | Sygnatura |
 | --- | --- |
-| konstruktor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| konstruktor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null, IReadOnlyList<string> RuntimeOperations = null, int TickMilliseconds = 0, string SnapshotSha256 = null)` |
 | stała | `string Eligible = "ELIGIBLE"` |
 | stała | `string Rejected = "REJECTED"` |
 | stała | `string ActivationRequested = "requested"` |
@@ -447,8 +447,12 @@ Zapieczętowany rekord w `OmsiLaunch.Api`. Stabilność: `STABLE_BETA`. Semantyk
 | właściwość | `string ManifestSha256 { get; init; }` |
 | właściwość | `string Activation { get; init; }` |
 | właściwość | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| właściwość | `IReadOnlyList<string> RuntimeOperations { get; init; }` |
+| właściwość | `int TickMilliseconds { get; init; }` |
+| właściwość | `string SnapshotSha256 { get; init; }` |
 | właściwość | `bool IsEligible { get; }` |
 | właściwość | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+| właściwość | `IReadOnlyList<string> EffectiveRuntimeOperations { get; }` |
 
 ### `PlannedModuleSetting`
 
@@ -736,6 +740,12 @@ Klasa statyczna w `OmsiLaunch.Api`. Stabilność: `STABLE_BETA`. Semantyka: [err
 | stała | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
 | stała | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
 | stała | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
+| stała | `string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED"` |
+| stała | `string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED"` |
+| stała | `string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID"` |
+| stała | `string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED"` |
+| stała | `string UI_BUSY = "OL_E_UI_BUSY"` |
+| stała | `string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER"` |
 | stała | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | stała | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | stała | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -1201,7 +1211,7 @@ Klasa statyczna w `OmsiLaunch.Api`. Stabilność: `INTERNAL`. Semantyka: [public
 | Składowa | Sygnatura |
 | --- | --- |
 | stała | `uint Magic = 1330402120` |
-| stała | `ushort Version = 7` |
+| stała | `ushort Version = 8` |
 | stała | `int MaxModules = 64` |
 | metoda statyczna | `byte[] Serialize(StartupHandoff value)` |
 | metoda statyczna | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
@@ -1212,10 +1222,11 @@ Zapieczętowany rekord w `OmsiLaunch.Api`. Stabilność: `STABLE_BETA`. Semantyk
 
 | Składowa | Sygnatura |
 | --- | --- |
-| konstruktor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| konstruktor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "")` |
 | właściwość | `string RelativeDirectory { get; init; }` |
 | właściwość | `string ManifestSha256 { get; init; }` |
 | właściwość | `string Settings { get; init; }` |
+| właściwość | `string SnapshotSha256 { get; init; }` |
 
 ### `TelemetryRingWire`
 

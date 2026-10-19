@@ -1,11 +1,11 @@
 # Módulos de runtime
 
-<!-- l10n: source=reference/runtime-modules.md source-sha256=faf61b29436d1f69013b0c49667534ef079e31f7b34300b538935788654a55df -->
+<!-- l10n: source=reference/runtime-modules.md source-sha256=242dc9ea597f243b633862d5e39528d52f684968ee8c4f94f8e2cd965ab36323 -->
 > Tradução da [página original em inglês](../../../reference/runtime-modules.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.
 
 Um módulo de runtime adiciona comportamento a uma sessão gerenciada do OMSI: um recurso que roda junto com a sessão (por exemplo, o HUD de um mapa ou otimizações de carregamento), sem se tornar parte do próprio OmsiLaunch. A ponte o carrega, entrega a ele somente o que ele declara e remove tudo o que ele mantém quando a sessão termina ou o módulo falha. Esta página é a referência normativa dos módulos de runtime como implementados por `src/OmsiLaunch.Runtime.Modules` (manifesto, configurações, elegibilidade, host de ciclo de vida), pelo planejador, pelos programas de sessão do controlador (`ModuleSessionPrograms`, `ModuleSessionProcess`), pelo ambiente de módulos do plugin e pelas flags de módulo da [CLI](cli.md).
 
-Estabilidade: `EXPERIMENTAL`. O protocolo de ponte 1 foi validado em runtime na rodada B (módulos gerenciados, ativação por conteúdo, operações, `disable-module` e `fail-session`; componentes nativos com hooks de IAT; veja o [status de validação em runtime](../status/runtime-validation-status.md)). O protocolo de ponte 2 (configurações, ativação padrão, o arquivo de configurações, programas de sessão, conflitos de plugin, avisos, `get_value`) é validado somente offline. Gates offline: os gates `module.*` de `tests/OmsiLaunch.ModuleTests` (manifesto, integridade, seleção e ativação, configurações, o arquivo de configurações, conflitos de plugin, programas de sessão iniciados por meio do seu job, uma falha injetada em cada fase sob cada política de falha, ciclo de vida do componente nativo, limpeza, handoff), `plugin-runtime.modules-lifecycle` (um módulo gerenciado real carregado pelo ambiente do plugin), `runtime-modules.native-component` (um componente nativo real fazendo hook em uma importação e lendo valores pela ponte), `runtime-modules.plugin-conflict` e `native-hooks.self-check` (o mecanismo de hooks).
+Estabilidade: `EXPERIMENTAL`. O protocolo de ponte 1 foi validado em runtime na rodada B (módulos gerenciados, ativação por conteúdo, operações, `disable-module` e `fail-session`; componentes nativos com hooks de IAT; veja o [status de validação em runtime](../status/runtime-validation-status.md)). O protocolo de ponte 2 (configurações, ativação padrão, o arquivo de configurações, programas de sessão, conflitos de plugin, avisos, `get_value`) é validado somente offline. Gates offline: os gates `module.*` de `tests/OmsiLaunch.ModuleTests` (manifesto, integridade, seleção e ativação, configurações, o arquivo de configurações, conflitos de plugin, programas de sessão iniciados por meio do seu job, uma falha injetada em cada fase sob cada política de falha, ciclo de vida do componente nativo, limpeza, handoff), `plugin-runtime.modules-lifecycle` (um módulo gerenciado real carregado pelo ambiente do plugin), `runtime-modules.native-component` (um componente nativo real fazendo hook em uma importação e lendo valores pela ponte), `runtime-modules.plugin-conflict` e `native-hooks.self-check` (o mecanismo de hooks). O protocolo de ponte 3 (Beta 5: operações do catálogo em processo, o tick, a captura de entrada, as entradas de conteúdo da comunidade, fixações opcionais com o snapshot do momento do plano, `module pack`, opções de job auxiliares, a versão do OMSI) é validado somente offline: os gates `module.*` de `tests/OmsiLaunch.ModuleTests` (`manifest.protocol-3`, `manifest.optional-pins`, `catalog.snapshot`, `content.realmap-package`, `packer.pins`, `handoff.v8-snapshot`, `lifecycle.runtime-operations`, `lifecycle.tick.*`, `lifecycle.input-capture`, `lifecycle.auxiliary-options`, `lifecycle.snapshot-before-components`), `runtime-modules.protocol-3`, `runtime-modules.auxiliary-job`, `ui-pause.fails-closed` e `ui-input.hook-self-check` dos testes de integração do plugin, e `omsi-version.literal` dos testes de unidade. A tomada do menu de pausa e a captura de entrada não foram observadas em uma sessão real do OMSI.
 
 O carregamento é aberto: qualquer módulo instalado abaixo de `plugins\OmsiLaunch.Modules` pode ser carregado, seja quem for o autor. O OmsiLaunch não garante o que um módulo faz dentro do OMSI. O que ele garante é o [limite de segurança](#security-boundary): os módulos nunca rodam dentro do processo do OmsiLaunch, e nada do que o OmsiLaunch oferece permite que um módulo ultrapasse os direitos do próprio OMSI.
 
@@ -33,23 +33,26 @@ Esquema `omsilaunch.runtime-module/v1`. Chaves desconhecidas são rejeitadas, de
 | `id` | sim | Id do módulo: letras minúsculas, dígitos e `-`, de 2 a 48 caracteres, começando com letra ou dígito. É também o nome do seu diretório e o seu namespace de operações. |
 | `version` | sim | `major.minor.patch`, opcionalmente `-suffix`. |
 | `name` | não | Nome de exibição (no máximo 128 caracteres). |
-| `bridge_protocol` | sim | `{ "min": n, "max": n }`: os protocolos de ponte com os quais o módulo funciona. Este build atende aos protocolos `1` e `2`; um módulo é aceito quando seu intervalo inclui um deles. |
+| `bridge_protocol` | sim | `{ "min": n, "max": n }`: os protocolos de ponte com os quais o módulo funciona. Este build atende aos protocolos `1`, `2` e `3`; um módulo é aceito quando seu intervalo inclui um deles. |
 | `activation` | não | `requested` (padrão): carregado quando a sessão o solicita. `content`: também carregado quando a sessão executa o mapa vinculado (exige `content_binding`). `default` (protocolo 2): carregado em toda sessão, a menos que seja desativado (veja [escolha dos módulos de uma sessão](#choosing-modules-for-a-session)); não pode ter `content_binding`. |
 | `required_capabilities` | não | Capacidades sem as quais o módulo não funciona (veja [capacidades](#capabilities)). |
 | `optional_capabilities` | não | Capacidades que o módulo usa quando disponíveis; ele as verifica com `IsCapabilityAvailable`. |
 | `content_binding` | não | `{ "map": "maps\\<folder>\\global.cfg", "files": [ { "path", "sha256" } ] }`: o módulo só roda nesse mapa, com esses arquivos inalterados. |
-| `assets` | não | Arquivos que o módulo lê, cada um `{ "path", "sha256" }`. |
-| `components` | sim | Exatamente um componente `managed` `{ "kind": "managed", "path": "<file>.dll", "sha256", "entry": "<Namespace.Type>" }`; opcionalmente um componente `native` (`.dll`), componentes `auxiliary` (`.exe`) e, com o protocolo 2, um componente `host` (`.exe`, o [programa de sessão](#session-programs) do módulo). |
+| `assets` | não | Arquivos que o módulo lê, cada um `{ "path", "sha256" }`. A partir do protocolo 3, o `sha256` é opcional (consulte [integridade](#integrity)). |
+| `components` | sim | Exatamente um componente `managed` `{ "kind": "managed", "path": "<file>.dll", "sha256", "entry": "<Namespace.Type>" }`; opcionalmente um componente `native` (`.dll`), componentes `auxiliary` (`.exe`) e, com o protocolo 2, um componente `host` (`.exe`, o [programa de sessão](#session-programs) do módulo). A partir do protocolo 3, o `sha256` de um componente é opcional, e um componente `auxiliary` pode trazer `priority` (`normal`, `below-normal` ou `idle`) e `memory_limit_mb` (64 a 65536): o job object do programa os aplica desde a sua primeira instrução (consulte [programas auxiliares](#auxiliary-programs)). |
 | `failure_policy` | sim | `fail-session`, `disable-module` ou `degrade` (veja [falhas](#failures)). |
 | `operations` | não | Operações que o módulo expõe enquanto a sessão roda: `{ "id", "kind": "read"\|"write"\|"action", "arguments": [ { "name", "required" } ], "timeout_ms" }`. |
 | `settings` | não | Protocolo 2. As configurações que o módulo aceita (veja [configurações](#settings)). |
 | `conflicts` | não | Protocolo 2. `{ "plugins": [ "<file>.dll" ] }`: DLLs de plugin do OMSI que não devem rodar junto com o módulo (veja [conflitos](#conflicts-with-omsi-plugins)). |
+| `runtime_operations` | não | Protocolo 3. Operações do catálogo público de capacidades que o módulo executa em processo, por exemplo `["time.read", "camera.set"]` (consulte [operações em processo](#operations-in-process)). Exige a capacidade `bridge.runtime`. |
+| `tick_ms` | não | Protocolo 3. O módulo quer um callback periódico a cada `tick_ms` milissegundos: um múltiplo de 50, de 50 a 1000 (consulte [tick](#tick)). Exige a capacidade `bridge.tick`. |
+| `content_inputs` | não | Protocolo 3. Conteúdo da comunidade que o módulo lê, localizado pela ponte: `[ { "kind": "realmap-package", "required": false } ]` (consulte [conteúdo da comunidade](#community-content)). |
 | `timeouts` | não | Orçamentos em milissegundos: `arm_ms`, `gameplay_ready_ms`, `stop_ms` (padrão 5000 cada, no máximo 30000); com o protocolo 2, também `prepare_ms` (padrão 120000, no máximo 1800000) e `host_stop_ms` (padrão 10000, no máximo 60000) para o programa de sessão. As operações têm padrão de 2000 ms. |
 | `diagnostics` | não | `{ "trace": true\|false }`. |
 
-Um manifesto que usa um recurso do protocolo 2 (`settings`, `conflicts`, ativação `default`, um componente `host`, `prepare_ms` ou `host_stop_ms`) deve declarar `bridge_protocol.min` 2.
+Um manifesto que usa um recurso do protocolo 2 (`settings`, `conflicts`, ativação `default`, um componente `host`, `prepare_ms` ou `host_stop_ms`) deve declarar `bridge_protocol.min` 2. Um manifesto que usa um recurso do protocolo 3 (`runtime_operations`, `tick_ms`, `content_inputs`, uma capacidade `bridge.runtime`, `bridge.tick` ou `bridge.input`, um `priority` ou `memory_limit_mb` auxiliar, ou um componente ou asset sem `sha256`) deve declarar `bridge_protocol.min` 3.
 
-Todo arquivo citado em `components` e `assets` é fixado pelo seu SHA-256. O `module.json` não pode fixar a si mesmo.
+Todo arquivo citado em `components` e `assets` pode ser fixado pelo seu SHA-256 (obrigatório antes do protocolo 3, opcional a partir dele: consulte [integridade](#integrity)). O `module.json` não pode fixar a si mesmo.
 
 ```json
 {
@@ -77,9 +80,16 @@ Todo arquivo citado em `components` e `assets` é fixado pelo seu SHA-256. O `mo
 <a id="integrity"></a>
 ## Integridade
 
-Todo arquivo fixado deve existir, não pode ser alcançado por uma junction ou link simbólico e deve ter o SHA-256 fixado; caso contrário, o módulo é recusado com `OL_E_MODULE_INTEGRITY`. Isso detecta um módulo corrompido ou atualizado pela metade. Não é uma decisão de confiança: um módulo não é verificado contra nenhuma lista, assinatura ou publicador.
+Todo arquivo que o manifesto cita deve existir e não pode ser alcançado por uma junction ou link simbólico, e todo arquivo que o autor fixou deve ter o SHA-256 fixado; caso contrário, o módulo é recusado com `OL_E_MODULE_INTEGRITY`. Isso detecta um módulo corrompido ou atualizado pela metade. Não é uma decisão de confiança: um módulo não é verificado contra nenhuma lista, assinatura ou publicador.
 
-A verificação é repetida no ponto em que o código do módulo é iniciado: o plugin só carrega um módulo se o seu `module.json` ainda tiver o SHA-256 que o plano avaliou e todas as fixações ainda forem válidas, e o controlador só inicia um programa de sessão depois de verificar a fixação desse programa.
+A partir do protocolo 3, uma fixação é opcional, de modo que um autor nunca precisa manter hashes à mão, e o plano sempre tira um **snapshot**: um SHA-256 sobre todo arquivo que o manifesto cita e o seu conteúdo, registrado no plano (`PlannedModule.SnapshotSha256`) e levado ao plugin no handoff de inicialização (versão de wire 8). O snapshot é o que garante que os arquivos que o plano avaliou são os arquivos que executam: o plugin só carrega um módulo quando o seu `module.json` tem o SHA-256 que o plano avaliou e seus arquivos ainda têm o conteúdo do snapshot, e o controlador e a ponte comparam o snapshot novamente imediatamente antes de um programa de sessão, um componente nativo ou um programa auxiliar ser iniciado. Um módulo cujos arquivos mudaram depois do planejamento não é carregado (`OL_E_MODULE_INTEGRITY`, "the module's files changed after planning"). O snapshot cobre todo módulo, fixado ou não; uma fixação permite, além disso, que quem publica um módulo detecte uma cópia corrompida ou atualizada pela metade assim que ela é descoberta.
+
+A verificação é repetida no ponto em que o código do módulo é iniciado: o plugin só carrega um módulo se o seu `module.json` ainda tiver o SHA-256 que o plano avaliou e todas as fixações e o snapshot ainda forem válidos, e o controlador só inicia um programa de sessão depois de verificar a fixação desse programa e o snapshot.
+
+<a id="packing-a-module"></a>
+### Empacotar um módulo
+
+`OmsiLaunch.exe /pack-module:<module directory>` grava as fixações dos arquivos que um `module.json` cita (seus componentes e assets), de modo que um autor nunca edita um SHA-256 à mão. Ele reescreve somente os valores de `sha256` (o restante do manifesto é mantido; o arquivo é reindentado), relê o resultado com o analisador de manifesto antes de gravar qualquer coisa e informa cada arquivo (envelope `module.pack`: `module`, `directory`, `written`, `intact`, `files` com `path`, `sha256`, `pinned`, `mismatch`, `written`). Ele atua no diretório informado e nunca toca em uma instalação. `/verify-module:<module directory>` informa o mesmo sem gravar (`module.verify`); ele sai com `7` quando um arquivo fixado não corresponde à sua fixação (um arquivo sem fixação não é uma divergência). Ambos saem com `2` para um manifesto que não pode ser interpretado ou um arquivo ausente.
 
 <a id="security-boundary"></a>
 ## Limite de segurança
@@ -105,6 +115,9 @@ O OmsiLaunch não controla o que um módulo faz dentro do OMSI: seus componentes
 | `bridge.auxiliary-processes` | `StartAuxiliaryProcess`: processos auxiliares vinculados à sessão. |
 | `bridge.hooks.iat` | Componente nativo: hooks em importações do `Omsi.exe` (`iat:<dll>!<function>`). |
 | `bridge.hooks.d3d9` | Componente nativo: hooks em métodos do dispositivo Direct3D 9 em execução (`d3d9:device.<method>`). Exige a capacidade nativa `d3d.texture`. |
+| `bridge.runtime` | Protocolo 3. `IRuntimeModuleContext.Runtime` e o `run_operation` nativo: as operações do catálogo que o manifesto lista em `runtime_operations`. |
+| `bridge.tick` | Protocolo 3. Um callback periódico: `ITickingModule.Tick` e a exportação nativa `omsilaunch_module_native_v1_tick`. |
+| `bridge.input` | Protocolo 3. `IRuntimeModuleContext.Input`: captura das mensagens de teclado e mouse do jogo para o menu próprio do módulo. Exige a capacidade nativa `ui.input.capture`. |
 
 Um nome que não seja nenhum dos dois é recusado no planejamento (`OL_E_MODULE_CAPABILITY_UNRESOLVED`). Em um build do OMSI 2 sem layout conhecido, uma capacidade nativa que o arquivo executável não resolve é decidida em processo; se não for resolvida ali, o módulo não é carregado.
 
@@ -234,7 +247,7 @@ Um evento de módulo chamado `notice` (de `Emit("notice", ...)`, do `emit` de um
 | 3. Preparação | controlador, no início | Os [programas de sessão](#session-programs) dos módulos são iniciados e aguardados. Em seguida, os módulos elegíveis seguem para o plugin no startup handoff (versão 6): seus diretórios, o SHA-256 de cada `module.json` avaliado e suas configurações efetivas. |
 | 4. Armar | plugin, antes de o mundo iniciar | Cada módulo é reverificado e carregado (componente gerenciado em seu próprio contexto de carga). Seu componente nativo, se houver, é carregado e iniciado primeiro; depois `Arm(context)` é chamado. |
 | 5. Gameplay pronto | plugin | Após `gameplay.entered`, quando um módulo carregado declara `bridge.hooks.d3d9`, a ponte começa a observar o dispositivo Direct3D (`d3d.ready`); depois chama o `gameplay_ready` do componente nativo e `GameplayReady()`. Em uma sessão NEW_MAP, o mapa vinculado é verificado novamente contra o mapa que o início carregou. |
-| 6. Runtime | plugin | As operações `module.<id>.<operation>` chegam a `Execute`. |
+| 6. Runtime | plugin | As operações `module.<id>.<operation>` chegam a `Execute`. Um módulo com `tick_ms` recebe ticks (consulte [tick](#tick)); um módulo com `runtime_operations` as executa em processo (consulte [operações em processo](#operations-in-process)). |
 | 7. Parada | plugin, depois controlador | Quando a sessão termina (ou o módulo falha), `Stop()` é chamado. Depois que o OMSI saiu, os programas de sessão são parados. |
 | 8. Limpeza | plugin | Tudo o que o módulo rastreou é liberado em ordem inversa e verificado como removido; o componente nativo é parado por último e seus hooks são removidos; sua DLL permanece carregada, inerte, até o OMSI sair (um thread ainda pode estar retornando por um detour). |
 
@@ -243,7 +256,7 @@ Todo callback em processo roda no thread de UI do OMSI, como as operações de r
 <a id="failures"></a>
 ## Falhas
 
-Uma falha é uma exceção ou um estouro de orçamento em qualquer fase ou operação, uma capacidade não resolvida em processo, um vínculo de conteúdo que não se sustenta em processo, um plugin em conflito carregado no OMSI ou um programa de sessão que não fica pronto. A `failure_policy` do módulo decide o que se segue. Em todos os casos, os recursos do módulo são liberados.
+Uma falha é uma exceção ou um estouro de orçamento em qualquer fase ou operação, uma capacidade não resolvida em processo, um vínculo de conteúdo que não se sustenta em processo, um plugin em conflito carregado no OMSI ou um programa de sessão que não fica pronto. A `failure_policy` do módulo decide o que se segue. Em todos os casos, os recursos do módulo são liberados. Um tick que lança uma exceção, retorna diferente de zero ou estoura o seu intervalo é uma falha como a de uma operação.
 
 | Política | Falha em preparação, carga, armar ou gameplay pronto | Falha em uma operação | Falha na parada |
 | --- | --- | --- | --- |
@@ -271,7 +284,7 @@ Um componente nativo é uma DLL de 32 bits que implementa a interface C em `src/
 | `int omsilaunch_module_native_v1_gameplay_ready(const omsilaunch_bridge_v1*)` | Opcional; depois que o gameplay foi iniciado. |
 | `void omsilaunch_module_native_v1_stop(void)` | Na parada ou falha, antes de seus hooks serem removidos. Depois disso, a tabela da ponte recusa toda chamada e a DLL permanece carregada, inerte, até o OMSI sair. |
 
-A tabela da ponte oferece ao componente `request_hook`, `emit` (eventos de runtime `module.<id>.<name>` com um objeto JSON de strings) e, a partir do protocolo 2, `get_value`. Um componente lê o `size` da tabela antes de usar `get_value` (`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_GET_VALUE`). `get_value(context, name, buffer, capacity, length)` copia um valor em UTF-8 com um zero terminador e define `*length` como o número de bytes necessários sem ele; retorna `0`, `1` (argumento), `2` (nome desconhecido), `11` (após a parada) ou `12` (buffer pequeno demais). Nomes:
+A tabela da ponte oferece ao componente `request_hook`, `emit` (eventos de runtime `module.<id>.<name>` com um objeto JSON de strings) e, a partir do protocolo 2, `get_value`. Um componente lê o `size` da tabela antes de usar `get_value` (`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_GET_VALUE`). `get_value(context, name, buffer, capacity, length)` copia um valor em UTF-8 com um zero terminador e define `*length` como o número de bytes necessários sem ele; retorna `0`, `1` (argumento), `2` (nome desconhecido), `11` (após a parada) ou `12` (buffer pequeno demais). A partir do protocolo 3, a tabela também contém `run_operation` (consulte [operações em processo](#operations-in-process)) e `d3d_is_game_device(context, device)`: se um ponteiro de dispositivo que um hook de Direct3D recebeu é o dispositivo do próprio jogo (`1`) ou outro (`0`; o formulário de seleção de veículo cria um segundo dispositivo com a mesma tabela de métodos, de modo que um detour de `Present` é chamado para ambos e deve desenhar somente para o do jogo), `10` quando nenhum dispositivo é observado ainda, `11` quando `bridge.hooks.d3d9` não é declarado ou após a parada. O ponteiro é apenas comparado, nunca usado, e a ponte nunca entrega um. Um módulo que mantém recursos do Direct3D no pool padrão faz hook ele mesmo em `d3d9:device.Reset` (o que ele faz antes de chamar o original é "dispositivo perdido"; depois que o original retorna sucesso, é "dispositivo restaurado"). Um componente verifica o `size` da tabela antes de usar um membro do protocolo 3 (`OMSILAUNCH_BRIDGE_V1_SIZE_WITH_RUN_OPERATION`, `OMSILAUNCH_BRIDGE_V1_SIZE_WITH_D3D_IS_GAME_DEVICE`). Duas exportações opcionais completam o componente: `int omsilaunch_module_native_v1_tick(const omsilaunch_bridge_v1*, uint32_t elapsed_ms)` (consulte [tick](#tick)) e `int omsilaunch_module_native_v1_execute(const omsilaunch_bridge_v1*, const char* operation, const char* arguments_json, char* buffer, uint32_t capacity, uint32_t* length)`, a forma como o componente gerenciado chama o nativo por `IRuntimeModuleContext.NativeComponent.Execute` (JSON de entrada, JSON de saída, a mesma convenção de buffer de `run_operation`). Os nomes que `get_value` responde:
 
 | Nome | Valor |
 | --- | --- |
@@ -282,6 +295,7 @@ A tabela da ponte oferece ao componente `request_hook`, `emit` (eventos de runti
 | `module_version` | A versão do manifesto. |
 | `product_version` | A versão do produto OmsiLaunch. |
 | `session_channel` | O pipe do [programa de sessão](#session-programs); desconhecido para um módulo que não tem um. |
+| `omsi_version` | A versão do produto OMSI que o jogo informa sobre si mesmo (protocolo 3; consulte [a versão do OMSI](#the-omsi-version)). |
 
 Os hooks são solicitados somente por destino simbólico, durante `start` ou `gameplay_ready`, para um destino cuja capacidade o manifesto declara:
 
@@ -311,6 +325,43 @@ OmsiLaunch.exe /new /map:maps\Grundorf\global.cfg /entrypoint-index:1 /module:nu
 OmsiLaunch.exe /runtime:module.null-test.ping /runtime-arg:text=hello
 ```
 
+<a id="auxiliary-programs"></a>
+## Programas auxiliares
+
+Um módulo inicia um de seus componentes `auxiliary` (um `.exe` fixado do seu próprio diretório) com `StartAuxiliaryProcess`. A partir do protocolo 3, a ponte cria o programa **suspenso**, coloca-o no job object da sessão e só então o retoma, de modo que um filho que ele inicie imediatamente não possa rodar fora do job. O job encerra o programa e tudo o que ele iniciou quando o módulo para ou o OMSI sai (kill on close) e aplica o `priority` (`below-normal`, `idle`) e o `memory_limit_mb` do manifesto desde a primeira instrução do programa. Diferentemente de um [programa de sessão](#session-programs), o job de um programa auxiliar permite processos filhos (um programa que incorpora uma web view precisa deles); todos eles ficam no job. Antes de iniciar, o programa é verificado novamente: a sua fixação, quando ele tem uma, e sempre o snapshot do plano.
+
+<a id="operations-in-process"></a>
+## Operações em processo
+
+`IRuntimeModuleContext.Runtime.Execute(operation, arguments)` (gerenciado) e `run_operation` (nativo) executam uma operação do [catálogo público de capacidades](capabilities.md#public-runtime-operations) em processo, na thread de UI do OMSI, com o mesmo registro, os mesmos resultados `OL_E_*` tipados, as mesmas verificações de argumentos e a mesma política de mutação do canal de controle de runtime, e sem o canal. Somente as operações que o manifesto lista em `runtime_operations` são permitidas: qualquer outra é respondida com `OL_E_MODULE_OPERATION_NOT_DECLARED` antes de chegar ao OMSI, e operações `internal.*` e `module.*` nunca podem ser listadas. Uma operação cuja capacidade nativa o build não resolve responde `OL_E_CAPABILITY_UNRESOLVED`, como em todos os outros lugares.
+
+A lista é informação de transparência e de planejamento, não um limite de segurança: um módulo já roda dentro do OMSI com os direitos do usuário. O plano a mostra (`PlannedModule.RuntimeOperations`), e uma operação que altera o estado do OMSI carrega ali a sua política de mutação, por exemplo `camera.set (omsi-state)`. Um módulo pode executar operações a partir de `Arm` (o mundo pode ainda não existir; a operação então responde o seu próprio erro tipado). Os resultados são limitados (1 MiB); um resultado maior é `OL_E_RUNTIME_RESPONSE_TOO_LARGE`. Depois que o módulo parou, toda chamada responde `OL_E_MODULE_DISABLED`.
+
+O `run_operation(context, operation, arguments_json, buffer, capacity, length)` nativo recebe o id do catálogo e um objeto JSON de strings (ou null) e grava `{"succeeded":bool,"error_code":null|"OL_E_...","values":{...}}`. Ele retorna `0` quando respondeu (a falha da própria operação está dentro do JSON), `1` para um argumento, `11` após a parada e `12` quando o buffer é pequeno demais (`*length` é o tamanho necessário).
+
+## Tick
+
+Um módulo que declara `tick_ms` e a capacidade `bridge.tick` é chamado cerca de a cada `tick_ms` milissegundos, na thread de UI do OMSI, a partir do timer de UI de 50 ms do plugin: `ITickingModule.Tick(TimeSpan elapsed)` no componente gerenciado e a exportação nativa opcional `omsilaunch_module_native_v1_tick(bridge, elapsed_ms)`. O intervalo é um múltiplo de 50 entre 50 e 1000. Um tick não é por frame: um módulo que desenha faz hook no método `Present` do Direct3D e usa o tick para ler dados. Os ticks começam depois de `gameplay.entered` e param com o módulo. Um tick que lança uma exceção, retorna diferente de zero (nativo) ou leva mais tempo que o seu intervalo é uma falha desse módulo: sob `degrade` ela é informada uma vez por código (`module.degraded`) e o módulo continua rodando (os ticks perdidos são ignorados, nunca enfileirados); sob `disable-module` e `fail-session` a política se aplica. Um laço modal aninhado do OMSI mantém o timer de UI disparando, de modo que um tick nunca reentra em si mesmo.
+
+<a id="community-content"></a>
+## Conteúdo da comunidade
+
+`content_inputs` declara conteúdo que o módulo lê e que o seu autor não pode conhecer quando o módulo é construído, porque a comunidade o produz, para um mapa, depois do módulo. Não há SHA-256 para fixar; a ponte apenas o localiza e verifica que lê-lo é seguro. O único tipo hoje é `realmap-package`: a pasta `openomsi-realmap` de um mapa, `<OMSI root>\maps\<folder>\openomsi-realmap`, gravada pelas ferramentas de pacote de mapa do openOMSI.
+
+`IRuntimeModuleContext.Content.LocateRealmapPackage("maps\\<folder>\\global.cfg")` responde se o mapa tem um pacote (não ter um não é um erro) e, quando tem, o seu diretório, a quantidade de arquivos, o tamanho total e um `Fingerprint`. A impressão digital é um detector de mudanças sobre o caminho relativo, o tamanho e a hora de gravação de cada arquivo: use-a como chave de cache; ela nunca é uma verificação de integridade nem uma decisão de confiança. O pacote deve estar dentro da instalação, nenhuma parte dele pode ser um ponto de reanálise (reparse point) e ele é limitado (50,000 arquivos, 4 GiB); caso contrário, a resposta é `OL_E_MODULE_CONTENT_INPUT_INVALID`. Um módulo que não declarou o tipo recebe `OL_E_MODULE_CONTENT_INPUT_UNDECLARED`. O pacote são dados feitos por terceiros: leia-o em código gerenciado, trate todo valor como não confiável e degrade por recurso. Uma entrada `required: true` faz o plano recusar o módulo (`OL_E_MODULE_CONTENT_BINDING`) quando o mapa da sessão não tem pacote.
+
+<a id="input-capture"></a>
+## Captura de entrada
+
+Um módulo que substitui o menu de pausa do OMSI pelo seu próprio precisa do teclado e do mouse do jogo. O OMSI lê as teclas de simulação por DirectInput e o mouse por mensagens de janela para a janela de visualização do formulário principal; enquanto a sua própria pausa está ativa (o byte de pausa nativo), a simulação, a renderização, os cliques 3D e os comandos DirectInput são retidos pelo próprio OMSI. `IRuntimeModuleContext.Input` (capacidade `bridge.input`, capacidade nativa `ui.input.capture`) acrescenta o restante: `Capture(true)` instala um hook `WH_GETMESSAGE` local à thread na thread de UI, e as mensagens de teclado e mouse que pertencem à árvore de janelas do jogo (o formulário principal, seus filhos e o formulário de pausa nativo oculto) são registradas como valores simples `ModuleInputEvent` (tipo, tecla virtual, coordenadas de cliente da janela de visualização, botão, delta da roda, modificadores) e removidas da fila, de modo que nem o OMSI nem a VCL agem sobre elas. `Drain()` retorna os eventos (no máximo 256 são mantidos). Nada recebe subclasse, nenhuma função de estado de teclas do user32 sofre hook e nada é enviado.
+
+Um módulo captura por vez. A captura é liberada quando o módulo para ou falha, seja o que `Stop` tenha feito. Caixas de diálogo modais nativas (salvar, opções, novo jogo) precisam de entrada real: libere a captura antes de pedir uma. A mecânica do hook é validada offline com uma janela substituta (`ui-input.hook-self-check`); o seu comportamento contra a janela real do jogo ainda não foi observado.
+
+<a id="the-omsi-version"></a>
+## A versão do OMSI
+
+`IRuntimeModuleContext.OmsiVersion` e `get_value("omsi_version")` fornecem a versão do produto OMSI que o jogo informa sobre si mesmo, por exemplo `2.3.004`: o texto que o OMSI escreve depois de `Version:` na linha 7 do seu `logfile.txt`, lido da imagem em execução. Ela **nunca** é a versão de arquivo PE do executável (o build de referência traz `FileVersion` `2.2.032`). Quando a imagem não tem um único texto desse tipo, usa-se a versão do perfil de build quando a identidade do código é conhecida; caso contrário, `unknown`. O hash do executável, o tamanho do seu código, os endereços e o nome do perfil não são expostos. Use a versão para texto e para escolher comportamento; as capacidades (`IsCapabilityAvailable`) continuam sendo a fonte da verdade sobre o que funciona.
+
 <a id="writing-a-module-contracts"></a>
 ## Escrevendo um módulo (contratos)
 
@@ -323,12 +374,13 @@ O componente gerenciado referencia `OmsiLaunch.Runtime.Modules` e `OmsiLaunch.Ap
 | `IReadOnlyDictionary<string, string> Execute(string operation, IReadOnlyDictionary<string, string> arguments)` | Etapa 6, para cada operação declarada (sem o prefixo `module.<id>.`). Lance `ModuleOperationException(code, message)` para uma falha tipada. |
 | `void Stop()` | Etapa 7. |
 
-`IRuntimeModuleContext` oferece `SessionId`, `ModuleId`, `ModuleDirectory`, `Settings`, `DataDirectory`, `ProductVersion`, `SessionChannelName`, `Stopping` (um token de cancelamento), `IsCapabilityAvailable`, `Emit`, `Track`, `RunBackground` e `StartAuxiliaryProcess`. Nada nele expõe endereços, o executável ou a sua identidade. O componente deve poder ser carregado pelo plugin de 32 bits (AnyCPU ou x86, .NET 6). Fixe todos os arquivos que os programas do módulo carregam (para um programa .NET: a sua `.dll` ao lado do `.exe`), para que a integridade os cubra.
+`IRuntimeModuleContext` oferece `SessionId`, `ModuleId`, `ModuleDirectory`, `Settings`, `DataDirectory`, `ProductVersion`, `OmsiVersion`, `SessionChannelName`, `Stopping` (um token de cancelamento), `IsCapabilityAvailable`, `Emit`, `Track`, `RunBackground`, `StartAuxiliaryProcess` e, a partir do protocolo 3, `Runtime` (consulte [operações em processo](#operations-in-process)), `Content` (consulte [conteúdo da comunidade](#community-content)), `Input` (consulte [captura de entrada](#input-capture)) e `NativeComponent` (o componente nativo carregado, ou null). Um componente gerenciado que quer ticks também implementa `ITickingModule`. Nada no contexto expõe endereços, o hash do executável ou o seu layout de código. O componente deve poder ser carregado pelo plugin de 32 bits (AnyCPU ou x86, .NET 6); uma cópia de `OmsiLaunch.Runtime.Modules` ou `OmsiLaunch.Api` ao lado dele é ignorada. Fixe todos os arquivos que os programas do módulo carregam (para um programa .NET: a sua `.dll` ao lado do `.exe`), para que a integridade os cubra.
 
 <a id="known-limitations"></a>
 ## Limitações conhecidas
 
 - Componentes nativos podem fazer hook em importações do `Omsi.exe` e em métodos do dispositivo Direct3D; hooks em prólogos de função e em pontos de chamada do OMSI ainda não são oferecidos aos módulos.
+- A tomada do menu de pausa (`ui.pause.*`) e a captura de entrada foram projetadas estaticamente e validadas offline; não foram observadas em uma sessão real do OMSI, e `ui.pause-menu.replace` é resolvida somente em uma identidade de código conhecida (alguns de seus campos não têm derivação independente do build).
 - A verificação de vínculo de conteúdo em processo usa o mapa que o início solicitou (NEW_MAP); para uma situação salva, o vínculo é verificado no planejamento contra o mapa da situação.
 - Os hooks de dispositivo são hooks de vtable. Onde outro componente regrava os métodos originais do dispositivo (observado na instalação de regressão logo após o início do gameplay), um hook de dispositivo deixa de ser chamado e não pode ser removido; a limpeza então informa `OL_E_MODULE_CLEANUP_INCOMPLETE` e o componente permanece carregado. Um método de dispositivo já com hook de algo fora do registro é recusado (4); o evento de recusa nomeia o módulo que possui o método.
 - Os módulos param em uma saída normal do OMSI; uma parada de sessão encerra o OMSI, de modo que a limpeza do módulo dentro de uma sessão acontece somente por meio de uma política de falha.

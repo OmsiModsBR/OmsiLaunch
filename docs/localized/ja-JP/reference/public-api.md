@@ -1,6 +1,6 @@
 # パブリック API リファレンス（`OmsiLaunch.Api`）
 
-<!-- l10n: source=reference/public-api.md source-sha256=84642bb43094a73ea13c435992e09e49f1a9328928880336e171182bb1ad6851 -->
+<!-- l10n: source=reference/public-api.md source-sha256=03d2b00af2df06cdc28d5fbbec294f9f480584c4817b1dfe8b805a914621f734 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/public-api.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、OmsiLaunch 0.1.0-beta4 のマネージドパブリック API に関する規範的なリファレンスです。対象は `OmsiLaunch.Api` アセンブリ（コントラクト）と、`OmsiLaunch.Core` に含まれるインテグレーター向けエントリポイント `OmsiLaunchService` です。記載しているのは現在のコードの動作のみです。インテグレーターが呼び出し、受け取り、観測できるものはすべて安定性レベルとともにここに列挙しています。ここに記載されていないものは統合用のサーフェスではありません。
@@ -384,7 +384,7 @@ finally
 | `SessionProfileMetadata` | コンパイル済みセッションプロファイルの由来情報（`Id`、`Name`、`Version`、`Author`、`PresetId`、`PresetIndex`、`PresetName`、`PackagePath`）。 | `STABLE_BETA` |
 | `HofManagementSpec` | セッションの [HOF 管理](hof-management.md): `Operations`（`HofOperationSpec` のリスト）。フィールド `LaunchSpec.HofManagement`、アクセサー `EffectiveHofManagement`。 | `STABLE_BETA` |
 | `RuntimeModulesSpec` | セッションの[ランタイムモジュール](runtime-modules.md): `Enable`（モジュール ID）、`Disable`（除外するモジュール ID）、`Settings`（`"<module id>.<key>"` から値へ）。アクセサー `EffectiveDisable`、`EffectiveSettings`。フィールド `LaunchSpec.Modules`、アクセサー `EffectiveModules`。 | `EXPERIMENTAL` |
-| `PlannedModule` | モジュールのプラン評価: `Id`、`Version`、`Status`（`ELIGIBLE` または `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` または `default`）、`Settings`。`IsEligible`、`EffectiveSettings`。定数 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
+| `PlannedModule` | モジュールのプラン評価: `Id`、`Version`、`Status`（`ELIGIBLE` または `REJECTED`）、`Requested`、`FailurePolicy`、`Operations`（`module.<id>.<operation>`）、`Code`、`Reason`、`ManifestSha256`、`Activation`（`requested`、`settings-file`、`content` または `default`）、`Settings`、`RuntimeOperations`（モジュールがプロセス内で実行するカタログ操作。OMSI を変更する場合は、それぞれの変更ポリシーを併記します。例: `camera.set (omsi-state)`）、`TickMilliseconds`、`SnapshotSha256`（プラン作成時点のモジュールのファイルのダイジェスト。[ランタイムモジュール](runtime-modules.md#integrity)を参照）。`IsEligible`、`EffectiveSettings`、`EffectiveRuntimeOperations`。定数 `Eligible`、`Rejected`、`ActivationRequested`、`ActivationSettingsFile`、`ActivationContent`、`ActivationDefault`。 | `EXPERIMENTAL` |
 | `PlannedModuleSetting` | モジュールの有効な設定 1 件: `Key`、`Value`、`Source`（`request`、`settings-file` または `default`）。 | `EXPERIMENTAL` |
 | `RuntimeModuleSummary` | インストール済みモジュールの探索ビュー。`ListRuntimeModulesAsync` を参照。 | `EXPERIMENTAL` |
 | `RuntimeModuleSettingSummary` | モジュールが宣言する設定: `Key`、`Type`、`Default`、`AllowsAuto`、`Minimum`、`Maximum`、`Choices`、`Flag`、`Description`。 | `EXPERIMENTAL` |
@@ -426,9 +426,9 @@ finally
 | `RuntimeCommandResult` | `(Guid SessionId, ulong RequestId, bool Succeeded, string? ErrorCode, IReadOnlyDictionary<string, string>? Values)` | `STABLE_BETA` |
 | `RuntimeCommandWire` | ホストとプラグインがメールボックスのエンベロープに使用する静的コーデック: マジック `0x4F4C5243`（"OLRC"）、バージョン 1、72 バイトのリトルエンディアンヘッダー（マジック、バージョン、種別 1 = 要求 / 2 = 応答、全体長、セッションの `Guid`、要求 ID、ペイロード長、ペイロードの SHA-256）に続いて UTF-8 の JSON ペイロード。`SerializeRequest`、`SerializeResponse`、`TryDeserializeRequest`、`TryDeserializeResponse`、`TryReadRequestId`。 | `INTERNAL`: ブリッジの両端が共有するためパブリックになっていますが、統合用のサーフェスではありません。フォーマットはプロトコルバージョンとともに変わる可能性があります。 |
 | `StartupHandoff` | `(Guid SessionId, string BuildProfileId, WorldMode WorldMode, string MapIdentity, int PresentedEntrypointIndex, bool HeadlessStart, bool PlayerVehicleEnabled, DateTimeMode DateMode, DateTimeMode TimeMode, string EntrypointIdentity, string SituationIdentity, IReadOnlyList<StartupModule>? Modules, bool PluginTrace, bool NativeTrace, StartDateTime? Start)` — ホストがメモリマップトファイル `OmsiLaunch.Handoff.<sessionId>` でプラグインに公開する内容です。 | `INTERNAL` |
-| `StartupModule` | `(string RelativeDirectory, string ManifestSha256)`: ハンドオフ（`StartupHandoff.Modules`）が運ぶ、計画されたモジュール。 | `INTERNAL` |
+| `StartupModule` | `(string RelativeDirectory, string ManifestSha256, string Settings, string SnapshotSha256)`: ハンドオフ（`StartupHandoff.Modules`）が運ぶ、計画されたモジュール。`SnapshotSha256`（ワイヤーバージョン 8）は、プラン作成時に取得したモジュールのファイルのダイジェストで、プランに含まれていなければ空です。 | `INTERNAL` |
 | `StartDateTime` | `(int? Year, int? DayOfYear, int? Hour, int? Minute, int? Second)`、`IsEmpty`: ハンドオフ（`StartupHandoff.Start`）が運ぶ、NEW_MAP セッションの解決済みの開始クロック。null のフィールドは OMSI 自身の値を保持します。 | `INTERNAL` |
-| `StartupHandoffWire` | コーデック: マジック `0x4F4C5348`、バージョン 7（3 から 7 を読み取り可能。バージョン 5 は計画されたモジュールを、バージョン 6 は各モジュールの有効な設定を、バージョン 7 は開始日時を追加します。フラグビット 0x04 と 0x08 は `PluginTrace` と `NativeTrace` を運びます）、SHA-256 によるペイロード整合性を持つ 64 バイトのヘッダー。 | `INTERNAL` |
+| `StartupHandoffWire` | コーデック: マジック `0x4F4C5348`、バージョン 8（3 から 8 を読み取り可能。バージョン 5 は計画されたモジュールを、バージョン 6 は各モジュールの有効な設定を、バージョン 7 は開始日時を、バージョン 8 は各モジュールのプラン時ファイルスナップショットを追加します。フラグビット 0x04 と 0x08 は `PluginTrace` と `NativeTrace` を運びます）、SHA-256 によるペイロード整合性を持つ 64 バイトのヘッダー。 | `INTERNAL` |
 | `TelemetryRingWire` | マッピング `OMSILAUNCH_TELEMETRY_NAME` 内の、プラグインからホストへのイベントリング: マジック `0x52544C4F`（"OLTR"）、バージョン 1、2048 バイトの番号付きスロット 64 個。`Initialize`、`Write`、`IsRing`、`ReadSince`（シーケンス番号より後のイベントと、失われた数を返します）。 | `INTERNAL` |
 
 プラグインは、`WorldMode` が `NewMap` または `SavedSituation` であり、`HeadlessStart` が true、`PlayerVehicleEnabled` が false、日付/時刻の両モードが `Unset` で、保存済みシチュエーションの場合は ID が空でない、という条件をすべて満たさない限り、ハンドオフを拒否します（`plugin.request.unsupported` → `OL_E_CAPABILITY_UNAVAILABLE`）。プランナーが同じ制約をより早い段階で強制するため、実行可能なプランがこれを引き起こすことはありません。
