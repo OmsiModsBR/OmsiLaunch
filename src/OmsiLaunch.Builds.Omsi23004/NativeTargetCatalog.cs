@@ -36,6 +36,11 @@ public static partial class NativeTargetCatalog
         V("vmt.TWeather", 0x00752020, "TWeather"),
         V("vmt.TActuWeather", 0x0063CCC4, "TActuWeather"),
         V("vmt.TRoadVehicleInst", 0x007C9800, "TRoadVehicleInst"),
+        // The native pause menu, the main form and the in-game icon bar
+        // (research report beta4-static pause-menu-and-input.md section 1).
+        V("vmt.Tform_menu2", 0x00674D98, "Tform_menu2"),
+        V("vmt.TForm_main", 0x0081ECE4, "TForm_main"),
+        V("vmt.Tform_menu3", 0x00685904, "Tform_menu3"),
 
         // Published form handlers (RTTI method table).
         F("start.FormShow", 0x00676FC4, "Tform_start", "FormShow"),
@@ -52,7 +57,18 @@ public static partial class NativeTargetCatalog
         F("setpos.FormShow", 0x0067A6F0, "Tform_setpos", "FormShow"),
         F("setpos.Button1Click", 0x0067A2E8, "Tform_setpos", "Button1Click"),
 
+        // The native pause menu (Tform_menu2): its published handlers, called
+        // directly instead of clicking (same report, sections 3 and 4).
+        F("menu2.FormShow", 0x006755F0, "Tform_menu2", "FormShow"),
+        F("menu2.FormKeyDown", 0x006755A8, "Tform_menu2", "FormKeyDown"),
+        F("menu2.Panel1Click", 0x00675614, "Tform_menu2", "Panel1Click"),
+        F("menu2.Panel2Click", 0x006756A0, "Tform_menu2", "Panel2Click"),
+        F("menu2.Panel3Click", 0x00675730, "Tform_menu2", "Panel3Click"),
+        F("menu2.Panel4Click", 0x00675850, "Tform_menu2", "Panel4Click"),
+        F("menu2.Panel5Click", 0x00675870, "Tform_menu2", "Panel5Click"),
+
         // VCL and RTL functions.
+        F("vcl.TCustomForm.Show", 0x00551C28),
         F("vcl.TCustomForm.ShowModal", 0x00551D18),
         new("vcl.TControl.SetVisible", NativeTargetKind.Function, 0x0054CCA8, ClassName: "TForm", RttiProperty: "Visible.set"),
         new("vcl.TRadioButton.SetChecked", NativeTargetKind.Function, 0x0059BE58, ClassName: "TRadioButton", RttiProperty: "Checked.set"),
@@ -110,7 +126,13 @@ public static partial class NativeTargetCatalog
         S("slot.TRoadVehicleInst.TriggerXML", 0x007C981C, "vmt.TRoadVehicleInst", "roadvehicleinst.TriggerXML"),
         S("slot.TRoadVehicleInst.SoundTrigger", 0x007C9814, "vmt.TRoadVehicleInst", "roadvehicleinst.SoundTrigger"),
 
+        // The calls and states of the pause take-over (same report, section 8).
+        // The frame's Present call executes while the game is paused.
+        C("site.Frame.Present", 0x0082B2CC),
+
         // Global slots.
+        G("global.Menu2Form", 0x008612F4),
+        G("global.Menu3Form", 0x00861350),
         G("global.StartForm", 0x008612F8),
         G("global.SetPosForm", 0x00859BC8),
         G("global.SelectedMap", 0x008591A4),
@@ -167,7 +189,19 @@ public static partial class NativeTargetCatalog
         O("field.TCustomForm.ModalResult", 0x2C0),
         new("field.TCustomForm.Visible", NativeTargetKind.FieldOffset, 0x61, ClassName: "TForm", RttiProperty: "Visible.get"),
         O("field.TProgMan.CriticalSection", 0x1B4),
+        // The pause menu form (same report, sections 1 and 3): the five panels,
+        // the first-key swallow flag and the main form's "inside the frame" byte.
+        O("field.Tform_menu2.Panel1", 0x390, "Tform_menu2", "Panel1"),
+        O("field.Tform_menu2.Panel2", 0x394, "Tform_menu2", "Panel2"),
+        O("field.Tform_menu2.Panel3", 0x398, "Tform_menu2", "Panel3"),
+        O("field.Tform_menu2.Panel4", 0x39C, "Tform_menu2", "Panel4"),
+        O("field.Tform_menu2.Panel5", 0x3A0, "Tform_menu2", "Panel5"),
         // Known-identity-only offsets (no semantically sound derivation).
+        O("field.Tform_menu2.FirstKeySwallow", 0x3A4),
+        O("field.TCustomForm.Active", 0x2A5),
+        O("field.TWinControl.Handle", 0x260),
+        O("field.TForm_main.InIdleFrame", 0x900),
+        O("field.Tform_menu3.Mode", 0x3E8),
         O("field.RawEntrypoint.Stride", 0x30),
         O("field.RawEntrypoint.Name", 0x2C),
         O("field.RoadVehicleList.Items", 0x28),
@@ -235,6 +269,15 @@ public static partial class NativeTargetCatalog
         new NativeCapabilitySpec("drivers.read", new[] { "global.Drivers", "global.SelectedDriver", "layout.Driver" }),
         new NativeCapabilitySpec("tickets.read", new[] { "global.TicketPack", "layout.TicketPack", "layout.Ticket" }),
         new NativeCapabilitySpec("d3d.texture", new[] { "global.D3DDevice" }),
+        // Keyboard and mouse capture for a module's own menu: the main form's
+        // window handle identifies the messages that belong to the game's window tree.
+        new NativeCapabilitySpec("ui.input.capture", new[] { "global.MainForm", "vmt.TForm_main", "field.TWinControl.Handle", "global.Menu2Form", "vmt.Tform_menu2" }),
+        // Take over the native pause menu: identify the form, hide it through
+        // the VCL, read OMSI's own pause byte and call its panel handlers.
+        new NativeCapabilitySpec("ui.pause-menu.replace", new[] { "global.Menu2Form", "global.MainForm", "global.StartTransition", "vmt.Tform_menu2", "vmt.TForm_main",
+            "vcl.TControl.SetVisible", "vcl.TCustomForm.Show", "menu2.Panel1Click", "menu2.Panel2Click", "menu2.Panel3Click", "menu2.Panel4Click", "menu2.Panel5Click",
+            "field.Tform_menu2.Panel1", "field.Tform_menu2.Panel2", "field.Tform_menu2.Panel3", "field.Tform_menu2.Panel4", "field.Tform_menu2.Panel5",
+            "field.TCustomForm.Visible", "field.TForm_main.InIdleFrame" }),
     };
 
     // Profile global names read by the managed readers -> catalog targets.

@@ -40,14 +40,16 @@ public sealed record StartDateTime(int? Year, int? DayOfYear, int? Hour, int? Mi
 // directory relative to the installation root and the SHA-256 of the
 // module.json it evaluated. Settings (wire version 6) are the module's
 // effective settings as a JSON object of strings; empty when it has none.
-public sealed record StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "");
+// SnapshotSha256 (wire version 8) is the digest of the module's files taken at
+// planning, as 64 hex digits; empty when the plan carried none.
+public sealed record StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "");
 
 // Canonical portable wire protocol: little-endian fixed-width fields, UTF-8,
 // and SHA-256 payload integrity. It contains no CLR object or pointer layout.
 public static class StartupHandoffWire
 {
     public const uint Magic = 0x4F4C5348;
-    public const ushort Version = 7;
+    public const ushort Version = 8;
     private const int MaxModuleSettingsBytes = 64 * 1024;
     private const int HeaderSize = 64;
     private const int StartBlockSize = 1 + 5 * 4;
@@ -57,14 +59,15 @@ public static class StartupHandoffWire
     public static byte[] Serialize(StartupHandoff value)
     {
         var profile = Encoding.UTF8.GetBytes(value.BuildProfileId); var map = Encoding.UTF8.GetBytes(value.MapIdentity); var entrypoint = Encoding.UTF8.GetBytes(value.EntrypointIdentity); var situation = Encoding.UTF8.GetBytes(value.SituationIdentity);
-        var modules = (value.Modules ?? Array.Empty<StartupModule>()).Select(x => (Directory: Encoding.UTF8.GetBytes(x.RelativeDirectory), Sha: Convert.FromHexString(x.ManifestSha256), Settings: Encoding.UTF8.GetBytes(x.Settings))).ToArray();
+        var modules = (value.Modules ?? Array.Empty<StartupModule>()).Select(x => (Directory: Encoding.UTF8.GetBytes(x.RelativeDirectory), Sha: Convert.FromHexString(x.ManifestSha256), Settings: Encoding.UTF8.GetBytes(x.Settings), Snapshot: x.SnapshotSha256.Length == 0 ? new byte[32] : Convert.FromHexString(x.SnapshotSha256))).ToArray();
         if (modules.Length > MaxModules) throw new ArgumentException("A session cannot hand over more than " + MaxModules + " runtime modules.", nameof(value));
         if (modules.Any(x => x.Sha.Length != 32)) throw new ArgumentException("A module manifest SHA-256 must be 32 bytes.", nameof(value));
+        if (modules.Any(x => x.Snapshot.Length != 32)) throw new ArgumentException("A module snapshot SHA-256 must be 32 bytes.", nameof(value));
         if (modules.Any(x => x.Settings.Length > MaxModuleSettingsBytes)) throw new ArgumentException("A module's settings exceed 64 KiB.", nameof(value));
         var weather = value.Weather is { Mode: not WeatherMode.Unset } requested ? requested : null;
         var preset = Encoding.UTF8.GetBytes(weather?.Preset ?? ""); var icao = Encoding.UTF8.GetBytes(weather?.Icao ?? "");
         if (preset.Length > MaxWeatherPresetBytes || icao.Length > 8) throw new ArgumentException("The start weather is too long.", nameof(value));
-        var payload = new byte[4 + profile.Length + 4 + map.Length + 4 + entrypoint.Length + 4 + situation.Length + 8 + 4 + modules.Sum(x => 4 + x.Directory.Length + 32 + 4 + x.Settings.Length) + StartBlockSize + 1 + 4 + preset.Length + 4 + icao.Length]; var p = payload.AsSpan();
+        var payload = new byte[4 + profile.Length + 4 + map.Length + 4 + entrypoint.Length + 4 + situation.Length + 8 + 4 + modules.Sum(x => 4 + x.Directory.Length + 32 + 4 + x.Settings.Length + 32) + StartBlockSize + 1 + 4 + preset.Length + 4 + icao.Length]; var p = payload.AsSpan();
         BinaryPrimitives.WriteUInt32LittleEndian(p, (uint)profile.Length); profile.CopyTo(p[4..]); var offset = 4 + profile.Length;
         BinaryPrimitives.WriteUInt32LittleEndian(p[offset..], (uint)map.Length); map.CopyTo(p[(offset + 4)..]); offset += 4 + map.Length;
         BinaryPrimitives.WriteUInt32LittleEndian(p[offset..], (uint)entrypoint.Length); entrypoint.CopyTo(p[(offset + 4)..]); offset += 4 + entrypoint.Length;
@@ -81,6 +84,8 @@ public static class StartupHandoffWire
             BinaryPrimitives.WriteUInt32LittleEndian(p[offset..], (uint)module.Directory.Length); module.Directory.CopyTo(p[(offset + 4)..]); offset += 4 + module.Directory.Length;
             module.Sha.CopyTo(p[offset..]); offset += 32;
             BinaryPrimitives.WriteUInt32LittleEndian(p[offset..], (uint)module.Settings.Length); module.Settings.CopyTo(p[(offset + 4)..]); offset += 4 + module.Settings.Length;
+            // Version 8: the snapshot of the module's files (all zero = none).
+            module.Snapshot.CopyTo(p[offset..]); offset += 32;
         }
         // Version 7: start date/time. Presence bits 0x01 year, 0x02 day of year,
         // 0x04 hour, 0x08 minute, 0x10 second; then year, day, hour, minute, second as int32.
@@ -132,7 +137,14 @@ public static class StartupHandoffWire
                     if (settingsLength > MaxModuleSettingsBytes || settingsLength > payload.Length - offset) return false;
                     settings = Encoding.UTF8.GetString(payload.Slice(offset, (int)settingsLength)); offset += (int)settingsLength;
                 }
-                (modules ??= new()).Add(new StartupModule(directory, sha, settings));
+                var snapshot = string.Empty;
+                if (version >= 8)
+                {
+                    if (payload.Length - offset < 32) return false;
+                    var bytesOfSnapshot = payload.Slice(offset, 32); offset += 32;
+                    foreach (var snapshotByte in bytesOfSnapshot) if (snapshotByte != 0) { snapshot = Convert.ToHexString(bytesOfSnapshot); break; }
+                }
+                (modules ??= new()).Add(new StartupModule(directory, sha, settings, snapshot));
             }
         }
         StartDateTime? startValue = null;

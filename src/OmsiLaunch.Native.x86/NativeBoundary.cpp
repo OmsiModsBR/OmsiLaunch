@@ -167,8 +167,12 @@ struct NativeTargetTable {
     uint32_t vmtRoadVehicleInst, setStringVariable, triggerXml, soundTrigger, slotTriggerXml, slotSoundTrigger;
     // Start weather.
     uint32_t loadWeather, oActuWeatherActive, oActuWeatherLastDownloaded, oActuWeatherInvalidIcao, oActuWeatherProcess;
+    // Version 3: the native pause menu (take-over, panel handlers).
+    uint32_t gMenu2Form, vmtMenu2, vmtMainForm, tCustomFormShow;
+    uint32_t menu2Panel1Click, menu2Panel2Click, menu2Panel3Click, menu2Panel4Click, menu2Panel5Click;
+    uint32_t oFormVisible, oMainInFrame, oWinControlHandle, oMenu2Panel1, oMenu2Panel2, oMenu2Panel3, oMenu2Panel4, oMenu2Panel5;
 };
-constexpr uint32_t NativeTargetTableVersion = 2;
+constexpr uint32_t NativeTargetTableVersion = 4;
 NativeTargetTable gNative{};
 volatile LONG gTargetsConfigured = 0;
 
@@ -1535,6 +1539,441 @@ void CALLBACK CooperativeExitTimer(HWND, UINT, UINT_PTR id, DWORD) {
     }
 }
 } // namespace
+
+// ---- native pause menu (research report beta4-static pause-menu-and-input.md
+// sections 3 to 5 and 8). OMSI's pause is its own byte (non-zero: the
+// simulation, the rendering, the 3D clicks and DirectInput are held) set by
+// Tform_menu2.FormShow. A module that draws its own menu hides the native form
+// through the VCL (the pause stays) and, for the menu's actions, calls the
+// panel handlers OMSI's own clicks call. Nothing here clicks, posts a
+// message or moves a window. Every call runs on the UI thread at message
+// dispatch level (the plugin's UI timer), never inside the frame: the panel
+// handlers can enter nested modal loops, so they run from a one-shot timer
+// after the runtime command that asked has answered.
+namespace {
+constexpr unsigned long DelphiExceptionCode = 0x0EEDFADE;
+enum UiAction : int { UiActionResume = 1, UiActionNewGame = 2, UiActionSave = 3, UiActionOptions = 4, UiActionQuit = 5 };
+enum UiResult : int { UiResultNone = 0, UiResultResumed = 1, UiResultGameStarted = 2, UiResultReturned = 3, UiResultQuitRequested = 4, UiResultException = 5, UiResultRefused = 6 };
+
+UINT_PTR gUiTimer = 0;
+volatile LONG gUiBusy = 0;
+volatile LONG gUiTakenOver = 0;
+int gUiPendingAction = 0, gUiLastAction = 0, gUiLastResult = UiResultNone;
+bool gUiPinned = false;
+
+bool UiTargets() {
+    return Have({ gNative.gMenu2Form, gNative.gMainForm, gNative.gStartTransition, gNative.vmtMenu2, gNative.vmtMainForm, gNative.setVisible, gNative.tCustomFormShow,
+                  gNative.menu2Panel1Click, gNative.menu2Panel2Click, gNative.menu2Panel3Click, gNative.menu2Panel4Click, gNative.menu2Panel5Click,
+                  gNative.oFormVisible, gNative.oMainInFrame, gNative.oMenu2Panel1, gNative.oMenu2Panel2, gNative.oMenu2Panel3, gNative.oMenu2Panel4, gNative.oMenu2Panel5 });
+}
+
+// The form behind a global variable, only when its class is the expected one
+// (the first dword of a Delphi object is its VMT); null otherwise.
+void* UiForm(uint32_t variable, uint32_t vmt) {
+    auto* slot = reinterpret_cast<void**>(variable);
+    if (!Readable(slot, sizeof(void*)) || *slot == nullptr) return nullptr;
+    auto* form = *slot;
+    if (!Readable(form, sizeof(uint32_t)) || *reinterpret_cast<uint32_t*>(form) != vmt) return nullptr;
+    return form;
+}
+
+// OMSI's pause byte through its pointer cell; -1 when unreadable.
+int UiPauseByte() {
+    auto* cell = reinterpret_cast<unsigned char**>(gNative.gStartTransition);
+    if (!Readable(cell, sizeof(void*)) || *cell == nullptr || !Readable(*cell, 1)) return -1;
+    return **cell;
+}
+
+int UiByteAt(void* form, uint32_t offset) {
+    auto* address = reinterpret_cast<unsigned char*>(form) + offset;
+    return Readable(address, 1) ? *address : -1;
+}
+
+// TControl.SetVisible(Self = EAX, Value = DL); a Delphi exception (the VCL
+// raises one for a bad state) is caught, never let into OMSI's loop.
+bool UiSetVisible(void* form, unsigned char visible) {
+    const uintptr_t setVisible = gNative.setVisible;
+    __try {
+        __asm {
+            mov eax, form
+            mov dl, visible
+            mov ecx, setVisible
+            call ecx
+        }
+        return true;
+    } __except (GetExceptionCode() == DelphiExceptionCode ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) { return false; }
+}
+
+// TCustomForm.Show(Self = EAX).
+bool UiShow(void* form) {
+    const uintptr_t show = gNative.tCustomFormShow;
+    __try {
+        __asm {
+            mov eax, form
+            mov ecx, show
+            call ecx
+        }
+        return true;
+    } __except (GetExceptionCode() == DelphiExceptionCode ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) { return false; }
+}
+
+// A published handler of Tform_menu2: Self = EAX (the form), Sender = EDX (the
+// panel; the five handlers do not read it).
+bool UiCallHandler(uintptr_t handler, void* form, void* sender) {
+    __try {
+        __asm {
+            mov eax, form
+            mov edx, sender
+            mov ecx, handler
+            call ecx
+        }
+        return true;
+    } __except (GetExceptionCode() == DelphiExceptionCode ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) { return false; }
+}
+
+uintptr_t UiHandler(int action) {
+    switch (action) {
+    case UiActionResume: return gNative.menu2Panel1Click;
+    case UiActionNewGame: return gNative.menu2Panel2Click;
+    case UiActionSave: return gNative.menu2Panel3Click;
+    case UiActionOptions: return gNative.menu2Panel4Click;
+    case UiActionQuit: return gNative.menu2Panel5Click;
+    }
+    return 0;
+}
+
+uint32_t UiPanelOffset(int action) {
+    switch (action) {
+    case UiActionResume: return gNative.oMenu2Panel1;
+    case UiActionNewGame: return gNative.oMenu2Panel2;
+    case UiActionSave: return gNative.oMenu2Panel3;
+    case UiActionOptions: return gNative.oMenu2Panel4;
+    case UiActionQuit: return gNative.oMenu2Panel5;
+    }
+    return 0;
+}
+
+void CALLBACK UiActionTimer(HWND, UINT, UINT_PTR id, DWORD) {
+    KillTimer(nullptr, id);
+    gUiTimer = 0;
+    const int action = gUiPendingAction;
+    gUiPendingAction = 0;
+    int result = UiResultRefused;
+    if (UiTargets() && action >= UiActionResume && action <= UiActionQuit) {
+        void* menu = UiForm(gNative.gMenu2Form, gNative.vmtMenu2);
+        void* mainForm = UiForm(gNative.gMainForm, gNative.vmtMainForm);
+        // Not inside the frame (a modal loop would re-enter it) and only while OMSI is paused.
+        if (menu != nullptr && mainForm != nullptr && UiPauseByte() > 0 && UiByteAt(mainForm, gNative.oMainInFrame) == 0) {
+            InterlockedExchange(&gUiBusy, 1);
+            void* sender = nullptr;
+            auto* panel = reinterpret_cast<void**>(reinterpret_cast<unsigned char*>(menu) + UiPanelOffset(action));
+            if (Readable(panel, sizeof(void*))) sender = *panel;
+            const bool completed = UiCallHandler(UiHandler(action), menu, sender);
+            InterlockedExchange(&gUiBusy, 0);
+            if (!completed) result = UiResultException;
+            else if (action == UiActionResume) result = UiPauseByte() == 0 ? UiResultResumed : UiResultReturned;
+            else if (action == UiActionNewGame) result = UiPauseByte() == 0 ? UiResultGameStarted : UiResultReturned;
+            else if (action == UiActionQuit) { MSG quit; result = PeekMessageW(&quit, nullptr, WM_QUIT, WM_QUIT, PM_NOREMOVE) ? UiResultQuitRequested : UiResultReturned; }
+            else result = UiResultReturned;
+            // The game runs again: whatever the module had taken over is OMSI's again.
+            if (UiPauseByte() == 0) InterlockedExchange(&gUiTakenOver, 0);
+        }
+    }
+    gUiLastResult = result;
+}
+} // namespace
+
+struct NativeUiState {
+    int status;
+    unsigned long paused, nativeMenuVisible, mainFormReady, inFrame, takenOver, busy, pendingAction, lastAction, lastResult;
+};
+
+// status 0: the fields are valid; 1: not resolved on this build or the forms
+// are not there.
+extern "C" __declspec(dllexport) int __cdecl NativeUiPauseState(NativeUiState* out) {
+    if (out == nullptr) return 1;
+    *out = {};
+    out->status = 1;
+    if (!UiTargets()) return 1;
+    void* menu = UiForm(gNative.gMenu2Form, gNative.vmtMenu2);
+    void* mainForm = UiForm(gNative.gMainForm, gNative.vmtMainForm);
+    if (menu == nullptr || mainForm == nullptr) return 1;
+    out->status = 0;
+    out->paused = UiPauseByte() > 0 ? 1 : 0;
+    out->nativeMenuVisible = UiByteAt(menu, gNative.oFormVisible) == 1 ? 1 : 0;
+    out->mainFormReady = UiByteAt(mainForm, gNative.oFormVisible) == 1 ? 1 : 0;
+    out->inFrame = UiByteAt(mainForm, gNative.oMainInFrame) == 1 ? 1 : 0;
+    out->takenOver = gUiTakenOver != 0 ? 1 : 0;
+    out->busy = (gUiBusy != 0 || gUiTimer != 0) ? 1 : 0;
+    out->pendingAction = static_cast<unsigned long>(gUiPendingAction);
+    out->lastAction = static_cast<unsigned long>(gUiLastAction);
+    out->lastResult = static_cast<unsigned long>(gUiLastResult);
+    return 0;
+}
+
+// Hides the native menu through the VCL; OMSI stays paused. 0 done; 1 not
+// available; 2 not paused or the menu is not shown; 3 an action is running or
+// the call is inside the frame; 4 already taken over; 5 the VCL raised.
+extern "C" __declspec(dllexport) int __cdecl NativeUiPauseTakeOver() {
+    if (!UiTargets()) return 1;
+    void* menu = UiForm(gNative.gMenu2Form, gNative.vmtMenu2);
+    void* mainForm = UiForm(gNative.gMainForm, gNative.vmtMainForm);
+    if (menu == nullptr || mainForm == nullptr) return 1;
+    if (gUiBusy != 0 || gUiTimer != 0 || UiByteAt(mainForm, gNative.oMainInFrame) != 0) return 3;
+    if (gUiTakenOver != 0) return 4;
+    if (UiPauseByte() <= 0 || UiByteAt(menu, gNative.oFormVisible) != 1) return 2;
+    if (!UiSetVisible(menu, 0)) return 5;
+    InterlockedExchange(&gUiTakenOver, 1);
+    return 0;
+}
+
+// Gives the native menu back: Show again, which re-runs the native FormShow
+// (pause stays set, the first key is swallowed again). 0 done (also when the
+// menu was already shown); 1 not available; 2 OMSI is not paused (nothing to
+// restore); 3 an action is running; 5 the VCL raised.
+extern "C" __declspec(dllexport) int __cdecl NativeUiPauseRestoreNative() {
+    if (!UiTargets()) return 1;
+    void* menu = UiForm(gNative.gMenu2Form, gNative.vmtMenu2);
+    if (menu == nullptr) return 1;
+    if (gUiBusy != 0 || gUiTimer != 0) return 3;
+    if (UiPauseByte() <= 0) { InterlockedExchange(&gUiTakenOver, 0); return 2; }
+    if (UiByteAt(menu, gNative.oFormVisible) == 1) { InterlockedExchange(&gUiTakenOver, 0); return 0; }
+    if (!UiShow(menu)) return 5;
+    InterlockedExchange(&gUiTakenOver, 0);
+    return 0;
+}
+
+// Schedules a panel handler (1 resume, 2 new game, 3 save, 4 options, 5 quit)
+// from a one-shot UI-thread timer. 0 scheduled; 1 not available; 2 OMSI is not
+// paused; 3 an action is already scheduled or running, or inside the frame; 4
+// not an action; 5 the timer could not be created. The outcome is in
+// NativeUiPauseState (lastAction, lastResult) once busy is 0.
+extern "C" __declspec(dllexport) int __cdecl NativeUiPauseAction(int action) {
+    if (action < UiActionResume || action > UiActionQuit) return 4;
+    if (!UiTargets()) return 1;
+    void* menu = UiForm(gNative.gMenu2Form, gNative.vmtMenu2);
+    void* mainForm = UiForm(gNative.gMainForm, gNative.vmtMainForm);
+    if (menu == nullptr || mainForm == nullptr) return 1;
+    if (gUiBusy != 0 || gUiTimer != 0 || UiByteAt(mainForm, gNative.oMainInFrame) != 0) return 3;
+    if (UiPauseByte() <= 0) return 2;
+    if (!gUiPinned) {
+        // Quitting unloads plugins; this module must stay mapped until the handler returns.
+        HMODULE self = nullptr;
+        if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, reinterpret_cast<LPCWSTR>(&NativeUiPauseAction), &self)) return 5;
+        gUiPinned = true;
+    }
+    gUiPendingAction = action;
+    gUiLastAction = action;
+    gUiLastResult = UiResultNone;
+    gUiTimer = SetTimer(nullptr, 0, 0, UiActionTimer);
+    if (gUiTimer == 0) { gUiPendingAction = 0; return 5; }
+    return 0;
+}
+
+// ---- input capture (pause-menu-and-input.md section 6.5). OMSI reads its
+// simulation keys through DirectInput and its mouse through VCL messages to
+// the main form's view window; the native pause byte already holds the
+// simulation. For a module's own menu the bridge installs ONE thread-local
+// WH_GETMESSAGE hook on the UI thread, only while a module captures: the
+// keyboard and mouse messages that belong to the game's window tree are
+// recorded as plain events and removed (converted to WM_NULL) so the VCL does
+// not also act on them. No window is subclassed, no user32 key-state function
+// is hooked, nothing is sent. Native modal dialogs get real input because the
+// module releases the capture first.
+namespace {
+struct NativeInputEvent { unsigned long kind; int key, x, y; unsigned long button; int delta, modifiers; };
+constexpr int InputCapacity = 256;
+NativeInputEvent gInputRing[InputCapacity];
+int gInputHead = 0, gInputCount = 0;
+HHOOK gInputHook = nullptr;
+DWORD gInputThread = 0;
+volatile LONG gInputCapturing = 0;
+// Test seam: the self-check stands in for the game's window.
+HWND gInputTestRoot = nullptr;
+
+HWND InputRootWindow() {
+    if (gInputTestRoot != nullptr) return gInputTestRoot;
+    if (!Have({ gNative.gMainForm, gNative.vmtMainForm, gNative.oWinControlHandle })) return nullptr;
+    auto* slot = reinterpret_cast<void**>(gNative.gMainForm);
+    if (!Readable(slot, sizeof(void*)) || *slot == nullptr) return nullptr;
+    auto* form = reinterpret_cast<unsigned char*>(*slot);
+    if (!Readable(form, sizeof(uint32_t)) || *reinterpret_cast<uint32_t*>(form) != gNative.vmtMainForm) return nullptr;
+    auto* handle = reinterpret_cast<HWND*>(form + gNative.oWinControlHandle);
+    return Readable(handle, sizeof(HWND)) ? *handle : nullptr;
+}
+
+HWND InputMenuWindow() {
+    if (gInputTestRoot != nullptr || !Have({ gNative.gMenu2Form, gNative.vmtMenu2, gNative.oWinControlHandle })) return nullptr;
+    auto* slot = reinterpret_cast<void**>(gNative.gMenu2Form);
+    if (!Readable(slot, sizeof(void*)) || *slot == nullptr) return nullptr;
+    auto* form = reinterpret_cast<unsigned char*>(*slot);
+    if (!Readable(form, sizeof(uint32_t)) || *reinterpret_cast<uint32_t*>(form) != gNative.vmtMenu2) return nullptr;
+    auto* handle = reinterpret_cast<HWND*>(form + gNative.oWinControlHandle);
+    return Readable(handle, sizeof(HWND)) ? *handle : nullptr;
+}
+
+void InputPush(const NativeInputEvent& event) {
+    const int tail = (gInputHead + gInputCount) % InputCapacity;
+    gInputRing[tail] = event;
+    if (gInputCount < InputCapacity) ++gInputCount;
+    else gInputHead = (gInputHead + 1) % InputCapacity;
+}
+
+int InputModifiers(WPARAM wParam, bool mouse) {
+    int modifiers = 0;
+    if (mouse) { if (wParam & MK_SHIFT) modifiers |= 1; if (wParam & MK_CONTROL) modifiers |= 2; }
+    else { if (GetKeyState(VK_SHIFT) < 0) modifiers |= 1; if (GetKeyState(VK_CONTROL) < 0) modifiers |= 2; }
+    if (GetKeyState(VK_MENU) < 0) modifiers |= 4;
+    return modifiers;
+}
+
+// Records the event for a message of the game's window tree; false for a message that is not one.
+bool InputRecord(const MSG& msg) {
+    NativeInputEvent event{};
+    switch (msg.message) {
+    case WM_KEYDOWN: case WM_SYSKEYDOWN: event.kind = 1; event.key = static_cast<int>(msg.wParam); event.modifiers = InputModifiers(0, false); break;
+    case WM_KEYUP: case WM_SYSKEYUP: event.kind = 2; event.key = static_cast<int>(msg.wParam); event.modifiers = InputModifiers(0, false); break;
+    case WM_CHAR: case WM_SYSCHAR: event.kind = 3; event.key = static_cast<int>(msg.wParam); event.modifiers = InputModifiers(0, false); break;
+    case WM_MOUSEMOVE: event.kind = 4; break;
+    case WM_LBUTTONDOWN: event.kind = 5; event.button = 1; break;
+    case WM_RBUTTONDOWN: event.kind = 5; event.button = 2; break;
+    case WM_MBUTTONDOWN: event.kind = 5; event.button = 3; break;
+    case WM_LBUTTONUP: event.kind = 6; event.button = 1; break;
+    case WM_RBUTTONUP: event.kind = 6; event.button = 2; break;
+    case WM_MBUTTONUP: event.kind = 6; event.button = 3; break;
+    case WM_LBUTTONDBLCLK: event.kind = 8; event.button = 1; break;
+    case WM_RBUTTONDBLCLK: event.kind = 8; event.button = 2; break;
+    case WM_MBUTTONDBLCLK: event.kind = 8; event.button = 3; break;
+    case WM_MOUSEWHEEL: event.kind = 7; event.delta = static_cast<short>(HIWORD(msg.wParam)); break;
+    default: return false;
+    }
+    if (event.kind >= 4) {
+        event.modifiers = InputModifiers(msg.wParam, true);
+        POINT point{ static_cast<short>(LOWORD(msg.lParam)), static_cast<short>(HIWORD(msg.lParam)) };
+        // The wheel reports screen coordinates; every other mouse message client ones.
+        if (msg.message == WM_MOUSEWHEEL) ScreenToClient(msg.hwnd, &point);
+        event.x = point.x; event.y = point.y;
+    }
+    InputPush(event);
+    return true;
+}
+
+LRESULT CALLBACK InputHook(int code, WPARAM wParam, LPARAM lParam) {
+    // Only a message that is being removed from the queue, only while captured.
+    if (code == HC_ACTION && wParam == PM_REMOVE && gInputCapturing != 0 && lParam != 0) {
+        auto* msg = reinterpret_cast<MSG*>(lParam);
+        const bool keyboard = msg->message >= WM_KEYFIRST && msg->message <= WM_KEYLAST;
+        const bool mouse = msg->message >= WM_MOUSEFIRST && msg->message <= WM_MOUSELAST;
+        if ((keyboard || mouse) && msg->hwnd != nullptr) {
+            const HWND root = InputRootWindow();
+            const HWND menu = InputMenuWindow();
+            if ((root != nullptr && (msg->hwnd == root || IsChild(root, msg->hwnd))) || (menu != nullptr && msg->hwnd == menu)) {
+                if (InputRecord(*msg)) { msg->message = WM_NULL; msg->wParam = 0; msg->lParam = 0; }
+            }
+        }
+    }
+    return CallNextHookEx(nullptr, code, wParam, lParam);
+}
+
+HMODULE InputModule() {
+    HMODULE self = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&InputHook), &self);
+    return self;
+}
+} // namespace
+
+// Starts (1) or ends (0) the capture. 0 done; 1 not available (targets
+// unresolved or no game window yet); 2 ending from another thread than the
+// one that started; 3 starting while it is already on. Always on the UI thread.
+extern "C" __declspec(dllexport) int __cdecl NativeInputCapture(int enable) {
+    if (enable != 0) {
+        if (gInputHook != nullptr) return 3;
+        if (InputRootWindow() == nullptr) return 1;
+        gInputThread = GetCurrentThreadId();
+        gInputHook = SetWindowsHookExW(WH_GETMESSAGE, InputHook, InputModule(), gInputThread);
+        if (gInputHook == nullptr) return 1;
+        gInputHead = gInputCount = 0;
+        InterlockedExchange(&gInputCapturing, 1);
+        return 0;
+    }
+    if (gInputHook == nullptr) return 0;
+    if (gInputThread != GetCurrentThreadId()) return 2;
+    InterlockedExchange(&gInputCapturing, 0);
+    UnhookWindowsHookEx(gInputHook);
+    gInputHook = nullptr;
+    gInputHead = gInputCount = 0;
+    return 0;
+}
+
+// Copies and clears the captured events; returns how many were copied.
+extern "C" __declspec(dllexport) int __cdecl NativeInputDrain(NativeInputEvent* events, int capacity) {
+    if (events == nullptr || capacity <= 0) return 0;
+    int copied = 0;
+    while (gInputCount > 0 && copied < capacity) {
+        events[copied++] = gInputRing[gInputHead];
+        gInputHead = (gInputHead + 1) % InputCapacity;
+        --gInputCount;
+    }
+    return copied;
+}
+
+// Offline check of the hook mechanics with a private window standing in for
+// the game's: keyboard and mouse messages to it are recorded and removed,
+// a message to another window is left alone, and ending the capture stops it.
+// Bits: 0x01 keys recorded and swallowed, 0x02 mouse recorded and swallowed,
+// 0x04 an unrelated window's message untouched, 0x08 nothing recorded after
+// the capture ended, 0x10 the ring keeps the newest 256.
+namespace {
+int gInputProbeSeen = 0;
+LRESULT CALLBACK InputProbeProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+    // TranslateMessage turns a WM_KEYDOWN into a WM_CHAR; only the key and the click are counted.
+    if (message == WM_KEYDOWN || message == WM_LBUTTONDOWN) ++gInputProbeSeen;
+    return DefWindowProcW(window, message, wParam, lParam);
+}
+void InputPump() { MSG msg; while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); } }
+} // namespace
+
+extern "C" __declspec(dllexport) int __cdecl NativeInputSelfCheck() {
+    int passed = 0;
+    WNDCLASSW cls{};
+    cls.lpfnWndProc = InputProbeProc; cls.hInstance = InputModule(); cls.lpszClassName = L"OmsiLaunchInputProbe";
+    RegisterClassW(&cls);
+    HWND game = CreateWindowExW(0, cls.lpszClassName, L"game", WS_POPUP, 0, 0, 10, 10, nullptr, nullptr, cls.hInstance, nullptr);
+    HWND other = CreateWindowExW(0, cls.lpszClassName, L"other", WS_POPUP, 0, 0, 10, 10, nullptr, nullptr, cls.hInstance, nullptr);
+    if (game == nullptr || other == nullptr) return 0;
+    gInputTestRoot = game;
+    InputPump();
+    if (NativeInputCapture(1) == 0) {
+        gInputProbeSeen = 0;
+        PostMessageW(game, WM_KEYDOWN, 'A', 0); PostMessageW(game, WM_CHAR, 'a', 0); PostMessageW(game, WM_KEYUP, 'A', 0);
+        InputPump();
+        NativeInputEvent events[16]{};
+        int count = NativeInputDrain(events, 16);
+        if (count == 3 && events[0].kind == 1 && events[0].key == 'A' && events[1].kind == 3 && events[1].key == 'a' && events[2].kind == 2 && gInputProbeSeen == 0) passed |= 0x01;
+        PostMessageW(game, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(12, 34)); PostMessageW(game, WM_MOUSEMOVE, 0, MAKELPARAM(5, 6));
+        InputPump();
+        count = NativeInputDrain(events, 16);
+        if (count == 2 && events[0].kind == 5 && events[0].button == 1 && events[0].x == 12 && events[0].y == 34 && events[1].kind == 4 && events[1].x == 5 && gInputProbeSeen == 0) passed |= 0x02;
+        gInputProbeSeen = 0;
+        PostMessageW(other, WM_KEYDOWN, 'B', 0);
+        InputPump();
+        if (gInputProbeSeen == 1 && NativeInputDrain(events, 16) == 0) passed |= 0x04;
+        for (int index = 0; index < 300; index++) PostMessageW(game, WM_KEYDOWN, 'A' + (index % 26), 0);
+        InputPump();
+        NativeInputEvent big[300]{};
+        if (NativeInputDrain(big, 300) == InputCapacity) passed |= 0x10;
+        NativeInputCapture(0);
+        gInputProbeSeen = 0;
+        PostMessageW(game, WM_KEYDOWN, 'C', 0);
+        InputPump();
+        if (gInputProbeSeen == 1 && NativeInputDrain(events, 16) == 0 && NativeInputCapture(0) == 0) passed |= 0x08;
+    }
+    NativeInputCapture(0);
+    gInputTestRoot = nullptr;
+    DestroyWindow(game); DestroyWindow(other);
+    UnregisterClassW(cls.lpszClassName, cls.hInstance);
+    return passed;
+}
 
 // ---- weather strings (research report beta4-static weather-and-delphi-strings.md
 // sections 2.3, 3 and 5.2). Numeric source fields are plain stores done by the

@@ -173,6 +173,12 @@ public static class PublicErrorCodes
     public const string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE";
     public const string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID";
     public const string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT";
+    public const string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED";
+    public const string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED";
+    public const string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID";
+    public const string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED";
+    public const string UI_BUSY = "OL_E_UI_BUSY";
+    public const string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER";
     // SessionProfile
     public const string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING";
     public const string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID";
@@ -380,6 +386,12 @@ public static class PublicErrorCodes
         new("OL_E_MODULE_HOOK_UNAVAILABLE", "Module"),
         new("OL_E_MODULE_SETTING_INVALID", "Module"),
         new("OL_E_MODULE_CONFLICT", "Module"),
+        new("OL_E_MODULE_OPERATION_NOT_DECLARED", "Module"),
+        new("OL_E_MODULE_CONTENT_INPUT_UNDECLARED", "Module"),
+        new("OL_E_MODULE_CONTENT_INPUT_INVALID", "Module"),
+        new("OL_E_UI_NOT_PAUSED", "Ui"),
+        new("OL_E_UI_BUSY", "Ui"),
+        new("OL_E_UI_ALREADY_TAKEN_OVER", "Ui"),
     };
 
     // The catalogued public code a message starts with (a code alone, or a

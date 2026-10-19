@@ -12,7 +12,8 @@ public sealed record DiscoveredModule(
     string? ManifestSha256,
     ModuleManifest? Manifest,
     string? Code,
-    string? Message)
+    string? Message,
+    string? SnapshotSha256 = null)
 {
     public bool IsUsable => Manifest is not null && Code is null;
 }
@@ -34,23 +35,48 @@ public static class ModuleCatalog
             .ToArray();
     }
 
+    // Planning: the module is read, every pin is checked and the snapshot of
+    // its files is taken (SnapshotSha256). The snapshot is what travels with
+    // the plan: the plugin and the controller compare the files they are about
+    // to run against it, whether or not the author pinned them.
     public static DiscoveredModule Inspect(string directory)
     {
         var read = Read(directory);
         if (read.Code is not null || read.Manifest is null) return read;
-        var integrity = VerifyPins(directory, read.Manifest);
-        return integrity is null ? read : read with { Code = PublicErrorCodes.MODULE_INTEGRITY, Message = integrity };
+        var hashes = HashNamedFiles(directory, read.Manifest, out var failure);
+        if (failure is not null) return read with { Code = PublicErrorCodes.MODULE_INTEGRITY, Message = failure };
+        return read with { SnapshotSha256 = SnapshotOf(hashes!) };
     }
 
-    // In process: the module the controller planned. The module.json must be
-    // the planned one (same SHA-256) and every pin must still hold.
-    public static DiscoveredModule InspectPlanned(string directory, string plannedManifestSha256)
+    // In process (or when the controller starts a session program): the module
+    // the controller planned. The module.json must be the planned one (same
+    // SHA-256), every pin must still hold and, when the plan carried a
+    // snapshot, the module's files must be exactly the ones it recorded.
+    public static DiscoveredModule InspectPlanned(string directory, string plannedManifestSha256, string? plannedSnapshotSha256 = null)
     {
         var read = Read(directory);
         if (read.Code is not null || read.Manifest is null) return read;
         if (!string.Equals(read.ManifestSha256, plannedManifestSha256, StringComparison.OrdinalIgnoreCase)) return read with { Code = PublicErrorCodes.MODULE_INTEGRITY, Message = "module.json changed after planning" };
-        var integrity = VerifyPins(directory, read.Manifest);
-        return integrity is null ? read : read with { Code = PublicErrorCodes.MODULE_INTEGRITY, Message = integrity };
+        var hashes = HashNamedFiles(directory, read.Manifest, out var failure);
+        if (failure is not null) return read with { Code = PublicErrorCodes.MODULE_INTEGRITY, Message = failure };
+        var snapshot = SnapshotOf(hashes!);
+        if (plannedSnapshotSha256 is { Length: > 0 } && !string.Equals(snapshot, plannedSnapshotSha256, StringComparison.OrdinalIgnoreCase))
+            return read with { Code = PublicErrorCodes.MODULE_INTEGRITY, Message = "the module's files changed after planning" };
+        return read with { SnapshotSha256 = snapshot };
+    }
+
+    // The component the bridge is about to run (a native DLL, an auxiliary or
+    // a host program): its pin, when it has one, and in every case the plan's
+    // snapshot, so a file the author did not pin is still the planned file.
+    // Null when it holds, otherwise the reason.
+    public static string? VerifyComponent(string directory, ModuleManifest manifest, ModuleComponent component, string? plannedSnapshotSha256)
+    {
+        var single = manifest with { Components = new[] { component }, Assets = Array.Empty<ModuleFileReference>() };
+        if (VerifyPins(directory, single) is { } failure) return failure;
+        if (plannedSnapshotSha256 is not { Length: > 0 }) return null;
+        var hashes = HashNamedFiles(directory, manifest, out var snapshotFailure);
+        if (snapshotFailure is not null) return snapshotFailure;
+        return string.Equals(SnapshotOf(hashes!), plannedSnapshotSha256, StringComparison.OrdinalIgnoreCase) ? null : "the module's files changed after planning";
     }
 
     // The manifests that parse, without hashing the modules' files: enough for
@@ -86,24 +112,48 @@ public static class ModuleCatalog
         return new(name, directory, relative, manifestSha, manifest, null, null);
     }
 
-    // Null when every pinned file exists (not through a reparse point) and has
-    // its pinned SHA-256; otherwise the first mismatch.
+    // Null when every file the manifest names exists (not through a reparse
+    // point) and every pinned one has its pinned SHA-256; otherwise the first
+    // problem. A file without a pin is checked for existence and path safety only.
     public static string? VerifyPins(string directory, ModuleManifest manifest)
     {
+        HashNamedFiles(directory, manifest, out var failure);
+        return failure;
+    }
+
+    // SHA-256 of every named file (pinned or not), keyed by its path as the
+    // manifest writes it; null with a failure on the first problem (a missing
+    // file, a path that escapes the module directory, a reparse point, an I/O
+    // error, a pin that does not match).
+    private static SortedDictionary<string, string>? HashNamedFiles(string directory, ModuleManifest manifest, out string? failure)
+    {
+        failure = null;
         var root = Path.GetFullPath(directory).TrimEnd('\\') + "\\";
-        foreach (var file in manifest.PinnedFiles)
+        var hashes = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in manifest.NamedFiles)
         {
             var path = Path.GetFullPath(Path.Combine(directory, file.Path));
-            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return file.Path + " escapes the module directory";
-            if (!File.Exists(path)) return file.Path + " is missing";
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) { failure = file.Path + " escapes the module directory"; return null; }
+            if (!File.Exists(path)) { failure = file.Path + " is missing"; return null; }
             for (var current = path; current.Length > root.Length; current = Path.GetDirectoryName(current)!)
-                if (IsReparsePoint(current)) return file.Path + " is reached through a reparse point";
+                if (IsReparsePoint(current)) { failure = file.Path + " is reached through a reparse point"; return null; }
             string actual;
             try { using var stream = File.OpenRead(path); actual = Convert.ToHexString(ModuleCatalog.HashStream(stream)); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return file.Path + ": " + exception.Message; }
-            if (!string.Equals(actual, file.Sha256, StringComparison.OrdinalIgnoreCase)) return file.Path + " does not match its pinned SHA-256";
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { failure = file.Path + ": " + exception.Message; return null; }
+            if (file.Sha256 is not null && !string.Equals(actual, file.Sha256, StringComparison.OrdinalIgnoreCase)) { failure = file.Path + " does not match its pinned SHA-256"; return null; }
+            hashes[file.Path] = actual;
         }
-        return null;
+        return hashes;
+    }
+
+    // One digest of the named files and their content: the plan's snapshot. It
+    // is a consistency check (the files run are the files planned), not a
+    // trust decision, and it covers files the author never pinned.
+    private static string SnapshotOf(SortedDictionary<string, string> hashes)
+    {
+        var text = new System.Text.StringBuilder();
+        foreach (var (path, hash) in hashes) text.Append(path.ToLowerInvariant()).Append('|').Append(hash).Append('\n');
+        return Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text.ToString())));
     }
 
     // SHA256.HashData(Stream) needs .NET 7.

@@ -81,7 +81,7 @@ public sealed class PluginRuntime
         if (handoff.Modules is { Count: > 0 } planned && moduleHostFactory is not null)
         {
             modules = moduleHostFactory(handoff);
-            modules.Load(planned.Select(x => new ModuleLoadRequest(Path.Combine(installationRoot, x.RelativeDirectory), x.ManifestSha256, ModuleSettingsFromHandoff(x.Settings))));
+            modules.Load(planned.Select(x => new ModuleLoadRequest(Path.Combine(installationRoot, x.RelativeDirectory), x.ManifestSha256, ModuleSettingsFromHandoff(x.Settings), x.SnapshotSha256.Length == 0 ? null : x.SnapshotSha256)));
             modules.Arm();
             if (modules.SessionFailureRequested) { modules.Stop(); Volatile.Write(ref startupAccepted, 0); return false; }
         }
@@ -105,6 +105,19 @@ public sealed class PluginRuntime
         if (runtimeControl is null) return;
         foreach (var lifecycleEvent in runtimeControl.PollLifecycle()) telemetry(lifecycleEvent.Name, lifecycleEvent.Data);
         mailbox?.TryDispatch(modules is null ? runtimeControl : new ModuleDispatch(runtimeControl, modules));
+        TickModules();
+    }
+
+    // Modules that asked for a tick (capability bridge.tick): called from the
+    // same 50 ms UI timer. A nested modal loop keeps the timer firing, so a
+    // tick never re-enters itself.
+    private bool ticking;
+    private void TickModules()
+    {
+        if (modules is null || ticking) return;
+        ticking = true;
+        try { modules.Tick(); }
+        finally { ticking = false; }
     }
 
     public void Shutdown()

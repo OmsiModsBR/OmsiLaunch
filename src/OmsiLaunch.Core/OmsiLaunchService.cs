@@ -265,7 +265,7 @@ public sealed class OmsiLaunchService : IOmsiLaunch
             programs = ModuleSessionPrograms.Start(plan, (name, data) => session.AddRuntimeEvent(name, data), diagnostic => session.AddDiagnostic(diagnostic), (step, detail) => trace.Write(step, detail), cancellationToken);
             var excluded = programs.Excluded;
             handoff = CurrentStartupHandoffStore.Create(new StartupHandoff(plan.SessionId, plan.BuildProfileId, plan.Spec.World.Mode, plan.Spec.World.MapIdentity.Value ?? string.Empty, plan.Spec.World.PresentedEntrypointIndex.IsSet ? plan.Spec.World.PresentedEntrypointIndex.Value : -1, true, plan.Spec.PlayerVehicle.IsSet, plan.Spec.Date.Mode, plan.Spec.Time.Mode, plan.Spec.World.EntrypointIdentity.IsSet ? EntrypointLabel(plan) : string.Empty, plan.Spec.World.SituationIdentity.IsSet ? plan.Spec.World.SituationIdentity.Value! : string.Empty,
-                plan.EffectivePlannedModules.Where(x => x.IsEligible && !excluded.Contains(x.Id)).Select(x => new StartupModule(RuntimeModuleProtocol.ModulesDirectory + "\\" + x.Id, x.ManifestSha256!, ModuleSettingsJson(x))).ToArray(),
+                plan.EffectivePlannedModules.Where(x => x.IsEligible && !excluded.Contains(x.Id)).Select(x => new StartupModule(RuntimeModuleProtocol.ModulesDirectory + "\\" + x.Id, x.ManifestSha256!, ModuleSettingsJson(x), x.SnapshotSha256 ?? string.Empty)).ToArray(),
                 plan.Spec.EffectiveDiagnostics.PluginTrace, plan.Spec.EffectiveDiagnostics.NativeTrace,
                 plan.Spec.World.Mode == WorldMode.NewMap ? StartDateTimeResolver.Resolve(plan.Spec, DateTime.Now, out _) : null,
                 StartWeatherResolver.Resolve(plan.Spec, out _)));

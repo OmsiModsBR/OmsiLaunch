@@ -16,9 +16,13 @@ internal sealed class PluginModuleEnvironment : IModuleHostEnvironment
 {
     private readonly StartupHandoff handoff;
     private readonly Action<string, IReadOnlyDictionary<string, string>> emit;
-    public PluginModuleEnvironment(StartupHandoff handoff, Action<string, IReadOnlyDictionary<string, string>>? emit = null)
+    private readonly IPluginRuntimeControl? control;
+    private ulong requestId;
+    // control runs the catalog operations a module declared (runtime_operations);
+    // without it every such call answers OL_E_RUNTIME_OPERATION_UNKNOWN.
+    public PluginModuleEnvironment(StartupHandoff handoff, Action<string, IReadOnlyDictionary<string, string>>? emit = null, IPluginRuntimeControl? control = null)
     {
-        this.handoff = handoff; this.emit = emit ?? CurrentTelemetrySink.Emit;
+        this.handoff = handoff; this.emit = emit ?? CurrentTelemetrySink.Emit; this.control = control;
     }
 
     public static string InstallationRoot()
@@ -30,6 +34,30 @@ internal sealed class PluginModuleEnvironment : IModuleHostEnvironment
     public Guid SessionId => handoff.SessionId;
     string IModuleHostEnvironment.InstallationRoot => InstallationRoot();
     public string ProductVersion { get; } = typeof(PluginModuleEnvironment).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
+    public string OmsiVersion => PluginOmsiVersion.Value;
+    public bool InputAvailable => PluginNativeTargets.IsAvailable("ui.input.capture");
+    public bool SetInputCapture(bool enabled) => InputAvailable && NativeInputCapture(enabled ? 1 : 0) == 0;
+    public int DrainInput(List<ModuleInputEvent> events)
+    {
+        var buffer = new NativeInputEvent[256];
+        var count = NativeInputDrain(buffer, buffer.Length);
+        for (var index = 0; index < count; index++)
+        {
+            var e = buffer[index];
+            if (e.Kind is >= 1 and <= 8 && e.Button <= 3) events.Add(new((ModuleInputKind)e.Kind, e.Key, e.X, e.Y, (ModuleMouseButton)e.Button, e.Delta, e.Modifiers));
+        }
+        return count;
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeInputEvent { public uint Kind; public int Key, X, Y; public uint Button; public int Delta, Modifiers; }
+    // 0 done; 1 not available; 2 not on the thread that started the capture; 3 already capturing.
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeInputCapture(int enable);
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeInputDrain([Out] NativeInputEvent[] events, int capacity);
+    public ModuleCallResult ExecuteRuntimeOperation(string operation, IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (control is null) return new(false, PublicErrorCodes.RUNTIME_OPERATION_UNKNOWN, new Dictionary<string, string>(StringComparer.Ordinal) { ["detail"] = "no runtime control in this session" });
+        var result = control.Execute(new RuntimeCommand(handoff.SessionId, ++requestId, operation, arguments));
+        return new(result.Succeeded, result.ErrorCode, result.Values ?? new Dictionary<string, string>(StringComparer.Ordinal));
+    }
     public bool IsPluginLibraryLoaded(string fileName) => GetModuleHandleW(fileName) != 0;
     public bool IsCapabilityAvailable(string capability) => RuntimeModuleProtocol.BridgeFeatures.Contains(capability)
         ? !RuntimeModuleProtocol.BridgeFeatureNeeds.TryGetValue(capability, out var need) || PluginNativeTargets.IsAvailable(need)
@@ -50,10 +78,10 @@ internal sealed class PluginModuleEnvironment : IModuleHostEnvironment
         return (IRuntimeModule)Activator.CreateInstance(type)!;
     }
 
-    public IModuleAuxiliaryProcess StartAuxiliaryProcess(string path, string arguments) => AuxiliaryProcess.Start(path, arguments);
+    public IModuleAuxiliaryProcess StartAuxiliaryProcess(string path, string arguments, ModuleAuxiliaryOptions options) => AuxiliaryProcess.Start(path, arguments, options);
 
-    public IModuleNativeComponent StartNativeComponent(ModuleManifest manifest, string directory, ModuleComponent component, Func<string, string?> values) =>
-        NativeModuleComponent.Start(manifest, Path.GetFullPath(Path.Combine(directory, component.Path)), emit, values);
+    public IModuleNativeComponent StartNativeComponent(ModuleManifest manifest, string directory, ModuleComponent component, Func<string, string?> values, Func<string, IReadOnlyDictionary<string, string>?, ModuleCallResult> runtime) =>
+        NativeModuleComponent.Start(manifest, Path.GetFullPath(Path.Combine(directory, component.Path)), emit, values, runtime);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern nint GetModuleHandleW(string name);
 
@@ -84,25 +112,45 @@ internal sealed class PluginModuleEnvironment : IModuleHostEnvironment
         public int ProcessId => process.Id;
         public bool HasExited { get { try { return process.HasExited; } catch (InvalidOperationException) { return true; } } }
 
-        public static AuxiliaryProcess Start(string path, string arguments)
+        // The program is created suspended, placed in a kill-on-close job object
+        // (with the manifest's priority and memory limit) and only then resumed:
+        // nothing it starts can run outside the job, and the limits hold from
+        // its first instruction. The job has no process-count limit, so a
+        // program that needs children (a web view host) can have them, all in
+        // the job.
+        public static AuxiliaryProcess Start(string path, string arguments, ModuleAuxiliaryOptions options)
         {
             var job = CreateJobObject(0, null);
             if (job == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
             var limits = new JobObjectExtendedLimitInformation { BasicLimitInformation = new() { LimitFlags = JobObjectLimitKillOnJobClose } };
+            if (options.Priority != ModuleAuxiliaryPriority.Normal)
+            {
+                limits.BasicLimitInformation.LimitFlags |= JobObjectLimitPriorityClass;
+                limits.BasicLimitInformation.PriorityClass = options.Priority == ModuleAuxiliaryPriority.Idle ? IdlePriorityClass : BelowNormalPriorityClass;
+            }
+            if (options.MemoryLimitMegabytes > 0)
+            {
+                limits.BasicLimitInformation.LimitFlags |= JobObjectLimitJobMemory;
+                limits.JobMemoryLimit = (nuint)options.MemoryLimitMegabytes * 1024 * 1024;
+            }
             if (!SetInformationJobObject(job, JobObjectExtendedLimitInformationClass, ref limits, Marshal.SizeOf<JobObjectExtendedLimitInformation>())) { var error = Marshal.GetLastWin32Error(); CloseHandle(job); throw new Win32Exception(error); }
-            Process? process = null;
+            var startup = new StartupInfo { Size = (uint)Marshal.SizeOf<StartupInfo>() };
+            var commandLine = new System.Text.StringBuilder("\"" + path + "\" " + arguments);
+            if (!CreateProcessW(null, commandLine, 0, 0, false, CreateSuspended | CreateNoWindow, 0, Path.GetDirectoryName(path)!, ref startup, out var created)) { var error = Marshal.GetLastWin32Error(); CloseHandle(job); throw new Win32Exception(error); }
             try
             {
-                process = Process.Start(new ProcessStartInfo(path, arguments) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(path)! }) ?? throw new InvalidOperationException("the auxiliary process did not start");
-                if (!AssignProcessToJobObject(job, process.Handle)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (!AssignProcessToJobObject(job, created.Process)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (ResumeThread(created.Thread) == uint.MaxValue) throw new Win32Exception(Marshal.GetLastWin32Error());
+                var process = Process.GetProcessById((int)created.ProcessId);
                 return new AuxiliaryProcess(process, job);
             }
             catch
             {
-                try { process?.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
-                process?.Dispose(); CloseHandle(job);
+                TerminateProcess(created.Process, 1);
+                CloseHandle(job);
                 throw;
             }
+            finally { CloseHandle(created.Thread); CloseHandle(created.Process); }
         }
 
         public void Dispose()
@@ -113,7 +161,14 @@ internal sealed class PluginModuleEnvironment : IModuleHostEnvironment
             CloseHandle(job);
         }
 
-        private const uint JobObjectLimitKillOnJobClose = 0x2000;
+        private const uint JobObjectLimitKillOnJobClose = 0x2000, JobObjectLimitPriorityClass = 0x20, JobObjectLimitJobMemory = 0x200;
+        private const uint BelowNormalPriorityClass = 0x4000, IdlePriorityClass = 0x40, CreateSuspended = 0x4, CreateNoWindow = 0x08000000;
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct StartupInfo { public uint Size; public string? Reserved, Desktop, Title; public uint X, Y, XSize, YSize, XCountChars, YCountChars, FillAttribute, Flags; public ushort ShowWindow, Reserved2; public nint Reserved2Pointer, StdInput, StdOutput, StdError; }
+        [StructLayout(LayoutKind.Sequential)] private struct ProcessInformation { public nint Process, Thread; public uint ProcessId, ThreadId; }
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] private static extern bool CreateProcessW(string? application, System.Text.StringBuilder commandLine, nint processAttributes, nint threadAttributes, bool inheritHandles, uint flags, nint environment, string? currentDirectory, ref StartupInfo startup, out ProcessInformation information);
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern uint ResumeThread(nint thread);
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern bool TerminateProcess(nint process, uint exitCode);
         private const int JobObjectExtendedLimitInformationClass = 9;
         [StructLayout(LayoutKind.Sequential)] private struct JobObjectBasicLimitInformation { public long PerProcessUserTimeLimit; public long PerJobUserTimeLimit; public uint LimitFlags; public nuint MinimumWorkingSetSize; public nuint MaximumWorkingSetSize; public uint ActiveProcessLimit; public nuint Affinity; public uint PriorityClass; public uint SchedulingClass; }
         [StructLayout(LayoutKind.Sequential)] private struct IoCounters { public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount; }

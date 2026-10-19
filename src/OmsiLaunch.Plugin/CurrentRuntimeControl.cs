@@ -76,6 +76,68 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
     [System.Runtime.InteropServices.DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
     private static extern int NativeRequestCooperativeExit();
 
+    // ---- native pause menu (capability ui.pause-menu.replace; see NativeBoundary.cpp).
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeUiState { public int Status; public uint Paused, NativeMenuVisible, MainFormReady, InFrame, TakenOver, Busy, PendingAction, LastAction, LastResult; }
+
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeUiPauseState(out NativeUiState state);
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeUiPauseTakeOver();
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeUiPauseRestoreNative();
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeUiPauseAction(int action);
+
+    private static readonly string[] PauseActions = { "", "resume", "new-game", "save", "options", "quit" };
+    private static readonly string[] PauseResults = { "none", "resumed", "game-started", "returned", "quit-requested", "exception", "refused" };
+
+    private static IReadOnlyDictionary<string, string> ReadPauseState()
+    {
+        if (NativeUiPauseState(out var state) != 0) throw new RuntimeOperationException(PublicErrorCodes.RUNTIME_OPERATION_UNAVAILABLE, "OMSI's pause menu is not available.");
+        string Flag(uint value) => value != 0 ? "true" : "false";
+        return new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["paused"] = Flag(state.Paused), ["native_menu_visible"] = Flag(state.NativeMenuVisible), ["main_form_ready"] = Flag(state.MainFormReady),
+            ["in_frame"] = Flag(state.InFrame), ["taken_over"] = Flag(state.TakenOver), ["busy"] = Flag(state.Busy),
+            ["pending_action"] = state.PendingAction < PauseActions.Length ? PauseActions[state.PendingAction] : "",
+            ["last_action"] = state.LastAction < PauseActions.Length ? PauseActions[state.LastAction] : "",
+            ["last_result"] = state.LastResult < PauseResults.Length ? PauseResults[state.LastResult] : "none",
+        };
+    }
+
+    private static RuntimeOperationException PauseFailure(int status, string what) => status switch
+    {
+        2 => new RuntimeOperationException(PublicErrorCodes.UI_NOT_PAUSED, what + ": OMSI is not paused or its pause menu is not shown."),
+        3 => new RuntimeOperationException(PublicErrorCodes.UI_BUSY, what + ": a pause menu action is running, or this is inside OMSI's frame."),
+        4 => new RuntimeOperationException(PublicErrorCodes.UI_ALREADY_TAKEN_OVER, what + ": the native pause menu is already taken over."),
+        5 => new RuntimeOperationException(PublicErrorCodes.RUNTIME_OPERATION_FAILED, what + ": the VCL raised an exception."),
+        _ => new RuntimeOperationException(PublicErrorCodes.RUNTIME_OPERATION_UNAVAILABLE, what + ": OMSI's pause menu is not available."),
+    };
+
+    private static IReadOnlyDictionary<string, string> PauseTakeOver()
+    {
+        var status = NativeUiPauseTakeOver();
+        if (status != 0) throw PauseFailure(status, "ui.pause.take-over");
+        return ReadPauseState();
+    }
+
+    private static IReadOnlyDictionary<string, string> PauseRestoreNative()
+    {
+        var status = NativeUiPauseRestoreNative();
+        // 2: OMSI is not paused, so there is nothing to give back (the native menu was left or resumed).
+        if (status != 0 && status != 2) throw PauseFailure(status, "ui.pause.restore-native");
+        return ReadPauseState();
+    }
+
+    private static IReadOnlyDictionary<string, string> PauseAction(IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (arguments is null || !arguments.TryGetValue("action", out var name) || arguments.Count != 1) throw new InvalidOperationException("OL_E_RUNTIME_ARGUMENT_REQUIRED");
+        var action = Array.IndexOf(PauseActions, name);
+        if (action < 1) throw new ArgumentException("OL_E_RUNTIME_VALUE_INVALID", "action");
+        var status = NativeUiPauseAction(action);
+        if (status != 0) throw PauseFailure(status, "ui.pause.action");
+        // The handler runs from a one-shot timer after this answer; the outcome is in ui.pause.state.
+        var result = new Dictionary<string, string>(ReadPauseState(), StringComparer.Ordinal) { ["scheduled"] = "true", ["action"] = name };
+        return result;
+    }
+
     private RuntimeCommandResult ExecuteOperation(RuntimeCommand command)
     {
         // Per-capability gate: an operation whose native targets were not
@@ -99,6 +161,10 @@ internal sealed class CurrentRuntimeControl : IPluginRuntimeControl
                 "weather.actual.read" => readers.ReadActualWeatherAsync().AsTask().GetAwaiter().GetResult(),
                 "camera.read" => readers.ReadCameraAsync().AsTask().GetAwaiter().GetResult(),
                 "camera.set" => SetCamera(command.Arguments),
+                "ui.pause.state" => ReadPauseState(),
+                "ui.pause.take-over" => PauseTakeOver(),
+                "ui.pause.restore-native" => PauseRestoreNative(),
+                "ui.pause.action" => PauseAction(command.Arguments),
                 "camera.lock" => LockCamera(command.Arguments),
                 "camera.unlock" => UnlockCamera(),
                 "d3d.status" => ReadD3DStatus(),

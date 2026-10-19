@@ -57,7 +57,7 @@ internal static class PluginNativeTargets
         uint T(string id) => resolved.TryGet(id, out var value) ? value : 0;
         return new NativeTargetTable
         {
-            Version = 2, Size = (uint)Marshal.SizeOf<NativeTargetTable>(), ImageBase = resolved.ImageBase, ImageEnd = resolved.ImageBase + resolved.ImageSize,
+            Version = 4, Size = (uint)Marshal.SizeOf<NativeTargetTable>(), ImageBase = resolved.ImageBase, ImageEnd = resolved.ImageBase + resolved.ImageSize,
             StartFormShow = T("start.FormShow"), StartFormHide = T("start.FormHide"), StartButton1Click = T("start.Button1Click"),
             StartSituationSelectionChanged = T("start.SituationSelectionChanged"), StartButtonDriverNewClick = T("start.ButtonDriverNewClick"),
             SetposFormShow = T("setpos.FormShow"), SetposButton1Click = T("setpos.Button1Click"),
@@ -97,6 +97,10 @@ internal static class PluginNativeTargets
             SlotTriggerXml = T("slot.TRoadVehicleInst.TriggerXML"), SlotSoundTrigger = T("slot.TRoadVehicleInst.SoundTrigger"),
             LoadWeather = T("weather.LoadWeather"), OActuWeatherActive = T("field.TActuWeather.Active"), OActuWeatherLastDownloaded = T("field.TActuWeather.LastDownloaded"),
             OActuWeatherInvalidIcao = T("field.TActuWeather.InvalidIcao"), OActuWeatherProcess = T("field.TActuWeather.Process"),
+            GMenu2Form = T("global.Menu2Form"), VmtMenu2 = T("vmt.Tform_menu2"), VmtMainForm = T("vmt.TForm_main"), TCustomFormShow = T("vcl.TCustomForm.Show"),
+            Menu2Panel1Click = T("menu2.Panel1Click"), Menu2Panel2Click = T("menu2.Panel2Click"), Menu2Panel3Click = T("menu2.Panel3Click"), Menu2Panel4Click = T("menu2.Panel4Click"), Menu2Panel5Click = T("menu2.Panel5Click"),
+            OFormVisible = T("field.TCustomForm.Visible"), OMainInFrame = T("field.TForm_main.InIdleFrame"), OWinControlHandle = T("field.TWinControl.Handle"),
+            OMenu2Panel1 = T("field.Tform_menu2.Panel1"), OMenu2Panel2 = T("field.Tform_menu2.Panel2"), OMenu2Panel3 = T("field.Tform_menu2.Panel3"), OMenu2Panel4 = T("field.Tform_menu2.Panel4"), OMenu2Panel5 = T("field.Tform_menu2.Panel5"),
         };
     }
 
@@ -131,6 +135,10 @@ internal static class PluginNativeTargets
         public uint VmtRoadVehicleInst, SetStringVariable, TriggerXml, SoundTrigger, SlotTriggerXml, SlotSoundTrigger;
         // Start weather.
         public uint LoadWeather, OActuWeatherActive, OActuWeatherLastDownloaded, OActuWeatherInvalidIcao, OActuWeatherProcess;
+        // Version 3: the native pause menu (take-over, panel handlers).
+        public uint GMenu2Form, VmtMenu2, VmtMainForm, TCustomFormShow;
+        public uint Menu2Panel1Click, Menu2Panel2Click, Menu2Panel3Click, Menu2Panel4Click, Menu2Panel5Click;
+        public uint OFormVisible, OMainInFrame, OWinControlHandle, OMenu2Panel1, OMenu2Panel2, OMenu2Panel3, OMenu2Panel4, OMenu2Panel5;
     }
 
     [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)] private static extern int NativeConfigureTargets(ref NativeTargetTable table);

@@ -538,6 +538,15 @@ extern "C" __declspec(dllexport) int __cdecl NativeHookSiteOwner(int id, wchar_t
     return OL_HOOK_OK;
 }
 
+// Is this pointer the game's own Direct3D 9 device? The pointer is only
+// compared. 1 yes, 0 another device (the vehicle selection form creates one),
+// OL_HOOK_E_NO_DEVICE when no device is observed yet.
+extern "C" __declspec(dllexport) int __cdecl NativeIsGameDevice(const void* device) {
+    auto* current = HookCurrentD3DDevice();
+    if (current == nullptr) return OL_HOOK_E_NO_DEVICE;
+    return device == current ? 1 : 0;
+}
+
 // Diagnostics: the module that owns a method of the live Direct3D 9 device.
 extern "C" __declspec(dllexport) int __cdecl NativeHookD3DSlotOwner(int slotIndex, wchar_t* name, int capacity) {
     if (slotIndex < 0 || slotIndex > 118) return OL_HOOK_E_ARGUMENT;
