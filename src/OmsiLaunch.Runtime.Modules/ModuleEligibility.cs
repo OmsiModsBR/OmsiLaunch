@@ -118,12 +118,15 @@ public static class ModuleEligibility
             var failure = CheckBinding(binding, installationRoot, sessionMapIdentity);
             if (failure is not null) return Rejected(manifest.Id, manifest, requested, activation, PublicErrorCodes.MODULE_CONTENT_BINDING, failure);
         }
+        // A required content input must exist for the session's map (when known).
+        if (sessionMapIdentity is not null && manifest.EffectiveContentInputs.Any(x => x.Required && x.Kind == ModuleContentInputKind.RealmapPackage) && !RealmapPackage.Locate(installationRoot, sessionMapIdentity).Found)
+            return Rejected(manifest.Id, manifest, requested, activation, PublicErrorCodes.MODULE_CONTENT_BINDING, "the module requires the " + RealmapPackage.FolderName + " package of " + sessionMapIdentity + ", which the map does not have");
         foreach (var plugin in manifest.EffectiveConflictingPlugins)
             if (activePlugins.TryGetValue(plugin, out var opl))
                 return Rejected(manifest.Id, manifest, requested, activation, PublicErrorCodes.MODULE_CONFLICT, opl + " loads " + plugin + ", which must not run next to this module; remove or switch off that plugin");
         var settings = ModuleSettings.Resolve(manifest, requestedSettings, fileSettings, problems)
             .Select(x => new PlannedModuleSetting(x.Key, x.Value, ModuleSettings.SourceName(x.Source))).ToArray();
-        return new(manifest.Id, manifest.Version, PlannedModule.Eligible, requested, Policy(manifest.FailurePolicy), Operations(manifest), ManifestSha256: module.ManifestSha256, Activation: activation, Settings: settings);
+        return new(manifest.Id, manifest.Version, PlannedModule.Eligible, requested, Policy(manifest.FailurePolicy), Operations(manifest), ManifestSha256: module.ManifestSha256, Activation: activation, Settings: settings, RuntimeOperations: RuntimeOperations(manifest), TickMilliseconds: manifest.TickMilliseconds, SnapshotSha256: module.SnapshotSha256);
     }
 
     // Null when the binding holds: the session runs the bound map and every
@@ -162,6 +165,9 @@ public static class ModuleEligibility
         _ => PlannedModule.ActivationRequested
     };
 
+    // The in-process catalog operations, each with its mutation policy when it changes OMSI.
+    private static IReadOnlyList<string> RuntimeOperations(ModuleManifest manifest) => manifest.EffectiveRuntimeOperations
+        .Select(x => PublicCapabilityRegistry.TryGetOperation(x, out _, out var descriptor) && descriptor.MutationPolicy != PublicMutationPolicy.None ? x + " (" + descriptor.MutationPolicy + ")" : x).ToArray();
     private static IReadOnlyList<string> Operations(ModuleManifest manifest) => manifest.Operations.Select(x => manifest.OperationName(x.Id)).ToArray();
     private static PlannedModule Rejected(string id, ModuleManifest? manifest, bool requested, string activation, string code, string reason) =>
         new(id, manifest?.Version ?? "", PlannedModule.Rejected, requested, manifest is null ? "disable-module" : Policy(manifest.FailurePolicy), Array.Empty<string>(), code, reason, Activation: activation);

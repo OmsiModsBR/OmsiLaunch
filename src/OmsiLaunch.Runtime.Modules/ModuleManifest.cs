@@ -16,8 +16,20 @@ public enum ModuleFailurePolicy : byte { FailSession, DisableModule, Degrade }
 public enum ModuleComponentKind : byte { Managed, Native, Auxiliary, Host }
 public enum ModuleSettingType : byte { Boolean, Integer, Choice, Text }
 
-public sealed record ModuleFileReference(string Path, string Sha256);
-public sealed record ModuleComponent(ModuleComponentKind Kind, string Path, string Sha256, string? Entry);
+// Sha256 is null for a file the author did not pin (bridge protocol 3): it is
+// then covered by the plan-time snapshot only (see ModuleCatalog.Snapshot).
+public sealed record ModuleFileReference(string Path, string? Sha256);
+// Priority and MemoryLimitMegabytes apply to an auxiliary program only (bridge
+// protocol 3): the job object the bridge puts it in carries them from the
+// first instruction, because the program is created suspended.
+public enum ModuleAuxiliaryPriority : byte { Normal, BelowNormal, Idle }
+public sealed record ModuleComponent(ModuleComponentKind Kind, string Path, string? Sha256, string? Entry, ModuleAuxiliaryPriority Priority = ModuleAuxiliaryPriority.Normal, int MemoryLimitMegabytes = 0)
+{
+    // True when the manifest sets an auxiliary option (a protocol 3 feature).
+    public bool HasAuxiliaryOptions => Priority != ModuleAuxiliaryPriority.Normal || MemoryLimitMegabytes != 0;
+}
+// What the plugin gives the bridge when it starts an auxiliary program.
+public sealed record ModuleAuxiliaryOptions(ModuleAuxiliaryPriority Priority = ModuleAuxiliaryPriority.Normal, int MemoryLimitMegabytes = 0);
 public sealed record ModuleContentBinding(string Map, IReadOnlyList<ModuleFileReference> Files);
 public sealed record ModuleOperationArgument(string Name, bool Required);
 public sealed record ModuleOperationDescriptor(string Id, PublicCapabilityKind Kind, IReadOnlyList<ModuleOperationArgument> Arguments, int TimeoutMilliseconds);
@@ -48,16 +60,28 @@ public sealed record ModuleManifest(
     ModuleTimeouts Timeouts,
     bool Trace,
     IReadOnlyList<ModuleSettingDescriptor>? Settings = null,
-    IReadOnlyList<string>? ConflictingPlugins = null)
+    IReadOnlyList<string>? ConflictingPlugins = null,
+    IReadOnlyList<string>? RuntimeOperations = null,
+    int TickMilliseconds = 0,
+    IReadOnlyList<ModuleContentInput>? ContentInputs = null)
 {
+    // Community content the module reads, located by the bridge (protocol 3).
+    public IReadOnlyList<ModuleContentInput> EffectiveContentInputs => ContentInputs ?? Array.Empty<ModuleContentInput>();
+    // Catalog operations the module runs in process (bridge protocol 3,
+    // capability bridge.runtime); none unless declared.
+    public IReadOnlyList<string> EffectiveRuntimeOperations => RuntimeOperations ?? Array.Empty<string>();
+    // The tick interval (bridge protocol 3, capability bridge.tick); 0 = no tick.
     public ModuleComponent ManagedComponent => Components.Single(x => x.Kind == ModuleComponentKind.Managed);
     public ModuleComponent? HostComponent => Components.FirstOrDefault(x => x.Kind == ModuleComponentKind.Host);
     public IReadOnlyList<ModuleSettingDescriptor> EffectiveSettings => Settings ?? Array.Empty<ModuleSettingDescriptor>();
     // OMSI plugin DLLs (plugins\*.opl) that must not run next to this module,
     // for example an older plugin that installs the same hooks.
     public IReadOnlyList<string> EffectiveConflictingPlugins => ConflictingPlugins ?? Array.Empty<string>();
-    // Every file the manifest pins, relative to the module directory.
-    public IEnumerable<ModuleFileReference> PinnedFiles => Components.Select(x => new ModuleFileReference(x.Path, x.Sha256)).Concat(Assets);
+    // Every file the manifest names (components and assets), relative to the
+    // module directory, pinned or not.
+    public IEnumerable<ModuleFileReference> NamedFiles => Components.Select(x => new ModuleFileReference(x.Path, x.Sha256)).Concat(Assets);
+    // The named files the author pinned with a SHA-256.
+    public IEnumerable<ModuleFileReference> PinnedFiles => NamedFiles.Where(x => x.Sha256 is not null);
     public string OperationName(string operation) => RuntimeModuleProtocol.OperationPrefix + Id + "." + operation;
 }
 
@@ -72,7 +96,9 @@ public static class RuntimeModuleProtocol
     public const string Schema = "omsilaunch.runtime-module/v1";
     // The bridge protocol this build implements, and the oldest one it still
     // serves. Protocol 2 adds settings, default activation and plugin conflicts.
-    public const int BridgeProtocol = 2;
+    // Protocol 3 adds runtime_operations (catalog operations in process), the
+    // tick, the OMSI version value and the other additions of the Beta 5 contract.
+    public const int BridgeProtocol = 3;
     public const int MinimumBridgeProtocol = 1;
     public static bool IsCompatible(int min, int max) => min <= BridgeProtocol && max >= MinimumBridgeProtocol;
     public const string ManifestFileName = "module.json";
@@ -85,10 +111,17 @@ public static class RuntimeModuleProtocol
     public const string OperationPrefix = "module.";
     // Capabilities the bridge itself provides to every module, next to the
     // native capabilities of the native target catalog.
-    public static readonly IReadOnlySet<string> BridgeFeatures = new HashSet<string>(StringComparer.Ordinal) { "bridge.events", "bridge.background-threads", "bridge.auxiliary-processes", "bridge.hooks.iat", "bridge.hooks.d3d9" };
+    public static readonly IReadOnlySet<string> BridgeFeatures = new HashSet<string>(StringComparer.Ordinal) { "bridge.events", "bridge.background-threads", "bridge.auxiliary-processes", "bridge.hooks.iat", "bridge.hooks.d3d9", "bridge.runtime", "bridge.tick", "bridge.input" };
     // A bridge feature that also needs a native capability of the build.
-    public static readonly IReadOnlyDictionary<string, string> BridgeFeatureNeeds = new Dictionary<string, string>(StringComparer.Ordinal) { ["bridge.hooks.d3d9"] = "d3d.texture" };
+    public static readonly IReadOnlyDictionary<string, string> BridgeFeatureNeeds = new Dictionary<string, string>(StringComparer.Ordinal) { ["bridge.hooks.d3d9"] = "d3d.texture", ["bridge.input"] = "ui.input.capture" };
     public const int MaxTimeoutMilliseconds = 30_000;
+    // The plugin's UI timer runs every 50 ms during a session; a tick interval
+    // is a whole number of those.
+    public const int TickGranularityMilliseconds = 50;
+    public const int MaxTickMilliseconds = 1_000;
+    // A result of a catalog operation executed in process is bounded like a
+    // module's own results, so one call cannot stall the UI thread's copy.
+    public const int MaxRuntimeResultBytes = 1024 * 1024;
     public const int DefaultPhaseTimeoutMilliseconds = 5_000;
     public const int DefaultOperationTimeoutMilliseconds = 2_000;
     public const int DefaultPrepareMilliseconds = 120_000;
@@ -124,7 +157,7 @@ public static class RuntimeModuleProtocol
 
 public static class ModuleManifestParser
 {
-    private static readonly HashSet<string> RootKeys = new(StringComparer.Ordinal) { "schema", "id", "version", "name", "bridge_protocol", "activation", "required_capabilities", "optional_capabilities", "content_binding", "assets", "components", "failure_policy", "operations", "timeouts", "diagnostics", "settings", "conflicts" };
+    private static readonly HashSet<string> RootKeys = new(StringComparer.Ordinal) { "schema", "id", "version", "name", "bridge_protocol", "activation", "required_capabilities", "optional_capabilities", "content_binding", "assets", "components", "failure_policy", "operations", "timeouts", "diagnostics", "settings", "conflicts", "runtime_operations", "tick_ms", "content_inputs" };
     private static readonly HashSet<string> SettingKeys = new(StringComparer.Ordinal) { "key", "type", "default", "auto", "min", "max", "choices", "max_length", "flag", "description" };
     private static readonly Regex VersionPattern = new(@"^\d{1,5}\.\d{1,5}\.\d{1,5}(-[0-9A-Za-z.-]{1,32})?$", RegexOptions.CultureInvariant);
     private static readonly Regex CapabilityPattern = new("^[a-z0-9][a-z0-9.-]{0,63}$", RegexOptions.CultureInvariant);
@@ -170,12 +203,12 @@ public static class ModuleManifestParser
                 foreach (var property in bindingElement.EnumerateObject()) if (property.Name is not "map" and not "files") throw Invalid("unknown key 'content_binding." + property.Name + "'");
                 var map = Text(bindingElement, "map").Replace('/', '\\');
                 if (!map.StartsWith(@"maps\", StringComparison.OrdinalIgnoreCase) || !map.EndsWith(@"\global.cfg", StringComparison.OrdinalIgnoreCase) || !IsRelative(map)) throw Invalid(@"content_binding.map must be maps\<folder>\global.cfg");
-                binding = new(map, Files(bindingElement, "files"));
+                binding = new(map, Files(bindingElement, "files", pinRequired: true));
             }
             else if (activation == ModuleActivation.Content) throw Invalid("activation content requires content_binding");
             // A default module joins every session; a binding would contradict that.
             if (activation == ModuleActivation.Default && binding is not null) throw Invalid("activation default cannot have a content_binding (use activation content)");
-            var assets = Files(root, "assets");
+            var assets = Files(root, "assets", pinRequired: false);
             var components = Components(root);
             var policy = Text(root, "failure_policy") switch
             {
@@ -203,6 +236,18 @@ public static class ModuleManifestParser
             }
             var settings = Settings(root);
             var conflicts = Conflicts(root);
+            var runtimeOperations = RuntimeOperationList(root);
+            var contentInputs = ContentInputList(root);
+            var tick = 0;
+            if (root.TryGetProperty("tick_ms", out _))
+            {
+                tick = Integer(root, "tick_ms", RuntimeModuleProtocol.TickGranularityMilliseconds, RuntimeModuleProtocol.MaxTickMilliseconds);
+                if (tick % RuntimeModuleProtocol.TickGranularityMilliseconds != 0) throw Invalid("tick_ms must be a multiple of " + RuntimeModuleProtocol.TickGranularityMilliseconds);
+            }
+            // The capabilities are declared like every other bridge feature.
+            bool Declares(string capability) => required.Contains(capability) || optional.Contains(capability);
+            if (runtimeOperations.Count != 0 && !Declares("bridge.runtime")) throw Invalid("runtime_operations needs the bridge.runtime capability");
+            if (tick != 0 && !Declares("bridge.tick")) throw Invalid("tick_ms needs the bridge.tick capability");
             // Protocol 2 features: a bridge that speaks only protocol 1 would
             // reject them as unknown keys, so the module must say it needs 2.
             var protocol2 = new List<string>();
@@ -212,11 +257,54 @@ public static class ModuleManifestParser
             if (components.Any(x => x.Kind == ModuleComponentKind.Host)) protocol2.Add("a host component");
             if (root.TryGetProperty("timeouts", out var hostTimeouts) && (hostTimeouts.TryGetProperty("prepare_ms", out _) || hostTimeouts.TryGetProperty("host_stop_ms", out _))) protocol2.Add("host timeouts");
             if (protocol2.Count != 0 && min < 2) throw Invalid(string.Join(", ", protocol2) + " need bridge_protocol.min 2");
+            // Protocol 3 features: the same rule, one level up.
+            var protocol3 = new List<string>();
+            if (runtimeOperations.Count != 0) protocol3.Add("runtime_operations");
+            if (tick != 0) protocol3.Add("tick_ms");
+            if (Declares("bridge.runtime") || Declares("bridge.tick") || Declares("bridge.input")) protocol3.Add("a protocol 3 bridge capability");
+            if (components.Any(x => x.HasAuxiliaryOptions)) protocol3.Add("auxiliary priority or memory_limit_mb");
+            if (contentInputs.Count != 0) protocol3.Add("content_inputs");
+            if (components.Any(x => x.Sha256 is null) || assets.Any(x => x.Sha256 is null)) protocol3.Add("a component or asset without a sha256");
+            if (protocol3.Count != 0 && min < 3) throw Invalid(string.Join(", ", protocol3) + " need bridge_protocol.min 3");
             var pinned = components.Select(x => x.Path).Concat(assets.Select(x => x.Path)).ToArray();
             if (pinned.Distinct(StringComparer.OrdinalIgnoreCase).Count() != pinned.Length) throw Invalid("a file is pinned twice");
             if (pinned.Any(x => x.Equals(RuntimeModuleProtocol.ManifestFileName, StringComparison.OrdinalIgnoreCase))) throw Invalid("module.json cannot pin itself");
-            return new(id, version, name, min, max, activation, required, optional, binding, assets, components, policy, operations, timeouts, trace, settings, conflicts);
+            return new(id, version, name, min, max, activation, required, optional, binding, assets, components, policy, operations, timeouts, trace, settings, conflicts, runtimeOperations, tick, contentInputs);
         }
+    }
+
+    // content_inputs: community content the module reads (bridge protocol 3),
+    // for example the openomsi-realmap package of a map. Informative: there is
+    // no hash, because the content is made after the module.
+    private static IReadOnlyList<ModuleContentInput> ContentInputList(JsonElement root)
+    {
+        var list = new List<ModuleContentInput>();
+        foreach (var element in Array(root, "content_inputs", required: false))
+        {
+            if (element.ValueKind != JsonValueKind.Object) throw Invalid("a content input is not an object");
+            foreach (var property in element.EnumerateObject()) if (property.Name is not "kind" and not "required") throw Invalid("unknown key 'content_inputs." + property.Name + "'");
+            var kind = Text(element, "kind") switch
+            {
+                "realmap-package" => ModuleContentInputKind.RealmapPackage,
+                var other => throw Invalid("content input kind '" + other + "' is not realmap-package")
+            };
+            var required = element.TryGetProperty("required", out var requiredElement) && (requiredElement.ValueKind == JsonValueKind.True || (requiredElement.ValueKind == JsonValueKind.False ? false : throw Invalid("content_inputs.required is not a boolean")));
+            list.Add(new(kind, required));
+        }
+        if (list.Select(x => x.Kind).Distinct().Count() != list.Count) throw Invalid("content_inputs repeats a kind");
+        return list;
+    }
+
+    // runtime_operations: ids of public operations of the capability catalog.
+    // internal.* and module.* operations are never available to a module.
+    private static IReadOnlyList<string> RuntimeOperationList(JsonElement root)
+    {
+        var operations = Array(root, "runtime_operations", required: false).Select(x => x.ValueKind == JsonValueKind.String ? x.GetString()! : throw Invalid("runtime_operations must contain strings")).ToArray();
+        foreach (var operation in operations)
+            if (operation.StartsWith("internal.", StringComparison.Ordinal) || operation.StartsWith(RuntimeModuleProtocol.OperationPrefix, StringComparison.Ordinal) || !PublicCapabilityRegistry.IsPublicRuntimeOperation(operation))
+                throw Invalid("runtime_operations entry '" + operation + "' is not a public operation of the capability catalog");
+        if (operations.Distinct(StringComparer.Ordinal).Count() != operations.Length) throw Invalid("runtime_operations repeats an operation");
+        return operations;
     }
 
     private static IReadOnlyList<ModuleComponent> Components(JsonElement root)
@@ -225,7 +313,7 @@ public static class ModuleManifestParser
         foreach (var element in Array(root, "components", required: true))
         {
             if (element.ValueKind != JsonValueKind.Object) throw Invalid("a component is not an object");
-            foreach (var property in element.EnumerateObject()) if (property.Name is not "kind" and not "path" and not "sha256" and not "entry") throw Invalid("unknown key 'components." + property.Name + "'");
+            foreach (var property in element.EnumerateObject()) if (property.Name is not "kind" and not "path" and not "sha256" and not "entry" and not "priority" and not "memory_limit_mb") throw Invalid("unknown key 'components." + property.Name + "'");
             var kind = Text(element, "kind") switch
             {
                 "managed" => ModuleComponentKind.Managed,
@@ -234,13 +322,26 @@ public static class ModuleManifestParser
                 "host" => ModuleComponentKind.Host,
                 var other => throw Invalid("component kind '" + other + "' is not managed, native, auxiliary or host")
             };
-            var file = File(element);
+            var file = File(element, pinRequired: false);
             var expectedExtension = kind is ModuleComponentKind.Auxiliary or ModuleComponentKind.Host ? ".exe" : ".dll";
             if (!file.Path.EndsWith(expectedExtension, StringComparison.OrdinalIgnoreCase)) throw Invalid(kind.ToString().ToLowerInvariant() + " component must be a " + expectedExtension + " file");
             var entry = OptionalText(element, "entry");
             if (kind == ModuleComponentKind.Managed && (entry is null || !Regex.IsMatch(entry, @"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$"))) throw Invalid("a managed component needs entry: the full name of its IRuntimeModule type");
             if (kind != ModuleComponentKind.Managed && entry is not null) throw Invalid("entry is only valid for a managed component");
-            list.Add(new(kind, file.Path, file.Sha256, entry));
+            var priority = ModuleAuxiliaryPriority.Normal; var memoryLimit = 0;
+            if (element.TryGetProperty("priority", out _) || element.TryGetProperty("memory_limit_mb", out _))
+            {
+                if (kind != ModuleComponentKind.Auxiliary) throw Invalid("priority and memory_limit_mb are only valid for an auxiliary component");
+                priority = OptionalText(element, "priority") switch
+                {
+                    null or "normal" => ModuleAuxiliaryPriority.Normal,
+                    "below-normal" => ModuleAuxiliaryPriority.BelowNormal,
+                    "idle" => ModuleAuxiliaryPriority.Idle,
+                    var other => throw Invalid("priority '" + other + "' is not normal, below-normal or idle")
+                };
+                if (element.TryGetProperty("memory_limit_mb", out _)) memoryLimit = Integer(element, "memory_limit_mb", 64, 65_536);
+            }
+            list.Add(new(kind, file.Path, file.Sha256, entry, priority, memoryLimit));
         }
         if (list.Count(x => x.Kind == ModuleComponentKind.Managed) != 1) throw Invalid("exactly one managed component is required");
         if (list.Count(x => x.Kind == ModuleComponentKind.Native) > 1) throw Invalid("at most one native component is allowed");
@@ -354,25 +455,27 @@ public static class ModuleManifestParser
         return plugins;
     }
 
-    private static IReadOnlyList<ModuleFileReference> Files(JsonElement parent, string key)
+    private static IReadOnlyList<ModuleFileReference> Files(JsonElement parent, string key, bool pinRequired)
     {
         var list = new List<ModuleFileReference>();
         foreach (var element in Array(parent, key, required: false))
         {
             if (element.ValueKind != JsonValueKind.Object) throw Invalid(key + " entry is not an object");
             foreach (var property in element.EnumerateObject()) if (property.Name is not "path" and not "sha256") throw Invalid("unknown key '" + key + "." + property.Name + "'");
-            list.Add(File(element));
+            list.Add(File(element, pinRequired));
         }
         return list;
     }
 
-    private static ModuleFileReference File(JsonElement element)
+    // pinRequired false (components and assets, bridge protocol 3): the sha256
+    // may be left out; when it is written it must be well formed.
+    private static ModuleFileReference File(JsonElement element, bool pinRequired = true)
     {
         var path = Text(element, "path").Replace('/', '\\');
         if (!IsRelative(path)) throw Invalid("path '" + path + "' must be relative without '..'");
-        var sha256 = Text(element, "sha256");
-        if (sha256.Length != 64 || !sha256.All(Uri.IsHexDigit)) throw Invalid("sha256 of '" + path + "' is not 64 hexadecimal digits");
-        return new(path, sha256.ToUpperInvariant());
+        var sha256 = pinRequired || element.TryGetProperty("sha256", out _) ? Text(element, "sha256") : null;
+        if (sha256 is not null && (sha256.Length != 64 || !sha256.All(Uri.IsHexDigit))) throw Invalid("sha256 of '" + path + "' is not 64 hexadecimal digits");
+        return new(path, sha256?.ToUpperInvariant());
     }
 
     internal static bool IsRelative(string path) =>

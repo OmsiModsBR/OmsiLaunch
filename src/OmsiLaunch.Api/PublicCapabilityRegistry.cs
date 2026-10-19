@@ -156,6 +156,16 @@ public static class PublicCapabilityRegistry
             Operations: new[] { Op("camera.read", "camera.read", "camera get") }),
         new("camera.set", "camera", Experimental, PublicCapabilityKind.Write, true, true, "runtime.camera.set", "camera set", Runtime, "Set supported camera scalars such as FOV.",
             Operations: new[] { Mutates(OmsiState, Op("camera.set", "camera.set", "camera set")) }),
+        new("ui.pause", "ui", Experimental, PublicCapabilityKind.Action, true, true, "runtime.ui.pause", "ui pause-state | ui pause-take-over | ui pause-restore | ui pause-action --action=<resume|new-game|save|options|quit>", PublicEvidence.RuntimeValidationRequired,
+            "Take over OMSI's native pause menu: hide it through the VCL while OMSI stays paused, call its own actions, give it back.",
+            Operations: new[]
+            {
+                Op("ui.pause.state", "ui.pause-menu.replace", "ui pause-state"),
+                Mutates(OmsiState, Op("ui.pause.take-over", "ui.pause-menu.replace", "ui pause-take-over")),
+                Mutates(OmsiState, Op("ui.pause.restore-native", "ui.pause-menu.replace", "ui pause-restore")),
+                Mutates(OmsiState, Op("ui.pause.action", "ui.pause-menu.replace", "ui pause-action", "action", "resume, new-game, save, options or quit: the native pause menu's own action; it runs after this answer and its outcome is in ui.pause.state.")),
+            },
+            EvidenceNote: "Beta 5: statically validated design (research beta4-static pause-menu-and-input.md); the native calls are not yet observed in a real session."),
         new("camera.lock", "camera", Experimental, PublicCapabilityKind.Action, true, true, "runtime.camera.lock", "camera lock --family=<0..3> [--preset=<n>]", Runtime, "Session-scoped camera-family policy; optional driver/passenger preset while preserving head-look and FOV.",
             Operations: new[] { Mutates(SessionPolicy, Op("camera.lock", "camera.lock", "camera lock", "family", "Camera family: driver=0, passenger=1, external=2, map=3.")), Mutates(SessionPolicy, Op("camera.unlock", "camera.lock", "camera unlock")) },
             EvidenceNote: "Needs a PlayerVehicle (a saved situation provides one); OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE on a headless NEW_MAP."),

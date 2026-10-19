@@ -1,6 +1,6 @@
 # Capacidades
 
-<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+<!-- l10n: source=reference/capabilities.md source-sha256=e6d9d063c2365c007efc79c0057a4843d1f91b88ba68448cc8b8d7579308de23 -->
 > Tradução da [página original em inglês](../../../reference/capabilities.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: em caso de divergência, prevalecem a página em inglês e o código.
 
 Esta página documenta o que o OmsiLaunch consegue fazer. A sua fonte é o catálogo canónico de capacidades, `PublicCapabilityRegistry` (`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`): cada capacidade, cada operação de runtime pública com os seus argumentos, rotas da CLI e capacidade nativa, e um estado de evidência por capacidade são declarados aí uma única vez. O conjunto de operações de runtime, a validação de argumentos, as rotas de comando da CLI, o gate nativo por operação do plugin, `GetCapabilitiesAsync` e a [tabela do catálogo](#capability-catalog) abaixo derivam dele. Para cada operação de runtime, a página indica os argumentos, as chaves de resultado e os erros. Como invocar uma operação (rotas da CLI, envelope da API, timeouts, handles) está em [controlo de runtime](runtime-control.md); a evidência por sessão está em [estado da validação em runtime](../status/runtime-validation-status.md).
@@ -112,6 +112,7 @@ Uma operação que altera algo indica a sua política de mutação a seguir ao s
 | `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
 | `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
 | `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | Precisa de um PlayerVehicle (uma situação guardada fornece um); OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE num NEW_MAP headless. |
+| `ui.pause` | `PublicExperimental` | Action | Running | `ui.pause.state`, `ui.pause.take-over` (omsi-state), `ui.pause.restore-native` (omsi-state), `ui.pause.action` (omsi-state) | `ui.pause-menu.replace` | RUNTIME_VALIDATION_REQUIRED | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action --action=<resume|new-game|save|options|quit>` | Beta 5: desenho validado estaticamente (research beta4-static pause-menu-and-input.md); as chamadas nativas ainda não foram observadas numa sessão real. |
 | `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` (paged) | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
 | `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | A deteção de obsolescência após remoção natural (RV-002) não tem produtor seguro em runtime e é validada offline. |
 | `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
@@ -195,6 +196,18 @@ Esta é a lista exata de ids de operação que um frontend público pode reencam
 | `camera.set` | Write | opcionais `family` (0..3), `field_of_view` (10..170); pelo menos um | as chaves de `camera.read` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` |
 | `camera.lock` | Action | obrigatório `family` (0..3); opcional `preset` (0..255, apenas com a família 0 ou 1) | `locked` (`true`), `family`, `preset`, `head_look` (`preserved`), `field_of_view` (`preserved`) | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`, `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`. A política é reaplicada a cada 100 ms até `camera.unlock`; uma reaplicação falhada emite o evento `camera.lock.degraded` uma vez por cada erro distinto. |
 | `camera.unlock` | Action | nenhum | `locked` (`false`) | |
+
+<a id="user-interface-pause-menu"></a>
+### Interface do utilizador (menu de pausa)
+
+Assumir o menu de pausa nativo do OMSI para um menu próprio de um módulo (capacidade `ui.pause-menu.replace`, resolvida apenas numa identidade de código conhecida). O byte de pausa do próprio OMSI continua definido, pelo que a simulação, a renderização, os cliques 3D e os comandos DirectInput continuam retidos; o formulário nativo é ocultado através da VCL e as suas ações são chamadas diretamente (sem clique, sem mensagem enviada, sem janela movida). `ui.pause.action` executa o handler nativo a partir de um timer de thread de UI de disparo único depois de a sua resposta ser enviada, porque o handler pode entrar numa caixa de diálogo modal nativa: ler o resultado em `ui.pause.state` (`busy` `false`, depois `last_result`).
+
+| Operação | Tipo | Argumentos | Chaves de resultado | Erros |
+| --- | --- | --- | --- | --- |
+| `ui.pause.state` | Read | nenhum | `paused`, `native_menu_visible`, `main_form_ready`, `in_frame`, `taken_over`, `busy`, `pending_action`, `last_action`, `last_result` (`none`, `resumed`, `game-started`, `returned`, `quit-requested`, `exception`, `refused`) | `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.take-over` | Action | nenhum | as chaves de `ui.pause.state` após o take-over | `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_UI_ALREADY_TAKEN_OVER`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.restore-native` | Action | nenhum | as chaves de `ui.pause.state`; mostra de novo o menu nativo (o seu próprio `FormShow` é executado: o OMSI continua em pausa) | `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.action` | Action | obrigatório `action`: `resume`, `new-game`, `save`, `options` ou `quit` | as chaves de `ui.pause.state` mais `scheduled` (`true`) e `action` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
 
 <a id="road-vehicles-and-player"></a>
 ### Veículos rodoviários e jogador

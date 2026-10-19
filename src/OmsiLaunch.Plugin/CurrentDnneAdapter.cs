@@ -31,7 +31,8 @@ public static class CurrentDnneAdapter
         try { CurrentTelemetrySink.Emit("native.capabilities", PluginNativeTargets.Report(PluginNativeTargets.Resolve())); }
         catch (Exception exception) { CurrentTelemetrySink.Emit("native.resolution.failed", new Dictionary<string, string> { ["detail"] = exception.Message }); }
         var root = PluginModuleEnvironment.InstallationRoot();
-        runtime = new PluginRuntime(new NativeServices(), CurrentTelemetrySink.Emit, new CurrentRuntimeControl(), handoff => new Runtime.Modules.ModuleHost(new PluginModuleEnvironment(handoff)), root);
+        var control = new CurrentRuntimeControl();
+        runtime = new PluginRuntime(new NativeServices(), CurrentTelemetrySink.Emit, control, handoff => new Runtime.Modules.ModuleHost(new PluginModuleEnvironment(handoff, null, control)), root);
         if (string.Equals(Environment.GetEnvironmentVariable("OMSILAUNCH_INTERNET_TEXTURES_MODE"), "Disabled", StringComparison.OrdinalIgnoreCase))
         {
             if (!PluginNativeTargets.IsAvailable("internet-textures.disabled"))

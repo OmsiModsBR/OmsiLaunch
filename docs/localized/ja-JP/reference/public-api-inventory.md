@@ -1,6 +1,6 @@
 # 公開 API インベントリ
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=1038165496fa7e22c0b936388cb2dde7b90ed33b193b8f77d462d10d9eff149a -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/public-api-inventory.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、コンパイル済みアセンブリから `tests/OmsiLaunch.DocumentationTests` によって生成されます（`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`）。コードと一致しなくなると、ドキュメントのチェックが失敗します。`OmsiLaunch.Api`、`OmsiLaunch.Core`、`OmsiLaunch.Process` がエクスポートするすべての型について、その安定性とすべての public メンバーのシグネチャを記載しています。セマンティクス、前提条件、エラー、使用例は、各見出しに示したページに記載されています（既定: [公開 API](public-api.md)）。安定性の区分: `STABLE_BETA`、`EXPERIMENTAL`、`PARTIAL`、`INTERNAL`（技術的な理由で public になっているもので、統合用のインターフェイスではありません）、`UNAVAILABLE`（[公開 API](public-api.md#stability-vocabulary) を参照）。コンパイラが生成する record のメンバー（`Equals`、`GetHashCode`、`ToString`、`Deconstruct`、`<Clone>$`、`EqualityContract`）は省略しています。
@@ -429,7 +429,7 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| コンストラクター | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null, IReadOnlyList<string> RuntimeOperations = null, int TickMilliseconds = 0, string SnapshotSha256 = null)` |
 | 定数 | `string Eligible = "ELIGIBLE"` |
 | 定数 | `string Rejected = "REJECTED"` |
 | 定数 | `string ActivationRequested = "requested"` |
@@ -447,8 +447,12 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 | プロパティ | `string ManifestSha256 { get; init; }` |
 | プロパティ | `string Activation { get; init; }` |
 | プロパティ | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| プロパティ | `IReadOnlyList<string> RuntimeOperations { get; init; }` |
+| プロパティ | `int TickMilliseconds { get; init; }` |
+| プロパティ | `string SnapshotSha256 { get; init; }` |
 | プロパティ | `bool IsEligible { get; }` |
 | プロパティ | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+| プロパティ | `IReadOnlyList<string> EffectiveRuntimeOperations { get; }` |
 
 ### `PlannedModuleSetting`
 
@@ -736,6 +740,12 @@ static クラス（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンテ
 | 定数 | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
 | 定数 | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
 | 定数 | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
+| 定数 | `string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED"` |
+| 定数 | `string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED"` |
+| 定数 | `string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID"` |
+| 定数 | `string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED"` |
+| 定数 | `string UI_BUSY = "OL_E_UI_BUSY"` |
+| 定数 | `string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER"` |
 | 定数 | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | 定数 | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | 定数 | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -1201,7 +1211,7 @@ static クラス（`OmsiLaunch.Api`）。安定性: `INTERNAL`。セマンティ
 | メンバー | シグネチャ |
 | --- | --- |
 | 定数 | `uint Magic = 1330402120` |
-| 定数 | `ushort Version = 7` |
+| 定数 | `ushort Version = 8` |
 | 定数 | `int MaxModules = 64` |
 | static メソッド | `byte[] Serialize(StartupHandoff value)` |
 | static メソッド | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
@@ -1212,10 +1222,11 @@ sealed record（`OmsiLaunch.Api`）。安定性: `STABLE_BETA`。セマンティ
 
 | メンバー | シグネチャ |
 | --- | --- |
-| コンストラクター | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| コンストラクター | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "")` |
 | プロパティ | `string RelativeDirectory { get; init; }` |
 | プロパティ | `string ManifestSha256 { get; init; }` |
 | プロパティ | `string Settings { get; init; }` |
+| プロパティ | `string SnapshotSha256 { get; init; }` |
 
 ### `TelemetryRingWire`
 

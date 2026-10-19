@@ -1,6 +1,6 @@
 # 錯誤碼與診斷碼
 
-<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+<!-- l10n: source=reference/errors.md source-sha256=a3335bf22fcb58419c25d20745f040077113f1db8f973e0cb47d0469e852c5f9 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/errors.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁是 `PublicErrorCodes`（`src/OmsiLaunch.Api/PublicErrorCodes.cs`）中每個代碼的規範性參考：共 167 個 `OL_E_` 錯誤碼與 4 個 `OL_W_` 警告，依目錄類別分組，另外列出不屬於錯誤的資訊性診斷碼。對每個代碼，本頁說明目前程式碼在何處引發它、其意義、它以何種方式傳達給您（擲回的例外、結果欄位、診斷訊息、控制平面回覆或 CLI 封套），以及應採取的處置。各項意義取自實際引發位置；若某代碼已定義但目前沒有任何引發路徑，本頁會明確註明。
@@ -258,6 +258,16 @@
 | `OL_E_RESTORE_DEFERRED` | `OmsiLaunchService`（啟動失敗／監督程式） | 無法確認 OMSI 已結束，因此在它可能仍使用這些檔案時不會取代檔案；日誌會保留。 | 工作階段診斷訊息（`Failed`） | 在 `Omsi.exe` 結束後執行 `/recover`（或由下一次啟動自動復原）。 |
 | `OL_E_RESTORE_FAILED` | `OmsiLaunchService`（啟動失敗／監督程式） | `RestoreAsync` 擲回例外；訊息帶有內部代碼；日誌會保留。 | 工作階段診斷訊息（`Failed`）；從 `/recover` 擲回時 CLI 結束代碼 8 | 依內部代碼處置，然後執行 `/recover`。 |
 
+## Ui
+
+原生暫停選單操作（`ui.pause.*`）的代碼。
+
+| 代碼 | 引發位置 | 意義／典型原因 | 呈現方式 | 處置 |
+| --- | --- | --- | --- | --- |
+| `OL_E_UI_NOT_PAUSED` | `CurrentRuntimeControl` | 該操作（接管、動作）需要 OMSI 處於暫停且顯示其原生暫停選單，但目前並非如此。 | 執行階段結果 | 等到使用者暫停 OMSI 為止。 |
+| `OL_E_UI_BUSY` | `CurrentRuntimeControl` | 暫停選單動作已排程或正在執行（可能停留在原生強制回應對話方塊中），或呼叫是在 OMSI 的訊框內抵達。 | 執行階段結果 | 輪詢 `ui.pause.state` 直到 `busy` 為 `false`，然後重試。 |
+| `OL_E_UI_ALREADY_TAKEN_OVER` | `CurrentRuntimeControl` | 原生暫停選單已被接管時又呼叫 `ui.pause.take-over`。 | 執行階段結果 | 使用 `ui.pause.state`，或先執行 `ui.pause.restore-native`。 |
+
 ## Warning
 
 | 代碼 | 引發位置 | 意義 | 呈現方式 | 處置 |
@@ -293,6 +303,9 @@
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | `failure_policy` 為 `fail-session` 的模組失敗；工作階段被停止並還原。 | 工作階段診斷訊息（狀態 `Failed`） | 請參閱前面的模組代碼。 |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`、`ModuleSettings`、CLI | 被要求的模組設定無效或模組未宣告它、某個模組同時被啟用與停用、設定名稱不是 `<module-id>.<key>`，或某個模組旗標由多個模組宣告。 | 計畫診斷訊息（不可執行）；CLI 錯誤 | 修正要求；`/list:RuntimeModules` 會顯示每個模組的設定。 |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`、`ModuleHost` | 模組在 `conflicts.plugins` 下列出的某個 OMSI 外掛程式已啟用（`plugins\*.opl`），或已在 OMSI 中載入。原因會指出該 `.opl`。 | 計畫診斷訊息；工作階段診斷訊息 | 停用或移除該外掛程式。OmsiLaunch 絕不會變更它。 |
+| `OL_E_MODULE_OPERATION_NOT_DECLARED` | `ModuleHost` | 模組要求在處理程序內執行某個目錄操作（`IRuntimeModuleContext.Runtime`、原生 `run_operation`），但其資訊清單的 `runtime_operations` 並未列出該操作。此呼叫不會抵達 OMSI。 | 執行階段結果 | 在 `runtime_operations` 中列出該操作（需要 `bridge.runtime` 與 `bridge_protocol.min` 3）。 |
+| `OL_E_MODULE_CONTENT_INPUT_UNDECLARED` | `ModuleHost` | 模組要求定位某種社群內容（`IRuntimeModuleContext.Content`），但其資訊清單未在 `content_inputs` 中宣告該種類。 | 內容結果 | 在 `content_inputs` 中宣告該種類。 |
+| `OL_E_MODULE_CONTENT_INPUT_INVALID` | `RealmapPackage` | 無法安全讀取該地圖的 `openomsi-realmap` 套件：它是經由重新分析點到達、內含重新分析點、檔案超過 50,000 個或大於 4 GiB，或無法讀取。 | 內容結果 | 修復或重新產生該套件；模組會依資源降級。 |
 | `OL_E_MODULE_HOOK_UNAVAILABLE` | 保留 | 保留；原生元件改為接收[執行階段模組](runtime-modules.md#native-components-and-hooks)中所述的數值 hook 結果。 | 無 | 無 |
 
 <a id="non-error-diagnostic-codes"></a>

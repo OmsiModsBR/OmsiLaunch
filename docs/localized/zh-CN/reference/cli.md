@@ -1,6 +1,6 @@
 # CLI 参考
 
-<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+<!-- l10n: source=reference/cli.md source-sha256=cb5d0ea7b7ffe1315a6690239af6e0ae85d483e06995f7092e4d92cb75af3737 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/cli.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页是 OmsiLaunch `0.1.0-beta4` 命令行完整的规范性参考：三个可执行文件、参数语法、分派顺序、每个命令词、每条层级路由、每个参数、输出信封（envelope）以及每个命令的错误行为。本页依据 `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs` 以及 `tools\OmsiLaunch.Bootstrapper` 下的两个原生 shim 生成。进程结果列于[退出码](exit-codes.md)；错误码见[错误](errors.md)；完整调用示例见 [CLI 示例](cli-examples.md)。
@@ -94,6 +94,7 @@
 | `weather` | `weather get`、`weather set`、`weather metar set`、`weather actual get` | 客户端路由 | |
 | `map` | `map get` | 客户端路由 | |
 | `camera` | `camera get`、`camera set`、`camera lock`、`camera unlock` | 客户端路由 | |
+| `ui` | `ui pause-state`、`ui pause-take-over`、`ui pause-restore`、`ui pause-action` | 客户端路由 | |
 | `vehicles` | `vehicles list`、`vehicles get`、`vehicles summary`、`vehicles spawn`、`vehicles place-random` | 客户端路由 | |
 | `player` | `player get` | 客户端路由 | |
 | `humans` | `humans list`、`humans get`、`humans summary` | 客户端路由 | |
@@ -124,6 +125,10 @@
 | `camera set` | `camera.set` | Write | 是 | 是（摄像机标量，例如 `--field_of_view=`） | 无，不撤销 | EXPERIMENTAL | FOV 写入/回读已验证。 |
 | `camera lock` | `camera.lock` | Action | 是 | 是（会话范围的策略） | 无 | EXPERIMENTAL | 需要 `--family=<0..3>`（driver=0、passenger=1、external=2、map=3），可选 `--preset=<n>`（族 0 或 1）。需要玩家车辆（例如已保存情景）。已在运行时闭包中经运行时验证（`CAM01`）；注册表的 `RuntimeValidation` 字符串仍为 `STATICALLY_VALIDATED`（见[能力](capabilities.md)）。 |
 | `camera unlock` | `camera.unlock` | Action | 是 | 是 | 无 | EXPERIMENTAL | 解除 `camera lock` 设置的策略（`CAM01`）。 |
+| `ui pause-state` | `ui.pause.state` | Read | 是 | 否 | 无 | EXPERIMENTAL | OMSI 的暂停字节以及原生暂停菜单的状态。 |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | 是 | 是（通过 VCL 隐藏原生暂停菜单；OMSI 保持暂停） | 无，不撤销 | EXPERIMENTAL | 需要 OMSI 处于暂停状态且显示菜单。尚未在真实会话中观察到。 |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | 是 | 是（再次显示原生暂停菜单） | 无 | EXPERIMENTAL | 将原生菜单交还。 |
+| `ui pause-action` | `ui.pause.action` | Action | 是 | 是（原生菜单自身的操作） | 无，不撤销 | EXPERIMENTAL | 需要 `--action=<resume|new-game|save|options|quit>`；在应答之后运行，请通过 `ui pause-state` 读取结果。 |
 | `vehicles list` | `road-vehicles.list` | Read | 是 | 否 | 无 | STABLE_BETA | 返回会话范围的 `rv-NNNNNN` 句柄。 |
 | `vehicles get` | `road-vehicle.read` | Read | 是 | 否 | 无 | STABLE_BETA | 需要 `--handle=`。失效句柄：`OL_E_RUNTIME_OBJECT_HANDLE_STALE`。 |
 | `vehicles summary` | `road-vehicles.read` | Read | 是 | 否 | 无 | STABLE_BETA | 计数和玩家状态，不含句柄。 |
@@ -319,6 +324,8 @@
 | `/recovery-status` | `/recovery-status` | 关 | 本地 | STABLE_BETA | 报告 `<root>\.omsilaunch\journal.json` 是否处于待处理状态（`pending`），从不还原；退出码 `0`。会获取安装租约：所有者持有租约时返回 `OL_E_INSTALLATION_BUSY`（退出码 `7`）。 |
 | `/recover` | `/recover` | 关 | 本地 | STABLE_BETA | 还原待处理的事务日志（journal）（先依据快照 SHA-256 校验备份；`OL_E_RECOVERY_BACKUP_CORRUPT`、`OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`、`OL_W_RESTORE_FOREIGN_FILE_RETAINED` 在 `diagnostics` 中报告）。没有待处理内容或还原完成时退出码 `0`；存在待处理事务日志且仍未处理时为 `8`。当事务日志中记录的 OMSI 进程（PID、创建时间、exe 路径）仍存活时，或者对于已越过 `HandoffCreated` 但没有 PID 的事务日志、该根目录下的任何 `Omsi.exe` 仍存活时，以 `OL_E_INSTALLATION_BUSY` 拒绝。每次会话启动都会在读取安装实例之前自动执行相同的恢复。 |
 | `/clear-module-data` | `/clear-module-data:<module id>` | 无 | 本地，无会话 | EXPERIMENTAL | 删除模块的数据目录 `<root>\.omsilaunch\module-data\<id>`，且不删除其他任何内容；信封 `module-data.clear`，包含 `module` 和 `cleared`（没有可删除内容时为 `false`）；退出码 `0`。会获取安装租约：会话拥有该安装实例期间为 `OL_E_INSTALLATION_BUSY`（退出码 `7`）。通过链接访问的模块数据文件夹会被拒绝（`OL_E_MODULE_INTEGRITY`）；其中的链接会按链接被移除。 |
+| `/pack-module` | `/pack-module:<module directory>` | 无 | 本地，无会话 | EXPERIMENTAL | 写入该目录的 `module.json` 所列文件（组件和资源）的 SHA-256 固定值，且仅改写这些值；信封 `module.pack`（`module`、`directory`、`written`、`intact`、`files`）；退出码 `0`，清单无法解析或文件缺失时为 `2`。从不触及任何安装实例。参见[打包模块](runtime-modules.md#packing-a-module)。 |
+| `/verify-module` | `/verify-module:<module directory>` | 无 | 本地，无会话 | EXPERIMENTAL | 报告相同内容但不写入（`module.verify`）；每个已固定的文件都匹配时退出码为 `0`（没有固定值的文件不算不匹配），固定值不匹配时为 `7`，清单无法解析或文件缺失时为 `2`。 |
 
 <a id="output-formats"></a>
 ## 输出格式

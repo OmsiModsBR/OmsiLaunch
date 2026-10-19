@@ -1,6 +1,6 @@
 # Fout- en diagnosecodes
 
-<!-- l10n: source=reference/errors.md source-sha256=2eb8a7ca44e6cc4c5e7dfa9a3a10ba77477f2cf007719bb7b99c0136ef6339c4 -->
+<!-- l10n: source=reference/errors.md source-sha256=a3335bf22fcb58419c25d20745f040077113f1db8f973e0cb47d0469e852c5f9 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/errors.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina is de normatieve referentie voor elke code in `PublicErrorCodes` (`src/OmsiLaunch.Api/PublicErrorCodes.cs`): 167 `OL_E_`-foutcodes en 4 `OL_W_`-waarschuwingen, gegroepeerd per catalogus-categorie, plus de informatieve diagnosecodes die geen fouten zijn. Per code staat beschreven waar de huidige code hem genereert, wat hij betekent, hoe hij bij je terechtkomt (gegooide exceptie, resultaatveld, diagnosemelding, antwoord van het control plane of CLI-envelope) en wat je moet doen. De betekenissen zijn afgeleid van de plaatsen waar de code wordt gegenereerd; waar een code wel gedefinieerd is maar momenteel door geen enkel pad wordt gegenereerd, vermeldt de pagina dat.
@@ -265,6 +265,16 @@ Zie [transacties en recovery](../concepts/transactions-and-recovery.md).
 | `OL_E_RESTORE_DEFERRED` | `OmsiLaunchService` (startfout / supervisor) | Het afsluiten van OMSI kon niet worden bevestigd, dus zijn bestanden niet vervangen zolang OMSI ze mogelijk nog gebruikt; het journal blijft behouden. | Sessiediagnose (`Failed`) | Voer `/recover` uit nadat `Omsi.exe` is afgesloten (of laat de volgende start het herstel automatisch uitvoeren). |
 | `OL_E_RESTORE_FAILED` | `OmsiLaunchService` (startfout / supervisor) | `RestoreAsync` gooide een exceptie; het bericht bevat de binnenste code; het journal blijft behouden. | Sessiediagnose (`Failed`); CLI exit 8 wanneer gegooid vanuit `/recover` | Handel op basis van de binnenste code en voer daarna `/recover` uit. |
 
+## Ui
+
+Codes van de operaties van het native pauzemenu (`ui.pause.*`).
+
+| Code | Gegenereerd door | Betekenis | Kanaal | Wat te doen |
+| --- | --- | --- | --- | --- |
+| `OL_E_UI_NOT_PAUSED` | `CurrentRuntimeControl` | De operatie vereist dat OMSI gepauzeerd is met het native pauzemenu zichtbaar (overname, actie), en dat is niet zo. | Runtimeresultaat | Wacht tot de gebruiker OMSI heeft gepauzeerd. |
+| `OL_E_UI_BUSY` | `CurrentRuntimeControl` | Een actie van het pauzemenu is ingepland of wordt uitgevoerd (ze kan in een native modaal dialoogvenster staan), of de aanroep kwam binnen het frame van OMSI. | Runtimeresultaat | Poll `ui.pause.state` totdat `busy` `false` is en probeer het opnieuw. |
+| `OL_E_UI_ALREADY_TAKEN_OVER` | `CurrentRuntimeControl` | `ui.pause.take-over` terwijl het native pauzemenu al is overgenomen. | Runtimeresultaat | Gebruik `ui.pause.state`, of eerst `ui.pause.restore-native`. |
+
 <a id="warning"></a>
 ## Waarschuwing
 
@@ -301,6 +311,9 @@ Runtimemodules (zie [runtimemodules](runtime-modules.md)). Bij het plannen is ee
 | `OL_E_MODULE_SESSION_FAILED` | `OmsiLaunchService` | Een module waarvan de `failure_policy` `fail-session` is, is mislukt; de sessie wordt gestopt en hersteld. | Sessiediagnose (status `Failed`) | Zie de voorafgaande modulecode. |
 | `OL_E_MODULE_SETTING_INVALID` | `ModuleEligibility`, `ModuleSettings`, CLI | Een aangevraagde moduleinstelling is ongeldig of niet door de module gedeclareerd, een module is zowel ingeschakeld als uitgeschakeld, een instellingsnaam heeft niet de vorm `<module-id>.<key>`, of een modulevlag wordt door meerdere modules gedeclareerd. | Plandiagnose (niet uitvoerbaar); CLI-fout | Corrigeer de aanvraag; `/list:RuntimeModules` toont de instellingen van elke module. |
 | `OL_E_MODULE_CONFLICT` | `ModuleEligibility`, `ModuleHost` | Een OMSI-plugin die de module onder `conflicts.plugins` vermeldt, is ingeschakeld (`plugins\*.opl`) of in OMSI geladen. De reden noemt de `.opl`. | Plandiagnose; sessiediagnose | Schakel die plugin uit of verwijder haar. OmsiLaunch wijzigt haar nooit. |
+| `OL_E_MODULE_OPERATION_NOT_DECLARED` | `ModuleHost` | Een module vroeg om een catalogusoperatie in het proces uit te voeren (`IRuntimeModuleContext.Runtime`, native `run_operation`) die zijn manifest niet in `runtime_operations` noemt. De aanroep bereikt OMSI nooit. | Runtimeresultaat | Noem de operatie in `runtime_operations` (vereist `bridge.runtime` en `bridge_protocol.min` 3). |
+| `OL_E_MODULE_CONTENT_INPUT_UNDECLARED` | `ModuleHost` | Een module vroeg om communitycontent (`IRuntimeModuleContext.Content`) te lokaliseren van een soort die zijn manifest niet in `content_inputs` declareert. | Contextresultaat | Declareer de soort in `content_inputs`. |
+| `OL_E_MODULE_CONTENT_INPUT_INVALID` | `RealmapPackage` | Het pakket `openomsi-realmap` van de kaart kan niet veilig worden gelezen: het wordt via een reparsepunt bereikt, bevat er een, heeft meer dan 50.000 bestanden of is groter dan 4 GiB, of kan niet worden gelezen. | Contextresultaat | Herstel of regenereer het pakket; de module degradeert per resource. |
 | `OL_E_MODULE_HOOK_UNAVAILABLE` | gereserveerd | Gereserveerd; een native component ontvangt in plaats daarvan de numerieke hookresultaten die in [runtimemodules](runtime-modules.md#native-components-and-hooks) zijn beschreven. | geen | geen |
 
 <a id="non-error-diagnostic-codes"></a>

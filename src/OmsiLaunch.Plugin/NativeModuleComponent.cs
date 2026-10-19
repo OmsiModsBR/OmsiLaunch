@@ -29,17 +29,25 @@ internal sealed unsafe class NativeModuleComponent : IModuleNativeComponent
         public delegate* unmanaged[Cdecl]<nint, byte*, byte*, int> Emit;
         // Bridge protocol 2 (the table grew; a component checks size first).
         public delegate* unmanaged[Cdecl]<nint, byte*, byte*, uint, uint*, int> GetValue;
+        // Bridge protocol 3: run_operation(context, operation, arguments_json, out, capacity, length).
+        public delegate* unmanaged[Cdecl]<nint, byte*, byte*, byte*, uint, uint*, int> RunOperation;
+        // Bridge protocol 3: d3d_is_game_device(context, device).
+        public delegate* unmanaged[Cdecl]<nint, nint, int> D3DIsGameDevice;
     }
 
     private readonly ModuleManifest manifest;
     private readonly Action<string, IReadOnlyDictionary<string, string>> emit;
     private readonly Func<string, string?> values;
+    private readonly Func<string, IReadOnlyDictionary<string, string>?, ModuleCallResult> runtime;
     private readonly string owner;
     private nint library;
     private Bridge* bridge;
     private GCHandle self;
     private delegate* unmanaged[Cdecl]<Bridge*, int> gameplayReady;
     private delegate* unmanaged[Cdecl]<void> stop;
+    // Bridge protocol 3 exports (both optional).
+    private delegate* unmanaged[Cdecl]<Bridge*, uint, int> tick;
+    private delegate* unmanaged[Cdecl]<Bridge*, byte*, byte*, byte*, uint, uint*, int> execute;
     private bool hooksAllowed;
     private bool disposed;
     // Set once stop was called: late bridge calls are refused or ignored.
@@ -48,20 +56,22 @@ internal sealed unsafe class NativeModuleComponent : IModuleNativeComponent
     // cleanup report.
     private readonly List<(int Id, string Target)> installed = new();
 
-    private NativeModuleComponent(ModuleManifest manifest, Action<string, IReadOnlyDictionary<string, string>> emit, Func<string, string?> values)
+    private NativeModuleComponent(ModuleManifest manifest, Action<string, IReadOnlyDictionary<string, string>> emit, Func<string, string?> values, Func<string, IReadOnlyDictionary<string, string>?, ModuleCallResult> runtime)
     {
-        this.manifest = manifest; this.emit = emit; this.values = values; owner = "module:" + manifest.Id;
+        this.manifest = manifest; this.emit = emit; this.values = values; this.runtime = runtime; owner = "module:" + manifest.Id;
     }
 
-    public static NativeModuleComponent Start(ModuleManifest manifest, string path, Action<string, IReadOnlyDictionary<string, string>> emit, Func<string, string?>? values = null)
+    public static NativeModuleComponent Start(ModuleManifest manifest, string path, Action<string, IReadOnlyDictionary<string, string>> emit, Func<string, string?>? values = null, Func<string, IReadOnlyDictionary<string, string>?, ModuleCallResult>? runtime = null)
     {
-        var component = new NativeModuleComponent(manifest, emit, values ?? (_ => null));
+        var component = new NativeModuleComponent(manifest, emit, values ?? (_ => null), runtime ?? ((_, _) => new ModuleCallResult(false, PublicErrorCodes.RUNTIME_OPERATION_UNKNOWN, new Dictionary<string, string>(StringComparer.Ordinal))));
         try
         {
             component.library = NativeLibrary.Load(path);
             var start = (delegate* unmanaged[Cdecl]<Bridge*, int>)NativeLibrary.GetExport(component.library, "omsilaunch_module_native_v1_start");
             component.stop = (delegate* unmanaged[Cdecl]<void>)NativeLibrary.GetExport(component.library, "omsilaunch_module_native_v1_stop");
             component.gameplayReady = NativeLibrary.TryGetExport(component.library, "omsilaunch_module_native_v1_gameplay_ready", out var ready) ? (delegate* unmanaged[Cdecl]<Bridge*, int>)ready : null;
+            component.tick = NativeLibrary.TryGetExport(component.library, "omsilaunch_module_native_v1_tick", out var tickExport) ? (delegate* unmanaged[Cdecl]<Bridge*, uint, int>)tickExport : null;
+            component.execute = NativeLibrary.TryGetExport(component.library, "omsilaunch_module_native_v1_execute", out var executeExport) ? (delegate* unmanaged[Cdecl]<Bridge*, byte*, byte*, byte*, uint, uint*, int>)executeExport : null;
             component.self = GCHandle.Alloc(component);
             component.bridge = (Bridge*)NativeMemory.AllocZeroed((nuint)sizeof(Bridge));
             component.bridge->Size = (uint)sizeof(Bridge);
@@ -70,6 +80,8 @@ internal sealed unsafe class NativeModuleComponent : IModuleNativeComponent
             component.bridge->RequestHook = &RequestHook;
             component.bridge->Emit = &EmitEvent;
             component.bridge->GetValue = &GetValue;
+            component.bridge->RunOperation = &RunOperation;
+            component.bridge->D3DIsGameDevice = &D3DIsGameDevice;
             component.hooksAllowed = true;
             int result;
             try { result = start(component.bridge); }
@@ -95,6 +107,40 @@ internal sealed unsafe class NativeModuleComponent : IModuleNativeComponent
         try { result = gameplayReady(bridge); }
         finally { hooksAllowed = false; }
         if (result != 0) throw new ModuleOperationException(PublicErrorCodes.MODULE_PHASE_FAILED, "the native component's gameplay_ready returned " + result.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    public bool HasTick => tick != null && !disposed;
+    public bool HasExecute => execute != null && !disposed;
+
+    // A non-zero result fails the tick like any other phase of the module.
+    public void Tick(uint elapsedMilliseconds)
+    {
+        if (tick == null || disposed) return;
+        var result = tick(bridge, elapsedMilliseconds);
+        if (result != 0) throw new ModuleOperationException(PublicErrorCodes.MODULE_PHASE_FAILED, "the native component's tick returned " + result.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    // execute(bridge, operation, arguments_json, out, capacity, length): the
+    // component answers JSON; 12 means the buffer was too small (length says
+    // how much), so the call is repeated once with a buffer that fits.
+    public string? Execute(string operation, string argumentsJson)
+    {
+        if (execute == null || disposed) return null;
+        var operationBytes = Encoding.UTF8.GetBytes(operation + "\0");
+        var argumentBytes = Encoding.UTF8.GetBytes(argumentsJson + "\0");
+        var capacity = 4096u;
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var output = new byte[capacity];
+            uint length = 0;
+            int result;
+            fixed (byte* operationPointer = operationBytes) fixed (byte* argumentPointer = argumentBytes) fixed (byte* outputPointer = output)
+                result = execute(bridge, operationPointer, argumentPointer, outputPointer, capacity, &length);
+            if (result == 0) return Encoding.UTF8.GetString(output, 0, (int)Math.Min(length, capacity));
+            if (result == BufferTooSmall && attempt == 0 && length < RuntimeModuleProtocol.MaxRuntimeResultBytes) { capacity = length + 1; continue; }
+            throw new ModuleOperationException(PublicErrorCodes.MODULE_OPERATION_FAILED, "the native component's execute returned " + result.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        return null;
     }
 
     public void Dispose() => Release(callStop: true);
@@ -222,6 +268,51 @@ internal sealed unsafe class NativeModuleComponent : IModuleNativeComponent
         catch (Exception) { return HookArgument; }
     }
 
+    // d3d_is_game_device(context, device): 1 the game's own device, 0 another
+    // device, 10 no device observed yet, 11 capability not declared or after stop.
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static int D3DIsGameDevice(nint context, nint device)
+    {
+        try
+        {
+            if (From(context) is not { } component) return HookArgument;
+            if (component.released || !component.Declares("bridge.hooks.d3d9")) return HookNotAllowed;
+            return NativeIsGameDevice(device);
+        }
+        catch (Exception) { return HookArgument; }
+    }
+
+    // run_operation(context, operation, arguments_json, out, capacity, length):
+    // runs a catalog operation the manifest declares and writes the result as
+    // JSON {"succeeded":bool,"error_code":string|null,"values":{...}} (UTF-8,
+    // zero terminated). 0 = answered (the operation's own failure is inside the
+    // JSON), 1 argument, 11 after stop, 12 buffer too small (*length = needed).
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static int RunOperation(nint context, byte* operation, byte* argumentsJson, byte* buffer, uint capacity, uint* length)
+    {
+        try
+        {
+            if (From(context) is not { } component || operation == null || length == null) return HookArgument;
+            if (component.released) return HookNotAllowed;
+            var arguments = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (argumentsJson != null)
+            {
+                using var document = JsonDocument.Parse(Encoding.UTF8.GetBytes(Marshal.PtrToStringUTF8((nint)argumentsJson) ?? "{}"));
+                if (document.RootElement.ValueKind != JsonValueKind.Object) return HookArgument;
+                foreach (var property in document.RootElement.EnumerateObject()) arguments[property.Name] = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString()! : property.Value.GetRawText();
+            }
+            var result = component.runtime(Marshal.PtrToStringUTF8((nint)operation) ?? "", arguments);
+            var json = JsonSerializer.Serialize(new Dictionary<string, object?> { ["succeeded"] = result.Succeeded, ["error_code"] = result.ErrorCode, ["values"] = result.Values });
+            var bytes = Encoding.UTF8.GetBytes(json);
+            *length = (uint)bytes.Length;
+            if (buffer == null || capacity < (uint)bytes.Length + 1) return BufferTooSmall;
+            bytes.CopyTo(new Span<byte>(buffer, (int)capacity));
+            buffer[bytes.Length] = 0;
+            return HookOk;
+        }
+        catch (Exception) { return HookArgument; }
+    }
+
     [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
     private static extern int NativeHookInstallIat(string owner, [MarshalAs(UnmanagedType.LPWStr)] string? hostModule, string importModule, string function, nint detour, out nint original, out int id);
     [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
@@ -230,6 +321,8 @@ internal sealed unsafe class NativeModuleComponent : IModuleNativeComponent
     private static extern int NativeHookRemoveOwner(string owner, out int remaining);
     [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
     private static extern int NativeHookImportSlots([MarshalAs(UnmanagedType.LPWStr)] string? hostModule, string importModule, string function);
+    [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int NativeIsGameDevice(nint device);
     [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern int NativeHookVerify(int id);
     [DllImport("OmsiLaunch.Native.x86.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]

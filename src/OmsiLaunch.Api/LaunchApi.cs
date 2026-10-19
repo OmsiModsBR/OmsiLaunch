@@ -147,7 +147,7 @@ public sealed record RuntimeModulesSpec(IReadOnlyList<string> Enable, IReadOnlyL
 // Activation says why the module is in the plan: requested (LaunchSpec,
 // command line or session profile), settings-file, content or default.
 // Settings are the effective values of the settings the module declares.
-public sealed record PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string? Code = null, string? Reason = null, string? ManifestSha256 = null, string Activation = PlannedModule.ActivationRequested, IReadOnlyList<PlannedModuleSetting>? Settings = null)
+public sealed record PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string? Code = null, string? Reason = null, string? ManifestSha256 = null, string Activation = PlannedModule.ActivationRequested, IReadOnlyList<PlannedModuleSetting>? Settings = null, IReadOnlyList<string>? RuntimeOperations = null, int TickMilliseconds = 0, string? SnapshotSha256 = null)
 {
     public const string Eligible = "ELIGIBLE";
     public const string Rejected = "REJECTED";
@@ -157,6 +157,10 @@ public sealed record PlannedModule(string Id, string Version, string Status, boo
     public const string ActivationDefault = "default";
     public bool IsEligible => Status == Eligible;
     public IReadOnlyList<PlannedModuleSetting> EffectiveSettings => Settings ?? Array.Empty<PlannedModuleSetting>();
+    // Catalog operations the module runs in process (bridge protocol 3); one
+    // that changes OMSI's state carries its mutation policy, for example
+    // "camera.set (omsi-state)". TickMilliseconds is its tick interval (0 = none).
+    public IReadOnlyList<string> EffectiveRuntimeOperations => RuntimeOperations ?? Array.Empty<string>();
 }
 // One effective module setting. Source is request, settings-file or default.
 public sealed record PlannedModuleSetting(string Key, string Value, string Source);

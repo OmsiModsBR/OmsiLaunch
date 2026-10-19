@@ -1,6 +1,6 @@
 # ケイパビリティ
 
-<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+<!-- l10n: source=reference/capabilities.md source-sha256=e6d9d063c2365c007efc79c0057a4843d1f91b88ba68448cc8b8d7579308de23 -->
 > このページは OmsiLaunch 0.1.0-beta4 の[英語版の原文ページ](../../../reference/capabilities.md)の翻訳です。規範となるのは英語版です。内容が異なる場合は、英語版のページとコードが優先されます。
 
 このページは、OmsiLaunch で何ができるかを示します。その情報源は正規のケイパビリティカタログ `PublicCapabilityRegistry`（`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`）です。すべてのケイパビリティ、引数・CLI ルート・ネイティブケイパビリティを持つすべての公開ランタイム操作、およびケイパビリティごとの 1 つのエビデンス状態が、そこに一度だけ宣言されています。ランタイム操作の集合、引数の検証、CLI コマンドルート、プラグインの操作ごとのネイティブゲート、`GetCapabilitiesAsync`、および以下の[カタログ表](#capability-catalog)は、そこから導出されます。各ランタイム操作について、このページは引数、結果キー、エラーを示します。操作の呼び出し方法（CLI ルート、API エンベロープ、タイムアウト、ハンドル）は[ランタイム制御](runtime-control.md)に、セッションごとのエビデンスは[ランタイム検証の状況](../status/runtime-validation-status.md)に記載しています。
@@ -112,6 +112,7 @@
 | `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
 | `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
 | `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | PlayerVehicle が必要です（保存済みシチュエーションが提供します）。ヘッドレスの NEW_MAP では OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE。 |
+| `ui.pause` | `PublicExperimental` | Action | Running | `ui.pause.state`, `ui.pause.take-over` (omsi-state), `ui.pause.restore-native` (omsi-state), `ui.pause.action` (omsi-state) | `ui.pause-menu.replace` | RUNTIME_VALIDATION_REQUIRED | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action --action=<resume|new-game|save|options|quit>` | Beta 5: 静的に検証された設計（research beta4-static pause-menu-and-input.md）。ネイティブ呼び出しは実際のセッションではまだ観測されていません。 |
 | `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` （ページング対象） | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
 | `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | 自然な削除後の失効検出（RV-002）には安全なランタイム上の発生手段がなく、オフラインで検証されています。 |
 | `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
@@ -195,6 +196,18 @@
 | `camera.set` | Write | 省略可能な `family`（0..3）、`field_of_view`（10..170）。少なくとも 1 つ | `camera.read` のキー | `OL_E_RUNTIME_ARGUMENT_REQUIRED`、`OL_E_RUNTIME_VALUE_OUT_OF_RANGE` |
 | `camera.lock` | Action | 必須の `family`（0..3）。省略可能な `preset`（0..255、ファミリー 0 または 1 の場合のみ） | `locked`（`true`）、`family`、`preset`、`head_look`（`preserved`）、`field_of_view`（`preserved`） | `OL_E_RUNTIME_ARGUMENT_REQUIRED`、`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`、`OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`、`OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`。このポリシーは `camera.unlock` まで 100 ms ごとに再適用されます。再適用が失敗すると、異なるエラーごとに 1 回ずつイベント `camera.lock.degraded` が発行されます。 |
 | `camera.unlock` | Action | なし | `locked`（`false`） | |
+
+<a id="user-interface-pause-menu"></a>
+### ユーザーインターフェイス（ポーズメニュー）
+
+モジュール独自のメニューのために、OMSI のネイティブポーズメニューを引き継ぎます（ケイパビリティ `ui.pause-menu.replace`。既知のコード ID でのみ解決されます）。OMSI 自身のポーズバイトは設定されたままなので、シミュレーション、レンダリング、3D クリック、DirectInput コマンドは保持されたままです。ネイティブフォームは VCL を通じて非表示になり、そのアクションは直接呼び出されます（クリックなし、投稿メッセージなし、移動したウィンドウなし）。`ui.pause.action` は、ハンドラーがネイティブのモーダルダイアログに入ることがあるため、応答を送信した後に、1 回限りの UI スレッドタイマーからネイティブハンドラーを実行します。結果は `ui.pause.state` から読み取ってください（`busy` が `false` になり、その後 `last_result`）。
+
+| 操作 | 種類 | 引数 | 結果キー | エラー |
+| --- | --- | --- | --- | --- |
+| `ui.pause.state` | Read | なし | `paused`、`native_menu_visible`、`main_form_ready`、`in_frame`、`taken_over`、`busy`、`pending_action`、`last_action`、`last_result`（`none`、`resumed`、`game-started`、`returned`、`quit-requested`、`exception`、`refused`） | `OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.take-over` | Action | なし | 引き継ぎ後の `ui.pause.state` のキー | `OL_E_UI_NOT_PAUSED`、`OL_E_UI_BUSY`、`OL_E_UI_ALREADY_TAKEN_OVER`、`OL_E_RUNTIME_OPERATION_FAILED`、`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.restore-native` | Action | なし | `ui.pause.state` のキー。ネイティブメニューを再び表示します（その `FormShow` が実行されます。OMSI は一時停止のままです） | `OL_E_UI_BUSY`、`OL_E_RUNTIME_OPERATION_FAILED`、`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.action` | Action | 必須の `action`: `resume`、`new-game`、`save`、`options` または `quit` | `ui.pause.state` のキーに加えて `scheduled`（`true`）と `action` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`、`OL_E_RUNTIME_VALUE_INVALID`、`OL_E_UI_NOT_PAUSED`、`OL_E_UI_BUSY`、`OL_E_RUNTIME_OPERATION_FAILED`、`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
 
 <a id="road-vehicles-and-player"></a>
 ### 道路車両とプレイヤー

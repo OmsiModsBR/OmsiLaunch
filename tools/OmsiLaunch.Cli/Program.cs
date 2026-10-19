@@ -63,6 +63,31 @@ internal static class CliProgram
         if (input.Version) { CliInput.WriteEnvelope("version", new { product = "OmsiLaunch", version = ProductVersion, protocol_version = PublicCapabilityRegistry.ProtocolVersion, supported_family = SupportedFamily }, input.JsonOutput); return (int)PublicExitCode.Success; }
         if (input.Command is "capabilities") { CliInput.WriteEnvelope("capabilities", PublicCapabilityRegistry.All.Where(x => x.Classification is PublicCapabilityClassification.PublicStableBeta or PublicCapabilityClassification.PublicExperimental), input.JsonOutput); return (int)PublicExitCode.Success; }
         if (input.Command is "help") { CliInput.WriteEnvelope("help", CliInput.HelpFor(input.CommandWords.SingleOrDefault()), input.JsonOutput); return (int)PublicExitCode.Success; }
+        // Authoring helpers for community modules (bridge protocol 3). They read
+        // and write only the module directory they are given, never an installation.
+        if (input.PackModule is not null || input.VerifyModule is not null)
+        {
+            var packing = input.PackModule is not null;
+            var moduleDirectory = Path.GetFullPath(input.PackModule ?? input.VerifyModule!);
+            try
+            {
+                var packed = packing ? ModulePacker.Pack(moduleDirectory) : ModulePacker.Verify(moduleDirectory);
+                CliInput.WriteEnvelope(packing ? "module.pack" : "module.verify", new
+                {
+                    module = packed.ModuleId,
+                    directory = moduleDirectory,
+                    written = packed.Written,
+                    intact = packed.Intact,
+                    files = packed.Files.Select(x => new { path = x.Path, sha256 = x.Current, pinned = x.Previous is not null, mismatch = x.Mismatch, written = packing && x.NeedsWrite }).ToArray()
+                }, input.JsonOutput);
+                return packing || packed.Intact ? (int)PublicExitCode.Success : (int)PublicExitCode.OperationRejected;
+            }
+            catch (ModuleException exception)
+            {
+                CliInput.WriteError(packing ? "module.pack" : "module.verify", exception.Code, exception.Message, input.JsonOutput, PublicErrorCategory.InvalidArgument);
+                return (int)PublicExitCode.InvalidArguments;
+            }
+        }
         if (input.Command is "profiles")
         {
             // Compatibility is "OMSI 2 installed"; hashes are diagnostics and
@@ -371,7 +396,7 @@ internal sealed class CliInput
     // Runtime modules: /no-module, /module-setting and /clear-module-data. A
     // flag no built-in knows is kept here and resolved against the flags the
     // installed modules declare when a session is planned.
-    public List<string> DisabledModules { get; } = new(); public Dictionary<string, string> ModuleSettings { get; } = new(StringComparer.Ordinal); public string? ClearModuleData { get; private set; } public List<string> UnresolvedFlags { get; } = new();
+    public List<string> DisabledModules { get; } = new(); public Dictionary<string, string> ModuleSettings { get; } = new(StringComparer.Ordinal); public string? ClearModuleData { get; private set; } public string? PackModule { get; private set; } public string? VerifyModule { get; private set; } public List<string> UnresolvedFlags { get; } = new();
     public bool HasAutomaticStopPolicy => ObserveSeconds.HasValue;
 
     // Every accepted hierarchical command route and the runtime operation it
@@ -379,10 +404,10 @@ internal sealed class CliInput
     // Command route ("time get") -> runtime operation, from the canonical catalog.
     internal static readonly IReadOnlyDictionary<string, string> HierarchicalRoutes = PublicCapabilityRegistry.CliRoutes;
     // Every command word the parser accepts in the first position.
-    internal static readonly IReadOnlyList<string> CommandWordsAccepted = new[] { "capabilities", "profiles", "detect", "help", "session", "events", "time", "weather", "map", "camera", "vehicles", "player", "humans", "timetable", "scripts", "constants", "curves", "hof", "drivers", "tickets", "d3d" };
+    internal static readonly IReadOnlyList<string> CommandWordsAccepted = new[] { "capabilities", "profiles", "detect", "help", "session", "events", "time", "weather", "map", "camera", "vehicles", "player", "humans", "timetable", "scripts", "constants", "curves", "hof", "drivers", "tickets", "d3d", "ui" };
     // Every slash/dash flag the parser accepts (without value suffix), including
     // the compatibility flags that currently have no effect.
-    internal static readonly IReadOnlyList<string> KnownFlags = new[] { "?", "help", "version", "json", "quiet", "silent", "verbose", "serve", "log", "logall", "omsi-logall", "trace", "trace-process", "trace-plugin", "trace-native", "plan", "validate", "runtime-batch", "runtime-write-batch", "splash", "splash-language", "splash-assets", "internet-textures", "internet-textures-profile", "d3d-batch", "runtime", "runtime-arg", "new", "saved", "last", "map", "entrypoint", "entrypoint-index", "date", "time", "year", "weather", "weather-icao", "weather-real", "vehicle", "repaint", "hof", "fleet", "registration", "no-vehicle", "set", "predefined-profile", "predefined-profile-index", "hof-source", "hof-target", "hof-file", "hof-mode", "module", "no-module", "module-setting", "clear-module-data", "spec", "list", "vehicle-scope", "startup-timeout", "shutdown-timeout", "cooperative-shutdown", "observe-seconds", "recovery-status", "recover" };
+    internal static readonly IReadOnlyList<string> KnownFlags = new[] { "?", "help", "version", "json", "quiet", "silent", "verbose", "serve", "log", "logall", "omsi-logall", "trace", "trace-process", "trace-plugin", "trace-native", "plan", "validate", "runtime-batch", "runtime-write-batch", "splash", "splash-language", "splash-assets", "internet-textures", "internet-textures-profile", "d3d-batch", "runtime", "runtime-arg", "new", "saved", "last", "map", "entrypoint", "entrypoint-index", "date", "time", "year", "weather", "weather-icao", "weather-real", "vehicle", "repaint", "hof", "fleet", "registration", "no-vehicle", "set", "predefined-profile", "predefined-profile-index", "hof-source", "hof-target", "hof-file", "hof-mode", "module", "no-module", "module-setting", "clear-module-data", "pack-module", "verify-module", "spec", "list", "vehicle-scope", "startup-timeout", "shutdown-timeout", "cooperative-shutdown", "observe-seconds", "recovery-status", "recover" };
     // Flags that are parsed for compatibility but have no effect in this build.
     internal static readonly IReadOnlyList<string> AcceptedNoEffectFlags = Array.Empty<string>();
 
@@ -399,7 +424,7 @@ internal sealed class CliInput
             }
             if (!raw.StartsWith('/') && !raw.StartsWith('-'))
             {
-                if (output.Command is null && raw is "capabilities" or "profiles" or "detect" or "help" or "session" or "events" or "time" or "weather" or "map" or "camera" or "vehicles" or "player" or "humans" or "timetable" or "scripts" or "constants" or "curves" or "hof" or "drivers" or "tickets" or "d3d") { output.Command = raw; continue; }
+                if (output.Command is null && raw is "capabilities" or "profiles" or "detect" or "help" or "session" or "events" or "time" or "weather" or "map" or "camera" or "vehicles" or "player" or "humans" or "timetable" or "scripts" or "constants" or "curves" or "hof" or "drivers" or "tickets" or "d3d" or "ui") { output.Command = raw; continue; }
                 if (output.Command is not null && output.Installation is null) output.CommandWords.Add(raw);
                 else if (output.Installation is null) output.Installation = raw;
                 else output.CommandWords.Add(raw);
@@ -437,6 +462,8 @@ internal sealed class CliInput
                     if (moduleSetting.Length != 2 || moduleSetting[0].IndexOf('.') <= 0) throw new ArgumentException("/module-setting requires <module-id>.<key>=<value>");
                     output.ModuleSettings[moduleSetting[0]] = moduleSetting[1]; break;
                 case "clear-module-data": output.ClearModuleData = RequireValue(raw, value); break;
+                case "pack-module": output.PackModule = RequireValue(raw, value); break;
+                case "verify-module": output.VerifyModule = RequireValue(raw, value); break;
                 case "hof-file": output.HofFiles.Add(RequireValue(raw, value)); break;
                 case "hof-mode": output.HofMode = RequireValue(raw, value).ToLowerInvariant() switch { "add" => HofApplyMode.Add, "mirror" => HofApplyMode.Mirror, _ => throw new ArgumentException("/hof-mode requires add or mirror") }; break;
                 case "spec": output.SpecFile = RequireValue(raw, value); output.LaunchRequested = true; break; case "list": output.List = RequireValue(raw, value); break; case "vehicle-scope": output.VehicleScope = RequireValue(raw, value); break;

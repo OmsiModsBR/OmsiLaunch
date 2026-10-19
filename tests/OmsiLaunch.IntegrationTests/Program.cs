@@ -128,7 +128,7 @@ Console.WriteLine("PASS plugin-runtime.modules-lifecycle");
         var contracts = isolated.LoadFromAssemblyName(new System.Reflection.AssemblyName("OmsiLaunch.Runtime.Modules"));
         var api = isolated.LoadFromAssemblyName(new System.Reflection.AssemblyName("OmsiLaunch.Api"));
         if (contracts == typeof(OmsiLaunch.Runtime.Modules.ModuleHost).Assembly || api == typeof(StartupHandoff).Assembly) throw new InvalidOperationException("The test context is not isolated.");
-        var discovered = contracts.GetType("OmsiLaunch.Runtime.Modules.ModuleCatalog", true)!.GetMethod("InspectPlanned")!.Invoke(null, new object[] { directory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes)) })!;
+        var discovered = contracts.GetType("OmsiLaunch.Runtime.Modules.ModuleCatalog", true)!.GetMethod("InspectPlanned")!.Invoke(null, new object?[] { directory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes)), null })!;
         var manifest = discovered.GetType().GetProperty("Manifest")!.GetValue(discovered) ?? throw new InvalidOperationException("The isolated catalog did not read the manifest.");
         var worldMode = Enum.ToObject(api.GetType("OmsiLaunch.Api.WorldMode", true)!, 0);
         var dateMode = Enum.ToObject(api.GetType("OmsiLaunch.Api.DateTimeMode", true)!, 0);
@@ -136,7 +136,7 @@ Console.WriteLine("PASS plugin-runtime.modules-lifecycle");
         var isolatedHandoff = handoffType.GetConstructors().Single().Invoke(new object?[] { Guid.NewGuid(), "Omsi23004", worldMode, @"maps\Grundorf\global.cfg", 1, true, false, dateMode, dateMode, "", "", null, false, false, null, null });
         var environmentType = plugin.GetType("OmsiLaunch.Plugin.PluginModuleEnvironment", true)!;
         Action<string, IReadOnlyDictionary<string, string>> ignore = (_, _) => { };
-        var environment = environmentType.GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Single().Invoke(new object?[] { isolatedHandoff, ignore });
+        var environment = environmentType.GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Single().Invoke(new object?[] { isolatedHandoff, ignore, null });
         object? module;
         try { module = environmentType.GetMethod("CreateModule")!.Invoke(environment, new[] { manifest, directory }); }
         catch (System.Reflection.TargetInvocationException error) { throw new InvalidOperationException("A module cannot be created in an isolated plugin context: " + error.InnerException?.Message, error.InnerException); }
@@ -256,6 +256,33 @@ unsafe
     if (count(0) != 0) throw new InvalidOperationException("The self-check left hooks installed.");
 }
 Console.WriteLine("PASS native-hooks.self-check");
+// The pause menu boundary without resolved targets: it fails closed and never
+// reaches for OMSI (no table configured in this process).
+unsafe
+{
+    var repositoryRoot = new DirectoryInfo(AppContext.BaseDirectory);
+    while (repositoryRoot is not null && !File.Exists(Path.Combine(repositoryRoot.FullName, "OmsiLaunch.sln"))) repositoryRoot = repositoryRoot.Parent;
+    var library = System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(repositoryRoot!.FullName, "artifacts", "x86", "Release", "OmsiLaunch.Native.x86.dll"));
+    var state = (delegate* unmanaged[Cdecl]<int*, int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeUiPauseState");
+    var takeOver = (delegate* unmanaged[Cdecl]<int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeUiPauseTakeOver");
+    var restore = (delegate* unmanaged[Cdecl]<int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeUiPauseRestoreNative");
+    var action = (delegate* unmanaged[Cdecl]<int, int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeUiPauseAction");
+    var buffer = stackalloc int[10];
+    for (var index = 0; index < 10; index++) buffer[index] = 0x7F;
+    if (state(buffer) != 1 || buffer[0] != 1 || buffer[1] != 0) throw new InvalidOperationException("The pause state did not fail closed without targets.");
+    if (takeOver() != 1 || restore() != 1) throw new InvalidOperationException("Take-over or restore did not fail closed without targets.");
+    if (action(1) != 1 || action(5) != 1) throw new InvalidOperationException("An action was accepted without targets.");
+    if (action(0) != 4 || action(6) != 4 || action(-1) != 4) throw new InvalidOperationException("An action outside 1..5 was not refused as invalid.");
+    if (state(null) != 1) throw new InvalidOperationException("A null state buffer was accepted.");
+    // Input capture without resolved targets: refused; with a stand-in window the hook records and swallows.
+    var capture = (delegate* unmanaged[Cdecl]<int, int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeInputCapture");
+    if (capture(1) != 1 || capture(0) != 0) throw new InvalidOperationException("Input capture did not fail closed without targets.");
+    var probe = (delegate* unmanaged[Cdecl]<int>)System.Runtime.InteropServices.NativeLibrary.GetExport(library, "NativeInputSelfCheck");
+    var probed = probe();
+    if (probed != 0x1F) throw new InvalidOperationException("The input hook self-check failed: 0x" + probed.ToString("X"));
+}
+Console.WriteLine("PASS ui-pause.fails-closed");
+Console.WriteLine("PASS ui-input.hook-self-check");
 // A native module component through the real bridge environment: loaded,
 // its IAT hook installed through the registry under module:<id>, refusals
 // for unknown and undeclared targets and for a request outside start, and
@@ -304,6 +331,89 @@ unsafe
     finally { try { Directory.Delete(moduleRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
 }
 Console.WriteLine("PASS runtime-modules.native-component");
+
+// Bridge protocol 3 through the real bridge environment: a catalog operation
+// run in process by the native and the managed component (declared only), the
+// OMSI version value, the tick on both halves and the managed -> native call.
+unsafe
+{
+    var repositoryRoot = new DirectoryInfo(AppContext.BaseDirectory);
+    while (repositoryRoot is not null && !File.Exists(Path.Combine(repositoryRoot.FullName, "OmsiLaunch.sln"))) repositoryRoot = repositoryRoot.Parent;
+    var nativeModule = Path.Combine(repositoryRoot!.FullName, "artifacts", "x86", "Release", "tests", "OmsiLaunch.Module.NativeTest.dll");
+    var moduleRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-protocol3-module-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        var directory = Path.Combine(moduleRoot, "plugins", "OmsiLaunch.Modules", "native-test3");
+        Directory.CreateDirectory(directory);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "OmsiLaunch.Module.NullTest.dll"), Path.Combine(directory, "OmsiLaunch.Module.NullTest.dll"));
+        File.Copy(nativeModule, Path.Combine(directory, "native.dll"));
+        string Sha(string file) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, file))));
+        var manifestBytes = System.Text.Encoding.UTF8.GetBytes("{ \"schema\": \"omsilaunch.runtime-module/v1\", \"id\": \"native-test3\", \"version\": \"1.0.0\", \"bridge_protocol\": { \"min\": 3, \"max\": 3 }, " +
+            "\"required_capabilities\": [\"bridge.events\", \"bridge.hooks.iat\", \"bridge.runtime\", \"bridge.tick\"], \"runtime_operations\": [\"time.read\"], \"tick_ms\": 50, " +
+            "\"components\": [ { \"kind\": \"managed\", \"path\": \"OmsiLaunch.Module.NullTest.dll\", \"sha256\": \"" + Sha("OmsiLaunch.Module.NullTest.dll") + "\", \"entry\": \"OmsiLaunch.Module.NullTest.NullTestModule\" }, " +
+            "{ \"kind\": \"native\", \"path\": \"native.dll\", \"sha256\": \"" + Sha("native.dll") + "\" } ], \"failure_policy\": \"disable-module\", " +
+            "\"operations\": [ { \"id\": \"runtime-time\", \"kind\": \"read\" }, { \"id\": \"native-echo\", \"kind\": \"read\" } ] }");
+        File.WriteAllBytes(Path.Combine(directory, "module.json"), manifestBytes);
+        var p3Events = new List<(string Name, IReadOnlyDictionary<string, string> Data)>();
+        var host = new OmsiLaunch.Runtime.Modules.ModuleHost(new PluginModuleEnvironment(handoff, (name, data) => p3Events.Add((name, data)), new FakeRuntimeControl()));
+        host.Load(new[] { new OmsiLaunch.Runtime.Modules.ModuleLoadRequest(directory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(manifestBytes))) });
+        host.Arm();
+        var expectedVersion = OmsiLaunch.Plugin.PluginOmsiVersion.Value;
+        var started = p3Events.FirstOrDefault(x => x.Name == "module.native-test3.started3").Data;
+        if (started is null || started["version"] != "0" || started["omsi"] != expectedVersion || started["run"] != "0" || started["succeeded"] != "1" || started["refused"] != "0" || started["declared"] != "0" || started["small"] != "12" || started["needed"] == "0" || started["device"] != "11")
+            throw new InvalidOperationException("Native protocol 3 start: " + string.Join("; ", p3Events.Select(x => x.Name + " " + string.Join(",", x.Data.Select(d => d.Key + "=" + d.Value)))));
+        host.GameplayReady();
+        var p3Runtime = host.Execute("module.native-test3.runtime-time", null);
+        if (!p3Runtime.Succeeded || p3Runtime.Values["succeeded"] != "true" || p3Runtime.Values["undeclared_code"] != PublicErrorCodes.MODULE_OPERATION_NOT_DECLARED || p3Runtime.Values["omsi_version"] != expectedVersion)
+            throw new InvalidOperationException("Managed p3Runtime operations: " + p3Runtime.ErrorCode + " " + string.Join(",", p3Runtime.Values.Select(d => d.Key + "=" + d.Value)));
+        var echo = host.Execute("module.native-test3.native-echo", null);
+        if (!echo.Succeeded || !echo.Values["answer"].Contains("\"op\":\"echo\"") || !echo.Values["answer"].Contains("\"a\":\"b\""))
+            throw new InvalidOperationException("Managed -> native execute: " + echo.ErrorCode + " " + string.Join(",", echo.Values.Select(d => d.Key + "=" + d.Value)));
+        for (var tick = 0; tick < 3; tick++) { Thread.Sleep(70); host.Tick(); }
+        if (!p3Events.Any(x => x.Name == "module.native-test3.ticked" && x.Data.ContainsKey("ticks")) || !p3Events.Any(x => x.Name == "module.native-test3.ticked" && x.Data.ContainsKey("elapsed_ms")))
+            throw new InvalidOperationException("Native and managed ticks were not both delivered: " + string.Join("; ", p3Events.Select(x => x.Name)));
+        host.Stop();
+        if (!p3Events.Any(x => x.Name == "module.cleanup" && x.Data["result"] == "complete") || p3Events.Any(x => x.Name == "module.hooks.retained"))
+            throw new InvalidOperationException("Protocol 3 module cleanup was not complete.");
+        // After stop the bridge table refuses run_operation (checked on the managed side too).
+        if (host.Execute("module.native-test3.runtime-time", null).ErrorCode != PublicErrorCodes.MODULE_DISABLED && host.Execute("module.native-test3.runtime-time", null).ErrorCode != PublicErrorCodes.MODULE_NOT_LOADED)
+            throw new InvalidOperationException("A stopped module still ran an operation.");
+    }
+    finally { try { Directory.Delete(moduleRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+}
+Console.WriteLine("PASS runtime-modules.protocol-3");
+
+// Auxiliary programs (bridge protocol 3): created suspended, placed in the job
+// object with the manifest's priority and memory limit, resumed afterwards;
+// what the program starts is in the job too and ends with it.
+{
+    var auxRoot = Path.Combine(Path.GetTempPath(), "omsilaunch-auxiliary-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(auxRoot);
+    try
+    {
+        var program = Path.Combine(auxRoot, "helper.exe");
+        File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), program);
+        var auxEnvironment = new PluginModuleEnvironment(handoff, (_, _) => { });
+        // cmd waits for ping, a child it starts at once.
+        var process = auxEnvironment.StartAuxiliaryProcess(program, "/c ping -n 60 127.0.0.1 > nul", new OmsiLaunch.Runtime.Modules.ModuleAuxiliaryOptions(OmsiLaunch.Runtime.Modules.ModuleAuxiliaryPriority.BelowNormal, 256));
+        var pingIds = Array.Empty<int>();
+        for (var attempt = 0; attempt < 100 && pingIds.Length == 0; attempt++) { Thread.Sleep(50); pingIds = System.Diagnostics.Process.GetProcessesByName("PING").Select(x => x.Id).ToArray(); }
+        if (pingIds.Length == 0) throw new InvalidOperationException("The auxiliary program's child never started.");
+        using (var started = System.Diagnostics.Process.GetProcessById(process.ProcessId))
+            if (started.PriorityClass != System.Diagnostics.ProcessPriorityClass.BelowNormal) throw new InvalidOperationException("The job's priority class was not applied: " + started.PriorityClass);
+        if (process.HasExited) throw new InvalidOperationException("The auxiliary program exited early.");
+        process.Dispose();
+        var gone = false;
+        for (var attempt = 0; attempt < 100 && !gone; attempt++)
+        {
+            Thread.Sleep(50);
+            gone = pingIds.All(id => { try { using var p = System.Diagnostics.Process.GetProcessById(id); return p.HasExited; } catch (ArgumentException) { return true; } });
+        }
+        if (!process.HasExited || !gone) throw new InvalidOperationException("The auxiliary program or its child survived the job.");
+    }
+    finally { try { Directory.Delete(auxRoot, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+}
+Console.WriteLine("PASS runtime-modules.auxiliary-job");
 
 // A module that names a loaded plugin DLL under conflicts.plugins is not
 // loaded in process (OL_E_MODULE_CONFLICT); the plan checks the .opl files,

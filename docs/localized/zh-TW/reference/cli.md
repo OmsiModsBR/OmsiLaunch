@@ -1,6 +1,6 @@
 # CLI 參考
 
-<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+<!-- l10n: source=reference/cli.md source-sha256=cb5d0ea7b7ffe1315a6690239af6e0ae85d483e06995f7092e4d92cb75af3737 -->
 > 本頁為 OmsiLaunch 0.1.0-beta4 [英文原始頁面](../../../reference/cli.md) 的翻譯。英文頁面為規範版本：若有出入，以英文頁面與程式碼為準。
 
 本頁是 OmsiLaunch `0.1.0-beta4` 命令列完整的規範性參考：涵蓋三個可執行檔、引數文法、分派順序、每個命令字、每個階層式路由、每個旗標、輸出封套，以及每個命令的錯誤行為。本頁內容產生自 `tools\OmsiLaunch.Cli\Program.cs`（`CliProgram.RunAsync`、`OwnerSession.RunAsync`、`CliInput.Parse`、`CliInput.KnownFlags`、`CliInput.AcceptedNoEffectFlags`、`CliInput.CommandWordsAccepted`、`CliInput.HierarchicalRoutes`、`CliInput.BuildSpecAsync`、`CliEventWatch`）、`tools\OmsiLaunch.Cli\LaunchSpecJson.cs`，以及 `tools\OmsiLaunch.Bootstrapper` 下的兩個原生 shim。處理程序結果列於[結束代碼](exit-codes.md)；錯誤碼列於[錯誤](errors.md)；實際呼叫範例請見 [CLI 範例](cli-examples.md)。
@@ -94,6 +94,7 @@
 | `weather` | `weather get`、`weather set`、`weather metar set`、`weather actual get` | 用戶端路由 | |
 | `map` | `map get` | 用戶端路由 | |
 | `camera` | `camera get`、`camera set`、`camera lock`、`camera unlock` | 用戶端路由 | |
+| `ui` | `ui pause-state`、`ui pause-take-over`、`ui pause-restore`、`ui pause-action` | 用戶端路由 | |
 | `vehicles` | `vehicles list`、`vehicles get`、`vehicles summary`、`vehicles spawn`、`vehicles place-random` | 用戶端路由 | |
 | `player` | `player get` | 用戶端路由 | |
 | `humans` | `humans list`、`humans get`、`humans summary` | 用戶端路由 | |
@@ -124,6 +125,10 @@
 | `camera set` | `camera.set` | Write | 是 | 是（攝影機純量，例如 `--field_of_view=`） | 無，不會還原 | EXPERIMENTAL | FOV 寫入／讀回已驗證。 |
 | `camera lock` | `camera.lock` | Action | 是 | 是（工作階段範圍的原則） | 無 | EXPERIMENTAL | 需要 `--family=<0..3>`（駕駛員=0、乘客=1、外部=2、地圖=3），可選 `--preset=<n>`（family 0 或 1）。需要玩家車輛（例如已儲存情境）。已在執行階段封閉驗證中於執行階段驗證（`CAM01`）；功能登錄的 `RuntimeValidation` 字串仍顯示 `STATICALLY_VALIDATED`（請見[功能](capabilities.md)）。 |
 | `camera unlock` | `camera.unlock` | Action | 是 | 是 | 無 | EXPERIMENTAL | 解除由 `camera lock` 設定的原則（`CAM01`）。 |
+| `ui pause-state` | `ui.pause.state` | Read | 是 | 否 | 無 | EXPERIMENTAL | OMSI 的暫停位元組與原生暫停選單的狀態。 |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | 是 | 是（透過 VCL 隱藏原生暫停選單；OMSI 仍維持暫停） | 無，不會還原 | EXPERIMENTAL | 需要 OMSI 處於暫停且顯示選單。尚未在真實工作階段中觀察到。 |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | 是 | 是（再次顯示原生暫停選單） | 無 | EXPERIMENTAL | 將原生選單交還。 |
+| `ui pause-action` | `ui.pause.action` | Action | 是 | 是（原生選單本身的動作） | 無，不會還原 | EXPERIMENTAL | 需要 `--action=<resume|new-game|save|options|quit>`；在回應之後才執行，請從 `ui pause-state` 讀取結果。 |
 | `vehicles list` | `road-vehicles.list` | Read | 是 | 否 | 無 | STABLE_BETA | 回傳工作階段範圍的 `rv-NNNNNN` handle。 |
 | `vehicles get` | `road-vehicle.read` | Read | 是 | 否 | 無 | STABLE_BETA | 需要 `--handle=`。失效的 handle：`OL_E_RUNTIME_OBJECT_HANDLE_STALE`。 |
 | `vehicles summary` | `road-vehicles.read` | Read | 是 | 否 | 無 | STABLE_BETA | 計數與玩家狀態，不含 handle。 |
@@ -318,6 +323,8 @@
 | `/recovery-status` | `/recovery-status` | 關閉 | 本機 | STABLE_BETA | 回報 `<root>\.omsilaunch\journal.json` 是否待處理（`pending`），永不還原；結束代碼 `0`。會取得安裝租用：擁有者持有時為 `OL_E_INSTALLATION_BUSY`（結束代碼 `7`）。 |
 | `/recover` | `/recover` | 關閉 | 本機 | STABLE_BETA | 還原待處理的日誌（備份會先依快照 SHA-256 驗證；`OL_E_RECOVERY_BACKUP_CORRUPT`、`OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`、`OL_W_RESTORE_FOREIGN_FILE_RETAINED` 會在 `diagnostics` 中回報）。沒有待處理項目或還原完成時結束代碼 `0`；日誌原本待處理且仍然存在時為 `8`。當日誌記錄的 OMSI 處理程序（PID、建立時間、exe 路徑）仍存活，或對於已超過 `HandoffCreated` 但沒有 PID 的日誌、該根目錄中有任何 `Omsi.exe` 仍存活時，會以 `OL_E_INSTALLATION_BUSY` 拒絕。每次工作階段啟動在讀取安裝前都會自動執行相同的復原。 |
 | `/clear-module-data` | `/clear-module-data:<module id>` | 無 | 本機，不需工作階段 | EXPERIMENTAL | 刪除模組的資料目錄 `<root>\.omsilaunch\module-data\<id>`，不刪除其他任何內容；`module-data.clear` 封套，包含 `module` 與 `cleared`（沒有可刪除的內容時為 `false`）；結束代碼 `0`。會取得安裝租約：當工作階段擁有該安裝時為 `OL_E_INSTALLATION_BUSY`（結束代碼 `7`）。透過連結到達的 module-data 資料夾會被拒絕（`OL_E_MODULE_INTEGRITY`）；其內的連結會當作連結移除。 |
+| `/pack-module` | `/pack-module:<module directory>` | 無 | 本機，不需工作階段 | EXPERIMENTAL | 寫入該目錄 `module.json` 所指名檔案（元件與資產）的 SHA-256 釘選值，且只改寫這些值；`module.pack` 封套（`module`、`directory`、`written`、`intact`、`files`）；結束代碼 `0`，資訊清單無法剖析或檔案遺失時為 `2`。絕不會動到任何安裝。請參閱[封裝模組](runtime-modules.md#packing-a-module)。 |
+| `/verify-module` | `/verify-module:<module directory>` | 無 | 本機，不需工作階段 | EXPERIMENTAL | 回報相同內容但不寫入（`module.verify`）；每個已釘選的檔案都相符時結束代碼為 `0`（沒有釘選值的檔案不算不相符），釘選值不相符時為 `7`，資訊清單無法剖析或檔案遺失時為 `2`。 |
 
 <a id="output-formats"></a>
 ## 輸出格式

@@ -1,6 +1,6 @@
 # Capabilities
 
-<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+<!-- l10n: source=reference/capabilities.md source-sha256=e6d9d063c2365c007efc79c0057a4843d1f91b88ba68448cc8b8d7579308de23 -->
 > British English edition of the [canonical page](../../../reference/capabilities.md) for OmsiLaunch 0.1.0-beta4. The US English page is normative: where the two differ, it and the code take precedence.
 
 This page documents what OmsiLaunch can do. Its source is the canonical capability catalogue, `PublicCapabilityRegistry` (`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`): every capability, every public runtime operation with its arguments, CLI routes and native capability, and one evidence state per capability are declared there once. The runtime operation set, argument validation, CLI command routes, the plugin's per-operation native gate, `GetCapabilitiesAsync` and the [catalogue table](#capability-catalog) below are derived from it. For every runtime operation the page states the arguments, result keys and errors. How to invoke an operation (CLI routes, API envelope, timeouts, handles) is in [runtime control](runtime-control.md); the evidence per session is in [runtime validation status](../status/runtime-validation-status.md).
@@ -111,6 +111,7 @@ An operation that changes something names its mutation policy after its id (`Pub
 | `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
 | `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
 | `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | Needs a PlayerVehicle (a saved situation provides one); OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE on a headless NEW_MAP. |
+| `ui.pause` | `PublicExperimental` | Action | Running | `ui.pause.state`, `ui.pause.take-over` (omsi-state), `ui.pause.restore-native` (omsi-state), `ui.pause.action` (omsi-state) | `ui.pause-menu.replace` | RUNTIME_VALIDATION_REQUIRED | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action --action=<resume|new-game|save|options|quit>` | Beta 5: statically validated design (research beta4-static pause-menu-and-input.md); the native calls are not yet observed in a real session. |
 | `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` (paged) | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
 | `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | Stale detection after natural removal (RV-002) has no safe runtime producer and is validated offline. |
 | `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
@@ -188,6 +189,17 @@ This is the exact list of operation ids a public frontend may forward (`PublicCa
 | `camera.set` | Write | optional `family` (0..3), `field_of_view` (10..170); at least one | the `camera.read` keys | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` |
 | `camera.lock` | Action | required `family` (0..3); optional `preset` (0..255, only with family 0 or 1) | `locked` (`true`), `family`, `preset`, `head_look` (`preserved`), `field_of_view` (`preserved`) | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`, `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`. The policy is re-applied every 100 ms until `camera.unlock`; a failing re-application emits the event `camera.lock.degraded` once per distinct error. |
 | `camera.unlock` | Action | none | `locked` (`false`) | |
+
+### User interface (pause menu)
+
+Take over OMSI's native pause menu for a module's own menu (capability `ui.pause-menu.replace`, resolved on a known code identity only). OMSI's own pause byte stays set, so the simulation, the rendering, 3D clicks and DirectInput commands stay held; the native form is hidden through the VCL and its actions are called directly (no click, no posted message, no moved window). `ui.pause.action` runs the native handler from a one-shot UI-thread timer after its answer is sent, because the handler can enter a native modal dialog: read the outcome from `ui.pause.state` (`busy` `false`, then `last_result`).
+
+| Operation | Kind | Arguments | Result keys | Errors |
+| --- | --- | --- | --- | --- |
+| `ui.pause.state` | Read | none | `paused`, `native_menu_visible`, `main_form_ready`, `in_frame`, `taken_over`, `busy`, `pending_action`, `last_action`, `last_result` (`none`, `resumed`, `game-started`, `returned`, `quit-requested`, `exception`, `refused`) | `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.take-over` | Action | none | the `ui.pause.state` keys after the take-over | `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_UI_ALREADY_TAKEN_OVER`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.restore-native` | Action | none | the `ui.pause.state` keys; shows the native menu again (its own `FormShow` runs: OMSI stays paused) | `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.action` | Action | required `action`: `resume`, `new-game`, `save`, `options` or `quit` | the `ui.pause.state` keys plus `scheduled` (`true`) and `action` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
 
 ### Road vehicles and player
 

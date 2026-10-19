@@ -1,6 +1,6 @@
 # Referência da CLI
 
-<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+<!-- l10n: source=reference/cli.md source-sha256=cb5d0ea7b7ffe1315a6690239af6e0ae85d483e06995f7092e4d92cb75af3737 -->
 > Tradução da [página original em inglês](../../../reference/cli.md) do OmsiLaunch 0.1.0-beta4. A página em inglês é a referência normativa: se as duas divergirem, valem a página em inglês e o código.
 
 Esta página é a referência completa e normativa da linha de comando do OmsiLaunch `0.1.0-beta4`: os três executáveis, a gramática de argumentos, a ordem de despacho, cada palavra de comando, cada rota hierárquica, cada flag, os envelopes de saída e o comportamento de erro de cada comando. Ela é gerada a partir de `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), de `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` e dos dois shims nativos em `tools\OmsiLaunch.Bootstrapper`. Os resultados de processo estão listados em [códigos de saída](exit-codes.md); os códigos de erro em [erros](errors.md); invocações comentadas em [exemplos da CLI](cli-examples.md).
@@ -94,6 +94,7 @@ Todas as palavras aceitas na primeira posição (`CliInput.CommandWordsAccepted`
 | `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Rota de cliente | |
 | `map` | `map get` | Rota de cliente | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Rota de cliente | |
+| `ui` | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action` | Rota de cliente | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Rota de cliente | |
 | `player` | `player get` | Rota de cliente | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Rota de cliente | |
@@ -124,6 +125,10 @@ Todas as palavras aceitas na primeira posição (`CliInput.CommandWordsAccepted`
 | `camera set` | `camera.set` | Write | Sim | Sim (escalares da câmera, p. ex. `--field_of_view=`) | Nenhuma, não revertida | EXPERIMENTAL | Escrita/releitura de FOV validada. |
 | `camera lock` | `camera.lock` | Action | Sim | Sim (política com escopo de sessão) | Nenhuma | EXPERIMENTAL | Exige `--family=<0..3>` (motorista=0, passageiro=1, externa=2, mapa=3), `--preset=<n>` opcional (família 0 ou 1). Precisa de um veículo do jogador (por exemplo, uma situação salva). Validado em runtime no fechamento de runtime (`CAM01`); a string `RuntimeValidation` do registro ainda diz `STATICALLY_VALIDATED` (veja [capacidades](capabilities.md)). |
 | `camera unlock` | `camera.unlock` | Action | Sim | Sim | Nenhuma | EXPERIMENTAL | Libera a política definida por `camera lock` (`CAM01`). |
+| `ui pause-state` | `ui.pause.state` | Read | Sim | Não | Nenhuma | EXPERIMENTAL | O byte de pausa do OMSI e o estado do menu de pausa nativo. |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | Sim | Sim (oculta o menu de pausa nativo pela VCL; o OMSI continua pausado) | Nenhuma, não revertida | EXPERIMENTAL | Exige o OMSI pausado com o menu exibido. Ainda não observado em uma sessão real. |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | Sim | Sim (exibe o menu de pausa nativo novamente) | Nenhuma | EXPERIMENTAL | Devolve o menu nativo. |
+| `ui pause-action` | `ui.pause.action` | Action | Sim | Sim (a ação própria do menu nativo) | Nenhuma, não revertida | EXPERIMENTAL | Exige `--action=<resume|new-game|save|options|quit>`; executa depois da resposta, leia o resultado em `ui pause-state`. |
 | `vehicles list` | `road-vehicles.list` | Read | Sim | Não | Nenhuma | STABLE_BETA | Retorna handles `rv-NNNNNN` com escopo de sessão. |
 | `vehicles get` | `road-vehicle.read` | Read | Sim | Não | Nenhuma | STABLE_BETA | Exige `--handle=`. Handle obsoleto: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Sim | Não | Nenhuma | STABLE_BETA | Contagens e estado do jogador, sem handles. |
@@ -318,6 +323,8 @@ Aceitas e resolvidas contra a instalação, mas não aplicadas pelo runtime: cad
 | `/recovery-status` | `/recovery-status` | desligada | local | STABLE_BETA | Informa se `<root>\.omsilaunch\journal.json` está pendente (`pending`), nunca restaura; saída `0`. Obtém o lease da instalação: `OL_E_INSTALLATION_BUSY` (saída `7`) enquanto um proprietário o detém. |
 | `/recover` | `/recover` | desligada | local | STABLE_BETA | Restaura um journal pendente (os backups são verificados antes contra o SHA-256 do snapshot; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` relatados em `diagnostics`). Saída `0` quando nada estava pendente ou a restauração foi concluída; `8` quando um journal estava pendente e continua pendente. Recusada com `OL_E_INSTALLATION_BUSY` enquanto o processo do OMSI registrado no journal (PID, hora de criação, caminho do exe) ou, para um journal além de `HandoffCreated` sem PID, qualquer `Omsi.exe` daquela raiz estiver ativo. Toda inicialização de sessão executa automaticamente a mesma recuperação antes de ler a instalação. |
 | `/clear-module-data` | `/clear-module-data:<module id>` | nenhum | local, sem sessão | EXPERIMENTAL | Exclui o diretório de dados do módulo `<root>\.omsilaunch\module-data\<id>` e nada mais; envelope `module-data.clear` com `module` e `cleared` (`false` quando não havia nada a excluir); saída `0`. Obtém o lease da instalação: `OL_E_INSTALLATION_BUSY` (saída `7`) enquanto uma sessão possui a instalação. Uma pasta de dados de módulo alcançada por um link é recusada (`OL_E_MODULE_INTEGRITY`); um link dentro dela é removido como link. |
+| `/pack-module` | `/pack-module:<module directory>` | nenhum | local, sem sessão | EXPERIMENTAL | Grava os pins SHA-256 dos arquivos que o `module.json` do diretório nomeia (componentes e assets) e reescreve somente esses valores; envelope `module.pack` (`module`, `directory`, `written`, `intact`, `files`); saída `0`, `2` para um manifesto que não pode ser interpretado ou um arquivo ausente. Nunca toca em uma instalação. Consulte [empacotar um módulo](runtime-modules.md#packing-a-module). |
+| `/verify-module` | `/verify-module:<module directory>` | nenhum | local, sem sessão | EXPERIMENTAL | Informa o mesmo sem gravar (`module.verify`); saída `0` quando todo arquivo com pin corresponde (um arquivo sem pin não é uma divergência), `7` quando um pin não corresponde, `2` para um manifesto que não pode ser interpretado ou um arquivo ausente. |
 
 <a id="output-formats"></a>
 ## Formatos de saída

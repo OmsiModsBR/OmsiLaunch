@@ -1,6 +1,6 @@
 # Capabilities
 
-<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+<!-- l10n: source=reference/capabilities.md source-sha256=e6d9d063c2365c007efc79c0057a4843d1f91b88ba68448cc8b8d7579308de23 -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/capabilities.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina beschrijft wat OmsiLaunch kan. De bron is de canonieke capabilitycatalogus, `PublicCapabilityRegistry` (`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`): elke capability, elke openbare runtime-operatie met haar argumenten, CLI-routes en native capability, en één bewijsstatus per capability worden daar één keer gedeclareerd. De set runtime-operaties, de argumentvalidatie, de CLI-opdrachtroutes, de native poort per operatie van de plugin, `GetCapabilitiesAsync` en de [catalogustabel](#capability-catalog) hieronder zijn ervan afgeleid. Voor elke runtime-operatie vermeldt de pagina de argumenten, resultaatsleutels en fouten. Hoe je een operatie aanroept (CLI-routes, API-envelope, timeouts, handles) staat in [runtime control](runtime-control.md); het bewijs per sessie staat in [status van runtimevalidatie](../status/runtime-validation-status.md).
@@ -111,6 +111,7 @@ Een operatie die iets wijzigt, noemt haar mutatiebeleid achter haar id (`PublicR
 | `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
 | `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
 | `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | Vereist een PlayerVehicle (een opgeslagen situatie levert er een); OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE bij een headless NEW_MAP. |
+| `ui.pause` | `PublicExperimental` | Action | Running | `ui.pause.state`, `ui.pause.take-over` (omsi-state), `ui.pause.restore-native` (omsi-state), `ui.pause.action` (omsi-state) | `ui.pause-menu.replace` | RUNTIME_VALIDATION_REQUIRED | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action --action=<resume|new-game|save|options|quit>` | Beta 5: statisch gevalideerd ontwerp (research beta4-static pause-menu-and-input.md); de native aanroepen zijn nog niet waargenomen in een echte sessie. |
 | `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` (gepagineerd) | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
 | `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | Detectie van verouderde handles na natuurlijke verwijdering (RV-002) heeft geen veilige runtimeproducent en is offline gevalideerd. |
 | `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
@@ -192,6 +193,18 @@ Dit is de exacte lijst van operatie-id's die een openbare frontend mag doorsture
 | `camera.set` | Write | optioneel `family` (0..3), `field_of_view` (10..170); minstens één | de sleutels van `camera.read` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE` |
 | `camera.lock` | Action | verplicht `family` (0..3); optioneel `preset` (0..255, alleen met familie 0 of 1) | `locked` (`true`), `family`, `preset`, `head_look` (`preserved`), `field_of_view` (`preserved`) | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_OUT_OF_RANGE`, `OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`, `OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`. Het beleid wordt elke 100 ms opnieuw toegepast tot `camera.unlock`; een mislukte hernieuwde toepassing geeft eenmaal per afzonderlijke fout de gebeurtenis `camera.lock.degraded`. |
 | `camera.unlock` | Action | geen | `locked` (`false`) | |
+
+<a id="user-interface-pause-menu"></a>
+### Gebruikersinterface (pauzemenu)
+
+Neem het native pauzemenu van OMSI over voor het eigen menu van een module (capability `ui.pause-menu.replace`, alleen opgelost op een bekende code-identiteit). De eigen pauzebyte van OMSI blijft gezet, zodat de simulatie, de rendering, 3D-klikken en DirectInput-opdrachten vastgehouden blijven; het native formulier wordt via de VCL verborgen en de acties ervan worden rechtstreeks aangeroepen (geen klik, geen geposte message, geen verplaatst venster). `ui.pause.action` voert de native handler uit vanuit een eenmalige UI-thread-timer nadat het antwoord is verzonden, omdat de handler een native modaal dialoogvenster kan openen: lees de uitkomst uit `ui.pause.state` (`busy` `false`, daarna `last_result`).
+
+| Operatie | Soort | Argumenten | Resultaatsleutels | Fouten |
+| --- | --- | --- | --- | --- |
+| `ui.pause.state` | Read | geen | `paused`, `native_menu_visible`, `main_form_ready`, `in_frame`, `taken_over`, `busy`, `pending_action`, `last_action`, `last_result` (`none`, `resumed`, `game-started`, `returned`, `quit-requested`, `exception`, `refused`) | `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.take-over` | Action | geen | de sleutels van `ui.pause.state` na de overname | `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_UI_ALREADY_TAKEN_OVER`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.restore-native` | Action | geen | de sleutels van `ui.pause.state`; toont het native menu opnieuw (de eigen `FormShow` ervan wordt uitgevoerd: OMSI blijft gepauzeerd) | `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.action` | Action | verplicht `action`: `resume`, `new-game`, `save`, `options` of `quit` | de sleutels van `ui.pause.state` plus `scheduled` (`true`) en `action` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`, `OL_E_RUNTIME_VALUE_INVALID`, `OL_E_UI_NOT_PAUSED`, `OL_E_UI_BUSY`, `OL_E_RUNTIME_OPERATION_FAILED`, `OL_E_RUNTIME_OPERATION_UNAVAILABLE`, `OL_E_CAPABILITY_UNRESOLVED` |
 
 <a id="road-vehicles-and-player"></a>
 ### Wegvoertuigen en speler

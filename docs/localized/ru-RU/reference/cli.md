@@ -1,6 +1,6 @@
 # Справочник по CLI
 
-<!-- l10n: source=reference/cli.md source-sha256=a4f9167107ac29bcb98c94e8b0fe813fd55b891f9c2d8800d22a08d1d57e9f58 -->
+<!-- l10n: source=reference/cli.md source-sha256=cb5d0ea7b7ffe1315a6690239af6e0ae85d483e06995f7092e4d92cb75af3737 -->
 > Перевод [исходной страницы на английском языке](../../../reference/cli.md) для OmsiLaunch 0.1.0-beta4. Нормативной является английская страница: при расхождениях приоритет имеют английская страница и код.
 
 Эта страница — полный нормативный справочник по командной строке OmsiLaunch `0.1.0-beta4`: три исполняемых файла, грамматика аргументов, порядок диспетчеризации, все командные слова, все иерархические маршруты, все флаги, выходные конверты и поведение каждой команды при ошибках. Она составлена на основе `tools\OmsiLaunch.Cli\Program.cs` (`CliProgram.RunAsync`, `OwnerSession.RunAsync`, `CliInput.Parse`, `CliInput.KnownFlags`, `CliInput.AcceptedNoEffectFlags`, `CliInput.CommandWordsAccepted`, `CliInput.HierarchicalRoutes`, `CliInput.BuildSpecAsync`, `CliEventWatch`), `tools\OmsiLaunch.Cli\LaunchSpecJson.cs` и двух нативных shim-обёрток в `tools\OmsiLaunch.Bootstrapper`. Результаты процесса перечислены в разделе [коды выхода](exit-codes.md), коды ошибок — в разделе [ошибки](errors.md), готовые примеры вызовов — в разделе [примеры CLI](cli-examples.md).
@@ -94,6 +94,7 @@
 | `weather` | `weather get`, `weather set`, `weather metar set`, `weather actual get` | Клиентский маршрут | |
 | `map` | `map get` | Клиентский маршрут | |
 | `camera` | `camera get`, `camera set`, `camera lock`, `camera unlock` | Клиентский маршрут | |
+| `ui` | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action` | Клиентский маршрут | |
 | `vehicles` | `vehicles list`, `vehicles get`, `vehicles summary`, `vehicles spawn`, `vehicles place-random` | Клиентский маршрут | |
 | `player` | `player get` | Клиентский маршрут | |
 | `humans` | `humans list`, `humans get`, `humans summary` | Клиентский маршрут | |
@@ -124,6 +125,10 @@
 | `camera set` | `camera.set` | Write | Да | Да (скалярные параметры камеры, например `--field_of_view=`) | Нет, не откатывается | EXPERIMENTAL | Запись и обратное чтение FOV проверены. |
 | `camera lock` | `camera.lock` | Action | Да | Да (политика в пределах сеанса) | Нет | EXPERIMENTAL | Требует `--family=<0..3>` (водитель=0, пассажир=1, внешняя=2, карта=3), необязательно `--preset=<n>` (семейство 0 или 1). Нужно транспортное средство игрока (например, сохранённая ситуация). Проверено в runtime в итоговом наборе runtime-проверок (`CAM01`); строка `RuntimeValidation` в реестре по-прежнему содержит `STATICALLY_VALIDATED` (см. [возможности](capabilities.md)). |
 | `camera unlock` | `camera.unlock` | Action | Да | Да | Нет | EXPERIMENTAL | Снимает политику, установленную `camera lock` (`CAM01`). |
+| `ui pause-state` | `ui.pause.state` | Read | Да | Нет | Нет | EXPERIMENTAL | Байт паузы OMSI и состояние нативного меню паузы. |
+| `ui pause-take-over` | `ui.pause.take-over` | Action | Да | Да (скрывает нативное меню паузы через VCL; OMSI остаётся на паузе) | Нет, не откатывается | EXPERIMENTAL | Требуется OMSI на паузе с показанным меню. В реальном сеансе пока не наблюдалось. |
+| `ui pause-restore` | `ui.pause.restore-native` | Action | Да | Да (снова показывает нативное меню паузы) | Нет | EXPERIMENTAL | Возвращает нативное меню. |
+| `ui pause-action` | `ui.pause.action` | Action | Да | Да (собственное действие нативного меню) | Нет, не откатывается | EXPERIMENTAL | Требует `--action=<resume|new-game|save|options|quit>`; выполняется после ответа, результат читайте из `ui pause-state`. |
 | `vehicles list` | `road-vehicles.list` | Read | Да | Нет | Нет | STABLE_BETA | Возвращает handle вида `rv-NNNNNN`, действующие в пределах сеанса. |
 | `vehicles get` | `road-vehicle.read` | Read | Да | Нет | Нет | STABLE_BETA | Требует `--handle=`. Устаревший handle: `OL_E_RUNTIME_OBJECT_HANDLE_STALE`. |
 | `vehicles summary` | `road-vehicles.read` | Read | Да | Нет | Нет | STABLE_BETA | Количества и состояние игрока, без handle. |
@@ -319,6 +324,8 @@
 | `/recovery-status` | `/recovery-status` | выкл. | локально | STABLE_BETA | Сообщает, является ли `<root>\.omsilaunch\journal.json` незавершённым (`pending`), никогда ничего не восстанавливает; код выхода `0`. Берёт аренду установки: `OL_E_INSTALLATION_BUSY` (код выхода `7`), пока её удерживает владелец. |
 | `/recover` | `/recover` | выкл. | локально | STABLE_BETA | Восстанавливает незавершённый журнал (резервные копии сначала сверяются с SHA-256 снимка; `OL_E_RECOVERY_BACKUP_CORRUPT`, `OL_E_RECOVERY_ABSENT_OWNERSHIP_MISMATCH`, `OL_W_RESTORE_FOREIGN_FILE_RETAINED` сообщаются в `diagnostics`). Код выхода `0`, если незавершённых транзакций не было или восстановление завершилось; `8`, если журнал был незавершённым и таким остался. Отклоняется с `OL_E_INSTALLATION_BUSY`, пока жив записанный в журнал процесс OMSI (PID, время создания, путь к exe) или — для журнала после `HandoffCreated` без PID — любой `Omsi.exe` из этого корневого каталога. Каждый запуск сеанса автоматически выполняет такое же восстановление перед чтением установки. |
 | `/clear-module-data` | `/clear-module-data:<module id>` | нет | локально, без сеанса | EXPERIMENTAL | Удаляет каталог данных модуля `<root>\.omsilaunch\module-data\<id>` и больше ничего; конверт `module-data.clear` с полями `module` и `cleared` (`false`, если удалять было нечего); код выхода `0`. Захватывает аренду установки (lease): `OL_E_INSTALLATION_BUSY` (код выхода `7`), пока сеанс владеет установкой. Каталог данных модуля, достигнутый через ссылку, отклоняется (`OL_E_MODULE_INTEGRITY`); ссылка внутри него удаляется как ссылка. |
+| `/pack-module` | `/pack-module:<module directory>` | нет | локально, без сеанса | EXPERIMENTAL | Записывает пины SHA-256 файлов, названных в `module.json` каталога (компоненты и ресурсы), и переписывает только эти значения; конверт `module.pack` (`module`, `directory`, `written`, `intact`, `files`); код выхода `0`, `2` — для манифеста, который не разбирается, или отсутствующего файла. Установку никогда не затрагивает. См. [упаковка модуля](runtime-modules.md#packing-a-module). |
+| `/verify-module` | `/verify-module:<module directory>` | нет | локально, без сеанса | EXPERIMENTAL | Сообщает то же самое без записи (`module.verify`); код выхода `0`, когда совпадают все файлы с пинами (файл без пина не считается несовпадением), `7`, когда пин не совпадает, `2` — для манифеста, который не разбирается, или отсутствующего файла. |
 
 <a id="output-formats"></a>
 ## Форматы вывода

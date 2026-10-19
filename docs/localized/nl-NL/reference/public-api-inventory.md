@@ -1,6 +1,6 @@
 # Inventaris van de publieke API
 
-<!-- l10n: source=reference/public-api-inventory.md source-sha256=03334a6e3cbfb63c191f563ebd823a41ed0b943fad524df95f4754c7d0820ea5 -->
+<!-- l10n: source=reference/public-api-inventory.md source-sha256=1038165496fa7e22c0b936388cb2dde7b90ed33b193b8f77d462d10d9eff149a -->
 > Vertaling van de [oorspronkelijke Engelse pagina](../../../reference/public-api-inventory.md) voor OmsiLaunch 0.1.0-beta4. De Engelse pagina is normatief: bij verschillen gelden de Engelse pagina en de code.
 
 Deze pagina wordt door `tests/OmsiLaunch.DocumentationTests` gegenereerd uit de gecompileerde assemblies (`dotnet run --project tests/OmsiLaunch.DocumentationTests -- --write-inventory`); de documentatiecontrole faalt zodra ze niet meer overeenkomt met de code. Ze vermeldt elk geëxporteerd type van `OmsiLaunch.Api`, `OmsiLaunch.Core` en `OmsiLaunch.Process` met de stabiliteit en de signatuur van elk publiek lid. Semantiek, voorwaarden, fouten en voorbeelden staan op de pagina die in elke kop wordt genoemd (standaard: [publieke API](public-api.md)). Stabiliteitsniveaus: `STABLE_BETA`, `EXPERIMENTAL`, `PARTIAL`, `INTERNAL` (om technische redenen publiek, geen integratie-oppervlak), `UNAVAILABLE` (zie [publieke API](public-api.md#stability-vocabulary)). Door de compiler gegenereerde recordleden (`Equals`, `GetHashCode`, `ToString`, `Deconstruct`, `<Clone>$`, `EqualityContract`) zijn weggelaten.
@@ -429,7 +429,7 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null)` |
+| constructor | `PlannedModule(string Id, string Version, string Status, bool Requested, string FailurePolicy, IReadOnlyList<string> Operations, string Code = null, string Reason = null, string ManifestSha256 = null, string Activation = "requested", IReadOnlyList<PlannedModuleSetting> Settings = null, IReadOnlyList<string> RuntimeOperations = null, int TickMilliseconds = 0, string SnapshotSha256 = null)` |
 | constante | `string Eligible = "ELIGIBLE"` |
 | constante | `string Rejected = "REJECTED"` |
 | constante | `string ActivationRequested = "requested"` |
@@ -447,8 +447,12 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 | eigenschap | `string ManifestSha256 { get; init; }` |
 | eigenschap | `string Activation { get; init; }` |
 | eigenschap | `IReadOnlyList<PlannedModuleSetting> Settings { get; init; }` |
+| eigenschap | `IReadOnlyList<string> RuntimeOperations { get; init; }` |
+| eigenschap | `int TickMilliseconds { get; init; }` |
+| eigenschap | `string SnapshotSha256 { get; init; }` |
 | eigenschap | `bool IsEligible { get; }` |
 | eigenschap | `IReadOnlyList<PlannedModuleSetting> EffectiveSettings { get; }` |
+| eigenschap | `IReadOnlyList<string> EffectiveRuntimeOperations { get; }` |
 
 ### `PlannedModuleSetting`
 
@@ -736,6 +740,12 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [er
 | constante | `string MODULE_HOOK_UNAVAILABLE = "OL_E_MODULE_HOOK_UNAVAILABLE"` |
 | constante | `string MODULE_SETTING_INVALID = "OL_E_MODULE_SETTING_INVALID"` |
 | constante | `string MODULE_CONFLICT = "OL_E_MODULE_CONFLICT"` |
+| constante | `string MODULE_OPERATION_NOT_DECLARED = "OL_E_MODULE_OPERATION_NOT_DECLARED"` |
+| constante | `string MODULE_CONTENT_INPUT_UNDECLARED = "OL_E_MODULE_CONTENT_INPUT_UNDECLARED"` |
+| constante | `string MODULE_CONTENT_INPUT_INVALID = "OL_E_MODULE_CONTENT_INPUT_INVALID"` |
+| constante | `string UI_NOT_PAUSED = "OL_E_UI_NOT_PAUSED"` |
+| constante | `string UI_BUSY = "OL_E_UI_BUSY"` |
+| constante | `string UI_ALREADY_TAKEN_OVER = "OL_E_UI_ALREADY_TAKEN_OVER"` |
 | constante | `string SESSION_PROFILE_ASSET_MISSING = "OL_E_SESSION_PROFILE_ASSET_MISSING"` |
 | constante | `string SESSION_PROFILE_INVALID = "OL_E_SESSION_PROFILE_INVALID"` |
 | constante | `string SESSION_PROFILE_MAP_MISMATCH = "OL_E_SESSION_PROFILE_MAP_MISMATCH"` |
@@ -1201,7 +1211,7 @@ Statische klasse in `OmsiLaunch.Api`. Stabiliteit: `INTERNAL`. Semantiek: [publi
 | Lid | Signatuur |
 | --- | --- |
 | constante | `uint Magic = 1330402120` |
-| constante | `ushort Version = 7` |
+| constante | `ushort Version = 8` |
 | constante | `int MaxModules = 64` |
 | statische methode | `byte[] Serialize(StartupHandoff value)` |
 | statische methode | `bool TryDeserialize(ReadOnlySpan<byte> bytes, out StartupHandoff value)` |
@@ -1212,10 +1222,11 @@ Sealed record in `OmsiLaunch.Api`. Stabiliteit: `STABLE_BETA`. Semantiek: [publi
 
 | Lid | Signatuur |
 | --- | --- |
-| constructor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "")` |
+| constructor | `StartupModule(string RelativeDirectory, string ManifestSha256, string Settings = "", string SnapshotSha256 = "")` |
 | eigenschap | `string RelativeDirectory { get; init; }` |
 | eigenschap | `string ManifestSha256 { get; init; }` |
 | eigenschap | `string Settings { get; init; }` |
+| eigenschap | `string SnapshotSha256 { get; init; }` |
 
 ### `TelemetryRingWire`
 

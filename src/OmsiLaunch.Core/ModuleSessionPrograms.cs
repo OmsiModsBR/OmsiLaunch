@@ -44,7 +44,7 @@ internal sealed class ModuleSessionPrograms
         foreach (var planned in plan.EffectivePlannedModules.Where(x => x.IsEligible))
         {
             var directory = Path.Combine(root, RuntimeModuleProtocol.ModulesDirectory, planned.Id);
-            var module = ModuleCatalog.InspectPlanned(directory, planned.ManifestSha256!);
+            var module = ModuleCatalog.InspectPlanned(directory, planned.ManifestSha256!, planned.SnapshotSha256);
             if (module.Manifest?.HostComponent is not { } host) continue;
             var manifest = module.Manifest;
             var program = new SessionProgram(planned, manifest, addEvent, addDiagnostic);
@@ -52,9 +52,9 @@ internal sealed class ModuleSessionPrograms
             try
             {
                 if (module.Code is not null) throw new ModuleException(module.Code, module.Message ?? "the module is not usable");
-                // The executable is started only as the pinned file of the module.
-                var single = manifest with { Components = new[] { host }, Assets = Array.Empty<ModuleFileReference>() };
-                if (ModuleCatalog.VerifyPins(directory, single) is { } failure) throw new ModuleException(PublicErrorCodes.MODULE_INTEGRITY, failure);
+                // The executable is started only as the file the plan recorded: its pin
+                // when the author wrote one, and always the plan's snapshot.
+                if (ModuleCatalog.VerifyComponent(directory, manifest, host, planned.SnapshotSha256) is { } failure) throw new ModuleException(PublicErrorCodes.MODULE_INTEGRITY, failure);
                 var data = RuntimeModuleProtocol.DataDirectory(root, manifest.Id);
                 Directory.CreateDirectory(data);
                 program.Process = ModuleSessionProcess.Start(Path.GetFullPath(Path.Combine(directory, host.Path)), directory, plan.SessionId, program.OnLine);
@@ -145,10 +145,11 @@ internal sealed class ModuleSessionPrograms
     }
 
     // The first line a session program receives.
-    private static string Context(SessionPlan plan, PlannedModule planned, ModuleManifest manifest, string directory, string data)
+    internal static string Context(SessionPlan plan, PlannedModule planned, ModuleManifest manifest, string directory, string data)
     {
         var world = plan.Spec.World;
-        var map = world.Mode == WorldMode.NewMap ? (world.MapIdentity.IsSet ? world.MapIdentity.Value : null) : plan.ResolvedContent.FirstOrDefault(x => x.Kind == "situation-map")?.Identity;
+        // The map of the session, whatever the start: a NEW_MAP and a LAST_MAP_STATE name it, a saved situation carries it (the planner resolved it).
+        var map = world.MapIdentity.IsSet ? world.MapIdentity.Value : plan.ResolvedContent.FirstOrDefault(x => x.Kind == "situation-map")?.Identity;
         var context = new Dictionary<string, object?>
         {
             ["type"] = "context",

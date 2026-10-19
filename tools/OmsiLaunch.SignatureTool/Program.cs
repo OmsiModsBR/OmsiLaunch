@@ -24,7 +24,7 @@ if (!NativeTargetCatalog.KnownCodeSha256.Contains(image.CodeSha256)) { Console.E
 var relocations = new SortedSet<uint>(image.Relocations);
 // Targets without a semantically sound build-independent derivation: they are
 // resolved only on a known code identity (reported, not a failure).
-var KnownIdentityOnly = new HashSet<string>(StringComparer.Ordinal) { "field.TProgMan.CriticalSection", "field.RawEntrypoint.Stride", "field.RawEntrypoint.Name", "field.RoadVehicleList.Items", "field.MemArrayList.Data", "field.MemArrayList.Count", "field.TWeather.CloudType", "field.TWeather.CloudTypeNum", "field.TActuWeather.Icao", "field.TActuWeather.Active", "field.TActuWeather.LastDownloaded", "field.TActuWeather.InvalidIcao", "field.TActuWeather.Process" };
+var KnownIdentityOnly = new HashSet<string>(StringComparer.Ordinal) { "field.TProgMan.CriticalSection", "field.RawEntrypoint.Stride", "field.RawEntrypoint.Name", "field.RoadVehicleList.Items", "field.MemArrayList.Data", "field.MemArrayList.Count", "field.TWeather.CloudType", "field.TWeather.CloudTypeNum", "field.TActuWeather.Icao", "field.TActuWeather.Active", "field.TActuWeather.LastDownloaded", "field.TActuWeather.InvalidIcao", "field.TActuWeather.Process", "field.Tform_menu2.FirstKeySwallow", "field.TCustomForm.Active", "field.TWinControl.Handle", "field.TForm_main.InIdleFrame", "field.Tform_menu3.Mode" };
 var functions = NativeTargetCatalog.Declarations.Where(d => d.Kind == NativeTargetKind.Function).ToArray();
 var derived = new SortedDictionary<string, NativeTargetCatalog.DerivedTarget>(StringComparer.Ordinal);
 var notes = new List<string>();

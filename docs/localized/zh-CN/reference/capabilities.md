@@ -1,6 +1,6 @@
 # 能力
 
-<!-- l10n: source=reference/capabilities.md source-sha256=04677728db933477292f4f89ce9c5d128ca7a18bb336d117f29647ba70e77d2b -->
+<!-- l10n: source=reference/capabilities.md source-sha256=e6d9d063c2365c007efc79c0057a4843d1f91b88ba68448cc8b8d7579308de23 -->
 > 本页是 OmsiLaunch 0.1.0-beta4 [英文原始页面](../../../reference/capabilities.md) 的译文。英文页面为规范文本：如有出入，以英文页面和代码为准。
 
 本页记录 OmsiLaunch 能做什么。其来源是规范能力目录 `PublicCapabilityRegistry`（`src/OmsiLaunch.Api/PublicCapabilityRegistry.cs`）：每项能力、每个公开的运行时操作（连同其参数、CLI 路由和原生能力），以及每项能力的一个证据状态，都只在那里声明一次。运行时操作集、参数校验、CLI 命令路由、插件按操作设置的原生门禁、`GetCapabilitiesAsync` 以及下面的[目录表](#capability-catalog)都由它派生。对每个运行时操作，本页给出参数、结果键和错误。如何调用某个操作（CLI 路由、API 信封、超时、句柄）见[运行时控制](runtime-control.md)；各会话的证据见[运行时验证状态](../status/runtime-validation-status.md)。
@@ -112,6 +112,7 @@
 | `camera.read` | `PublicStableBeta` | Read | Running | `camera.read` | `camera.read` | RUNTIME_VALIDATED | `camera get` |  |
 | `camera.set` | `PublicExperimental` | Write | Running | `camera.set` (omsi-state) | `camera.set` | RUNTIME_VALIDATED | `camera set` |  |
 | `camera.lock` | `PublicExperimental` | Action | Running | `camera.lock` (session-policy), `camera.unlock` (session-policy) | `camera.lock` | RUNTIME_VALIDATED | `camera lock --family=<0..3> [--preset=<n>]` | 需要玩家车辆（已保存情景会提供一辆）；在 headless 的 NEW_MAP 上为 OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE。 |
+| `ui.pause` | `PublicExperimental` | Action | Running | `ui.pause.state`, `ui.pause.take-over` (omsi-state), `ui.pause.restore-native` (omsi-state), `ui.pause.action` (omsi-state) | `ui.pause-menu.replace` | RUNTIME_VALIDATION_REQUIRED | `ui pause-state`, `ui pause-take-over`, `ui pause-restore`, `ui pause-action --action=<resume|new-game|save|options|quit>` | Beta 5：经静态验证的设计（研究 beta4-static pause-menu-and-input.md）；这些原生调用尚未在真实会话中观察到。 |
 | `vehicles.list` | `PublicStableBeta` | Read | Running | `road-vehicles.list` （分页） | `vehicles.list` | RUNTIME_VALIDATED | `vehicles list` |  |
 | `vehicles.get` | `PublicStableBeta` | Read | Running | `road-vehicle.read` | `vehicles.get` | RUNTIME_VALIDATED | `vehicles get` | 自然移除后的失效检测（RV-002）没有安全的运行时触发方式，经离线验证。 |
 | `vehicles.summary` | `PublicStableBeta` | Read | Running | `road-vehicles.read` | `vehicles.summary` | RUNTIME_VALIDATED | `vehicles summary` |  |
@@ -195,6 +196,18 @@
 | `camera.set` | Write | 可选 `family`（0..3）、`field_of_view`（10..170）；至少一个 | `camera.read` 的键 | `OL_E_RUNTIME_ARGUMENT_REQUIRED`、`OL_E_RUNTIME_VALUE_OUT_OF_RANGE` |
 | `camera.lock` | Action | 必需 `family`（0..3）；可选 `preset`（0..255，仅用于 family 0 或 1） | `locked`（`true`）、`family`、`preset`、`head_look`（`preserved`）、`field_of_view`（`preserved`） | `OL_E_RUNTIME_ARGUMENT_REQUIRED`、`OL_E_RUNTIME_VALUE_OUT_OF_RANGE`、`OL_E_CAMERA_PRESET_FAMILY_UNSUPPORTED`、`OL_E_RUNTIME_PLAYER_VEHICLE_UNAVAILABLE`。该策略每 100 ms 重新应用一次，直至 `camera.unlock`；重新应用失败时，每种不同的错误发出一次 `camera.lock.degraded` 事件。 |
 | `camera.unlock` | Action | 无 | `locked`（`false`） | |
+
+<a id="user-interface-pause-menu"></a>
+### 用户界面（暂停菜单）
+
+接管 OMSI 的原生暂停菜单，以便模块使用自己的菜单（能力 `ui.pause-menu.replace`，仅在已知代码标识上解析）。OMSI 自身的暂停字节保持置位，因此模拟、渲染、3D 点击和 DirectInput 命令都保持暂停；原生窗体通过 VCL 隐藏，其操作被直接调用（没有点击、没有投递消息、没有移动窗口）。`ui.pause.action` 在发送应答之后，从一次性的 UI 线程定时器中运行原生处理程序，因为该处理程序可能进入原生模态对话框：请通过 `ui.pause.state` 读取结果（`busy` 为 `false`，然后是 `last_result`）。
+
+| 操作 | 类型 | 参数 | 结果键 | 错误 |
+| --- | --- | --- | --- | --- |
+| `ui.pause.state` | Read | 无 | `paused`、`native_menu_visible`、`main_form_ready`、`in_frame`、`taken_over`、`busy`、`pending_action`、`last_action`、`last_result`（`none`、`resumed`、`game-started`、`returned`、`quit-requested`、`exception`、`refused`） | `OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.take-over` | Action | 无 | 接管之后的 `ui.pause.state` 的键 | `OL_E_UI_NOT_PAUSED`、`OL_E_UI_BUSY`、`OL_E_UI_ALREADY_TAKEN_OVER`、`OL_E_RUNTIME_OPERATION_FAILED`、`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.restore-native` | Action | 无 | `ui.pause.state` 的键；再次显示原生菜单（其自身的 `FormShow` 会运行：OMSI 保持暂停） | `OL_E_UI_BUSY`、`OL_E_RUNTIME_OPERATION_FAILED`、`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
+| `ui.pause.action` | Action | 必需 `action`：`resume`、`new-game`、`save`、`options` 或 `quit` | `ui.pause.state` 的键，加上 `scheduled`（`true`）和 `action` | `OL_E_RUNTIME_ARGUMENT_REQUIRED`、`OL_E_RUNTIME_VALUE_INVALID`、`OL_E_UI_NOT_PAUSED`、`OL_E_UI_BUSY`、`OL_E_RUNTIME_OPERATION_FAILED`、`OL_E_RUNTIME_OPERATION_UNAVAILABLE`、`OL_E_CAPABILITY_UNRESOLVED` |
 
 <a id="road-vehicles-and-player"></a>
 ### 道路车辆与玩家
