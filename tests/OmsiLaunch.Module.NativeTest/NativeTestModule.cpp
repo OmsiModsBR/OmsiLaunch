@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <string.h>
 #include "omsilaunch_module_native_v1.h"
 
 // Native test component: hooks an import of the host executable through the
@@ -9,6 +10,7 @@
 // ready, and reports everything as module events.
 namespace {
 const omsilaunch_bridge_v1* gBridge = nullptr;
+volatile LONG gTicks = 0;
 
 using IsDebuggerPresentFn = BOOL (WINAPI*)(void);
 IsDebuggerPresentFn gOriginal = nullptr;
@@ -54,7 +56,54 @@ extern "C" __declspec(dllexport) int __cdecl omsilaunch_module_native_v1_start(c
     sprintf_s(json, "{\"iat\":\"%d\",\"missing\":\"%d\",\"undeclared\":\"%d\",\"chain\":\"%d\",\"setting\":\"%d\",\"value\":\"%s\",\"small\":\"%d\",\"needed\":\"%u\",\"unknown\":\"%d\"}",
         iat, missing, early, gOriginal != nullptr && IsDebuggerPresentDetour() == IsDebuggerPresent() ? 1 : 0, setting, setting == 0 ? value : "", tooSmall, needed, unknown);
     bridge->emit(bridge->context, "started", json);
+    // Bridge protocol 3: the OMSI version, and a catalog operation in process.
+    if (bridge->size >= OMSILAUNCH_BRIDGE_V1_SIZE_WITH_RUN_OPERATION && bridge->get_value != nullptr && bridge->run_operation != nullptr) {
+        char omsi[32] = {};
+        uint32_t omsiLength = 0;
+        const int version = bridge->get_value(bridge->context, "omsi_version", omsi, sizeof(omsi), &omsiLength);
+        char answer[512] = {};
+        uint32_t answerLength = 0;
+        const int run = bridge->run_operation(bridge->context, "time.read", "{}", answer, sizeof(answer), &answerLength);
+        char undeclared[512] = {};
+        uint32_t undeclaredLength = 0;
+        const int refused = bridge->run_operation(bridge->context, "weather.read", nullptr, undeclared, sizeof(undeclared), &undeclaredLength);
+        char tinyAnswer[1] = {};
+        uint32_t needed2 = 0;
+        const int tooSmall2 = bridge->run_operation(bridge->context, "time.read", nullptr, tinyAnswer, sizeof(tinyAnswer), &needed2);
+        // The game's device is not observed offline (10), and a module that does
+        // not declare bridge.hooks.d3d9 is refused (11).
+        int device = -1;
+        if (bridge->size >= OMSILAUNCH_BRIDGE_V1_SIZE_WITH_D3D_IS_GAME_DEVICE && bridge->d3d_is_game_device != nullptr) device = bridge->d3d_is_game_device(bridge->context, const_cast<LONG*>(&gTicks));
+        char v3[1100];
+        // The answers are JSON; they are reported escaped as plain strings.
+        sprintf_s(v3, "{\"version\":\"%d\",\"omsi\":\"%s\",\"run\":\"%d\",\"succeeded\":\"%d\",\"refused\":\"%d\",\"declared\":\"%d\",\"small\":\"%d\",\"needed\":\"%u\",\"device\":\"%d\"}",
+            version, version == 0 ? omsi : "", run, strstr(answer, "\"succeeded\":true") != nullptr ? 1 : 0, refused,
+            strstr(undeclared, "OL_E_MODULE_OPERATION_NOT_DECLARED") != nullptr ? 0 : 1, tooSmall2, needed2, device);
+        bridge->emit(bridge->context, "started3", v3);
+    }
     return iat == 0 ? 0 : 2;
+}
+
+// Bridge protocol 3 optional exports: a tick counter and an echo for the
+// managed component.
+extern "C" __declspec(dllexport) int __cdecl omsilaunch_module_native_v1_tick(const omsilaunch_bridge_v1* bridge, uint32_t elapsedMilliseconds) {
+    const auto ticks = InterlockedIncrement(&gTicks);
+    if (ticks == 3 && bridge != nullptr) {
+        char json[64];
+        sprintf_s(json, "{\"ticks\":\"3\",\"elapsed\":\"%u\"}", elapsedMilliseconds);
+        bridge->emit(bridge->context, "ticked", json);
+    }
+    return 0;
+}
+
+extern "C" __declspec(dllexport) int __cdecl omsilaunch_module_native_v1_execute(const omsilaunch_bridge_v1*, const char* operation, const char* argumentsJson, char* buffer, uint32_t capacity, uint32_t* length) {
+    char json[256];
+    const int written = sprintf_s(json, "{\"op\":\"%s\",\"args\":%s}", operation == nullptr ? "" : operation, argumentsJson == nullptr ? "null" : argumentsJson);
+    if (written < 0 || length == nullptr) return 1;
+    *length = static_cast<uint32_t>(written);
+    if (buffer == nullptr || capacity < static_cast<uint32_t>(written) + 1) return OMSILAUNCH_BRIDGE_BUFFER_TOO_SMALL;
+    memcpy(buffer, json, static_cast<size_t>(written) + 1);
+    return 0;
 }
 
 extern "C" __declspec(dllexport) int __cdecl omsilaunch_module_native_v1_gameplay_ready(const omsilaunch_bridge_v1* bridge) {

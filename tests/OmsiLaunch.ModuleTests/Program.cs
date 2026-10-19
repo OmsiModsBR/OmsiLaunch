@@ -24,6 +24,102 @@ try
         Check(manifest.Timeouts.ArmMilliseconds == RuntimeModuleProtocol.DefaultPhaseTimeoutMilliseconds, "default timeouts");
     });
 
+    Gate("manifest.protocol-3", () =>
+    {
+        var manifest = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(ManifestV3("sample", "\"time.read\", \"camera.set\"", tick: 100)));
+        Check(manifest.EffectiveRuntimeOperations.SequenceEqual(new[] { "time.read", "camera.set" }) && manifest.TickMilliseconds == 100, "runtime_operations and tick_ms are parsed");
+        Check(RuntimeModuleProtocol.BridgeProtocol == 3 && RuntimeModuleProtocol.IsCompatible(3, 3) && RuntimeModuleProtocol.IsCompatible(1, 1) && !RuntimeModuleProtocol.IsCompatible(4, 4), "this bridge serves protocols 1 to 3");
+        var plain = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(Manifest("sample")));
+        Check(plain.EffectiveRuntimeOperations.Count == 0 && plain.TickMilliseconds == 0, "a protocol 1 manifest declares none");
+        Check(RuntimeModuleProtocol.BridgeFeatures.Contains("bridge.runtime") && RuntimeModuleProtocol.BridgeFeatures.Contains("bridge.tick"), "the new bridge features are catalogued");
+    });
+
+    Gate("manifest.optional-pins", () =>
+    {
+        var unpinned = ManifestV3("sample", "").Replace(", \"sha256\": \"" + Sha("sample") + "\"", "");
+        var parsed = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(unpinned));
+        Check(parsed.ManagedComponent.Sha256 is null && !parsed.PinnedFiles.Any() && parsed.NamedFiles.Count() == 1, "a protocol 3 manifest may leave the sha256 out");
+        var withAsset = ManifestV3("sample", "").Replace("\"timeouts\"", "\"assets\": [ { \"path\": \"data/skin.json\" }, { \"path\": \"data/pinned.json\", \"sha256\": \"" + new string('a', 64) + "\" } ], \"timeouts\"");
+        var assets = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(withAsset));
+        Check(assets.Assets.Count == 2 && assets.Assets[0].Sha256 is null && assets.Assets[1].Sha256 == new string('A', 64) && assets.PinnedFiles.Count() == 2, "pinned and unpinned files mix: " + assets.PinnedFiles.Count());
+    });
+
+    Gate("catalog.snapshot", () =>
+    {
+        var install = NewInstallation();
+        var unpinned = ManifestV3("snap", "").Replace(", \"sha256\": \"" + Sha("sample") + "\"", "");
+        var (directory, manifestSha, _) = InstallModule(install, "snap", manifest: unpinned);
+        var planned = ModuleCatalog.Inspect(directory);
+        Check(planned.IsUsable && planned.SnapshotSha256 is { Length: 64 }, "planning takes a snapshot of the module's files: " + planned.Code + " " + planned.Message);
+        Check(ModuleCatalog.InspectPlanned(directory, manifestSha, planned.SnapshotSha256).Code is null, "in process, the planned files are accepted");
+        Check(ModuleCatalog.InspectPlanned(directory, manifestSha, null).Code is null, "a plan without a snapshot checks pins only");
+        File.WriteAllText(Path.Combine(directory, "sample.dll"), "replaced after planning");
+        Check(ModuleCatalog.Inspect(directory).IsUsable, "an unpinned file that changes is still a usable module for the next plan");
+        var rejected = ModuleCatalog.InspectPlanned(directory, manifestSha, planned.SnapshotSha256);
+        Check(rejected.Code == PublicErrorCodes.MODULE_INTEGRITY && rejected.Message!.Contains("changed after planning"), "an unpinned file changed after planning is refused by the snapshot: " + rejected.Message);
+        // A fully pinned module is also covered, and a pin mismatch is still caught by the pin.
+        var (pinnedDirectory, pinnedSha, _) = InstallModule(install, "snap-pinned");
+        var pinnedPlan = ModuleCatalog.Inspect(pinnedDirectory);
+        Check(pinnedPlan.SnapshotSha256 is { Length: 64 }, "a pinned module is snapshotted too");
+        File.WriteAllText(Path.Combine(pinnedDirectory, "sample.dll"), "tampered");
+        Check(ModuleCatalog.InspectPlanned(pinnedDirectory, pinnedSha, pinnedPlan.SnapshotSha256).Code == PublicErrorCodes.MODULE_INTEGRITY, "a pinned file that changed fails its pin");
+        // A missing file is refused whether or not it is pinned.
+        File.Delete(Path.Combine(directory, "sample.dll"));
+        Check(ModuleCatalog.Inspect(directory).Code == PublicErrorCodes.MODULE_INTEGRITY, "an unpinned file that is missing is refused");
+    });
+
+    Gate("lifecycle.snapshot-before-components", () =>
+    {
+        var install = NewInstallation();
+        var manifest = ManifestV3("snap-native", "", extraComponents: ", { \"kind\": \"native\", \"path\": \"native.dll\" }").Replace(", \"sha256\": \"" + Sha("sample") + "\"", "");
+        var (directory, manifestSha, _) = InstallModule(install, "snap-native", manifest: manifest, extraFiles: new() { ["native.dll"] = "native" });
+        var snapshot = ModuleCatalog.Inspect(directory).SnapshotSha256;
+        var environment = new FakeEnvironment(_ => { });
+        var host = new ModuleHost(environment);
+        host.Load(new[] { new ModuleLoadRequest(directory, manifestSha, null, snapshot) });
+        Check(host.Status.Count == 1, "an unpinned module loads when its files are the planned ones");
+        // The unpinned native DLL is swapped between load and arm: the snapshot stops it.
+        File.WriteAllText(Path.Combine(directory, "native.dll"), "swapped");
+        host.Arm();
+        Check(host.Status.Single().State == ModuleState.Disabled && environment.NativeLog.Count == 0, "an unpinned native component swapped after planning is never started: " + host.Status.Single().State);
+        Check(environment.Events.Any(x => x.Name == "module.failed" && x.Data["detail"].Contains("changed after planning")), "the reason is reported");
+        var stale = new FakeEnvironment(_ => { });
+        var staleHost = new ModuleHost(stale);
+        staleHost.Load(new[] { new ModuleLoadRequest(directory, manifestSha, null, snapshot) });
+        Check(staleHost.Status.Count == 0 && stale.Events.Any(x => x.Name == "module.load.failed" && x.Data["code"] == PublicErrorCodes.MODULE_INTEGRITY), "a module whose files changed since the plan is not loaded at all");
+    });
+
+    Gate("packer.pins", () =>
+    {
+        var install = NewInstallation();
+        var manifestText = ManifestV3("packed", "", tick: 100).Replace(", \"sha256\": \"" + Sha("sample") + "\"", "").Replace("\"timeouts\"", "\"future_key_of_a_later_schema\": 1, \"timeouts\"");
+        // The parser rejects unknown keys, so the packer is exercised on a manifest it accepts and the unknown key check is about order and content preservation.
+        manifestText = ManifestV3("packed", "", tick: 100).Replace(", \"sha256\": \"" + Sha("sample") + "\"", "").Replace("\"timeouts\"", "\"assets\": [ { \"path\": \"data/skin.json\" } ], \"timeouts\"");
+        var (directory, _, _) = InstallModule(install, "packed", manifest: manifestText);
+        Directory.CreateDirectory(Path.Combine(directory, "data")); File.WriteAllText(Path.Combine(directory, "data", "skin.json"), "{}");
+        var verified = ModulePacker.Verify(directory);
+        Check(verified.Intact && !verified.UpToDate && !verified.Written && verified.Files.All(x => x.Previous is null), "verify reports unpinned files as intact but not packed, and writes nothing");
+        Check(!File.ReadAllText(Path.Combine(directory, "module.json")).Contains("sha256"), "verify did not touch module.json");
+        var packed = ModulePacker.Pack(directory);
+        Check(packed.Written && packed.Files.Count == 2 && packed.Files.All(x => x.NeedsWrite), "pack writes the missing pins");
+        var after = ModuleManifestParser.Parse(File.ReadAllBytes(Path.Combine(directory, "module.json")));
+        Check(after.ManagedComponent.Sha256 == Sha("sample") && after.Assets.Single().Sha256 == Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("{}"))), "the written pins are the files' SHA-256");
+        Check(after.TickMilliseconds == 100 && after.EffectiveRuntimeOperations.Count == 0 && after.Id == "packed", "the rest of the manifest is kept");
+        Check(ModuleCatalog.Inspect(directory).IsUsable, "a packed module passes the bridge's own integrity check");
+        var again = ModulePacker.Pack(directory);
+        Check(!again.Written && again.UpToDate && again.Intact, "packing twice changes nothing");
+        File.WriteAllText(Path.Combine(directory, "data", "skin.json"), "{ \"changed\": true }");
+        var drift = ModulePacker.Verify(directory);
+        Check(!drift.Intact && drift.Files.Single(x => x.Path == @"data\skin.json").Mismatch, "verify catches a pinned file that no longer matches");
+        Check(ModulePacker.Pack(directory).Written && ModulePacker.Verify(directory).Intact, "packing again repairs the pin");
+        Check(ModuleCatalog.Inspect(directory).IsUsable, "and the module is usable again");
+        // Refusals: a missing file, a manifest that does not parse.
+        File.Delete(Path.Combine(directory, "data", "skin.json"));
+        try { ModulePacker.Pack(directory); Check(false, "a missing file was packed"); } catch (ModuleException exception) { Check(exception.Code == PublicErrorCodes.MODULE_INTEGRITY, "missing file: " + exception.Code); }
+        File.WriteAllText(Path.Combine(directory, "module.json"), "{");
+        try { ModulePacker.Pack(directory); Check(false, "a broken manifest was packed"); } catch (ModuleException exception) { Check(exception.Code == PublicErrorCodes.MODULE_MANIFEST_INVALID, "broken manifest: " + exception.Code); }
+    });
+
     Gate("manifest.invalid", () =>
     {
         var cases = new Dictionary<string, string>
@@ -56,6 +152,31 @@ try
             ["repeated flag"] = ManifestV2("sample", Settings("{ \"key\": \"a\", \"type\": \"boolean\", \"default\": true, \"flag\": \"same-flag\" }, { \"key\": \"b\", \"type\": \"boolean\", \"default\": true, \"flag\": \"same-flag\" }")),
             ["conflict not a dll"] = ManifestV2("sample", ", \"conflicts\": { \"plugins\": [\"../evil.exe\"] }"),
             ["host component"] = Manifest("sample", extraComponents: ", { \"kind\": \"host\", \"path\": \"host.exe\", \"sha256\": \"" + new string('C', 64) + "\" }"),
+            ["runtime operation unknown"] = ManifestV3("sample", "\"time.nope\""),
+            ["runtime operation internal"] = ManifestV3("sample", "\"internal.road-vehicles.make-basic\""),
+            ["runtime operation module"] = ManifestV3("sample", "\"module.sample.ping\""),
+            ["runtime operation repeated"] = ManifestV3("sample", "\"time.read\", \"time.read\""),
+            ["runtime operation not a string"] = ManifestV3("sample", "1"),
+            ["runtime operations without capability"] = ManifestV3("sample", "\"time.read\"").Replace("\"bridge.runtime\", ", ""),
+            ["runtime operations on protocol 2"] = ManifestV3("sample", "\"time.read\"").Replace("\"min\": 3, \"max\": 3", "\"min\": 2, \"max\": 3"),
+            ["auxiliary option on managed"] = ManifestV3("sample", "").Replace("\"entry\": \"Sample.Module\"", "\"entry\": \"Sample.Module\", \"priority\": \"idle\""),
+            ["auxiliary priority name"] = ManifestV3("sample", "", extraComponents: ", { \"kind\": \"auxiliary\", \"path\": \"helper.exe\", \"sha256\": \"" + new string('B', 64) + "\", \"priority\": \"realtime\" }"),
+            ["auxiliary memory limit range"] = ManifestV3("sample", "", extraComponents: ", { \"kind\": \"auxiliary\", \"path\": \"helper.exe\", \"sha256\": \"" + new string('B', 64) + "\", \"memory_limit_mb\": 8 }"),
+            ["auxiliary option on protocol 2"] = Manifest("sample", extraComponents: ", { \"kind\": \"auxiliary\", \"path\": \"helper.exe\", \"sha256\": \"" + new string('B', 64) + "\", \"priority\": \"idle\" }").Replace("\"min\": 1, \"max\": 1", "\"min\": 2, \"max\": 2"),
+            ["content input kind"] = ManifestV3("sample", "", contentInputs: "{ \"kind\": \"map-tiles\" }"),
+            ["content input repeated"] = ManifestV3("sample", "", contentInputs: "{ \"kind\": \"realmap-package\" }, { \"kind\": \"realmap-package\" }"),
+            ["content input key"] = ManifestV3("sample", "", contentInputs: "{ \"kind\": \"realmap-package\", \"sha256\": \"" + new string('A', 64) + "\" }"),
+            ["content input required type"] = ManifestV3("sample", "", contentInputs: "{ \"kind\": \"realmap-package\", \"required\": \"yes\" }"),
+            ["content input on protocol 2"] = ManifestV3("sample", "", contentInputs: "{ \"kind\": \"realmap-package\" }").Replace("\"min\": 3, \"max\": 3", "\"min\": 2, \"max\": 3"),
+            ["unpinned component on protocol 1"] = Manifest("sample").Replace(", \"sha256\": \"" + Sha("sample") + "\"", ""),
+            ["unpinned asset on protocol 2"] = ManifestV2("sample", ", \"assets\": [ { \"path\": \"data.json\" } ]"),
+            ["malformed pin still invalid on protocol 3"] = ManifestV3("sample", "").Replace(Sha("sample"), "XYZ"),
+            ["binding file needs its pin"] = ManifestV3("sample", "", contentInputs: "{ \"kind\": \"realmap-package\" }").Replace("\"timeouts\"", "\"content_binding\": { \"map\": \"maps/G/global.cfg\", \"files\": [ { \"path\": \"maps/G/global.cfg\" } ] }, \"timeouts\""),
+            ["tick too fast"] = ManifestV3("sample", "", tick: 25),
+            ["tick not a multiple"] = ManifestV3("sample", "", tick: 75),
+            ["tick too slow"] = ManifestV3("sample", "", tick: 1050),
+            ["tick without capability"] = ManifestV3("sample", "", tick: 100).Replace(", \"bridge.tick\"", ""),
+            ["tick on protocol 2"] = ManifestV3("sample", "", tick: 100).Replace("\"min\": 3, \"max\": 3", "\"min\": 2, \"max\": 3"),
         };
         foreach (var (name, json) in cases)
         {
@@ -83,8 +204,9 @@ try
     {
         var install = NewInstallation();
         InstallModule(install, "sample");
-        InstallModule(install, "newer", manifest: Manifest("newer").Replace("\"min\": 1, \"max\": 1", "\"min\": 3, \"max\": 4"));
+        InstallModule(install, "newer", manifest: Manifest("newer").Replace("\"min\": 1, \"max\": 1", "\"min\": 4, \"max\": 5"));
         InstallModule(install, "v2", manifest: ManifestV2("v2", ""));
+        InstallModule(install, "v3", manifest: ManifestV3("v3", "\"time.read\", \"camera.set\"", tick: 100));
         InstallModule(install, "needs-d3d", manifest: Manifest("needs-d3d").Replace("\"required_capabilities\": [\"bridge.events\"]", "\"required_capabilities\": [\"d3d.texture\"]"));
         InstallModule(install, "unknown-cap", manifest: Manifest("unknown-cap").Replace("\"required_capabilities\": [\"bridge.events\"]", "\"required_capabilities\": [\"teleport\"]"));
         var mapFile = Path.Combine(install, "maps", "Grundorf", "global.cfg");
@@ -94,10 +216,11 @@ try
         InstallModule(install, "grundorf-hud", manifest: Manifest("grundorf-hud", extraRoot: binding).Replace("\"requested\"", "\"content\""));
         InstallModule(install, "bad-binding", manifest: Manifest("bad-binding", extraRoot: binding.Replace(mapSha, new string('C', 64))));
         var discovered = ModuleCatalog.Discover(install);
-        ModuleCapabilityState Capability(string name) => name switch { "bridge.events" => ModuleCapabilityState.Available, "d3d.texture" => ModuleCapabilityState.Unavailable, _ => ModuleCapabilityState.Unknown };
+        ModuleCapabilityState Capability(string name) => name switch { "bridge.events" or "bridge.runtime" or "bridge.tick" => ModuleCapabilityState.Available, "d3d.texture" => ModuleCapabilityState.Unavailable, _ => ModuleCapabilityState.Unknown };
         var grundorf = @"maps\Grundorf\global.cfg";
-        var plan = ModuleEligibility.Evaluate(discovered, new[] { "sample", "newer", "v2", "needs-d3d", "unknown-cap", "bad-binding", "missing" }, install, grundorf, Capability).ToDictionary(x => x.Id);
+        var plan = ModuleEligibility.Evaluate(discovered, new[] { "sample", "newer", "v2", "v3", "needs-d3d", "unknown-cap", "bad-binding", "missing" }, install, grundorf, Capability).ToDictionary(x => x.Id);
         Check(plan["v2"].IsEligible, "a protocol 2 module is served by this bridge");
+        Check(plan["v3"].IsEligible && plan["v3"].TickMilliseconds == 100 && plan["v3"].RuntimeOperations!.SequenceEqual(new[] { "time.read", "camera.set (omsi-state)" }), "a protocol 3 module's in-process operations and tick are planned, with the mutation policy: " + plan["v3"].Code + " " + string.Join(",", plan["v3"].EffectiveRuntimeOperations));
         Check(plan["sample"].IsEligible && plan["sample"].Operations.SequenceEqual(new[] { "module.sample.ping" }) && plan["sample"].ManifestSha256 is { Length: 64 }, "sample eligible");
         Check(plan["newer"].Code == PublicErrorCodes.MODULE_PROTOCOL_UNSUPPORTED, "protocol: " + plan["newer"].Code);
         Check(plan["needs-d3d"].Code == PublicErrorCodes.MODULE_CAPABILITY_UNRESOLVED, "unavailable capability");
@@ -145,6 +268,186 @@ try
         Check(typed.ErrorCode == PublicErrorCodes.RUNTIME_VALUE_OUT_OF_RANGE, "a catalogued module code survives: " + typed.ErrorCode);
         var foreign = host.Execute("module.contract.ping", new Dictionary<string, string> { ["text"] = "foreign" });
         Check(foreign.ErrorCode == PublicErrorCodes.MODULE_OPERATION_FAILED && foreign.Values["module_code"] == "SAMPLE_E_WHATEVER", "an uncatalogued module code is carried as module_code");
+        host.Stop();
+    });
+
+    Gate("lifecycle.runtime-operations", () =>
+    {
+        var (host, environment, module) = NewHost("runtime", "degrade", _ => { }, manifest: ManifestV3("runtime", "\"time.read\", \"road-vehicle.read\""));
+        environment.RuntimeResult = new(true, null, new Dictionary<string, string> { ["hour"] = "7", ["internal_address"] = "0x1", ["secret_pointer"] = "0x2" });
+        IRuntimeModuleContext? captured = null;
+        module.Arming = context => captured = context;
+        host.Arm();
+        Check(captured is not null && captured.OmsiVersion == "2.3.004-test" && captured.Runtime.IsDeclared("time.read") && !captured.Runtime.IsDeclared("weather.read"), "the context carries the OMSI version and the declared operations");
+        var read = captured!.Runtime.Execute("time.read");
+        Check(read.Succeeded && read.Values["hour"] == "7" && !read.Values.ContainsKey("internal_address") && !read.Values.ContainsKey("secret_pointer"), "a declared operation runs in process and internal result keys are scrubbed");
+        Check(environment.RuntimeCalls.SequenceEqual(new[] { "time.read" }), "the environment ran it: " + string.Join(",", environment.RuntimeCalls));
+        var undeclared = captured.Runtime.Execute("weather.read");
+        Check(undeclared.ErrorCode == PublicErrorCodes.MODULE_OPERATION_NOT_DECLARED && environment.RuntimeCalls.Count == 1, "an undeclared operation is refused before it reaches OMSI");
+        Check(captured.Runtime.Execute("road-vehicle.read").ErrorCode == PublicErrorCodes.RUNTIME_ARGUMENT_REQUIRED && environment.RuntimeCalls.Count == 1, "required arguments are checked against the catalog first");
+        environment.RuntimeResult = new(false, PublicErrorCodes.CAPABILITY_UNRESOLVED, new Dictionary<string, string> { ["detail"] = "x" });
+        Check(captured.Runtime.Execute("time.read").ErrorCode == PublicErrorCodes.CAPABILITY_UNRESOLVED, "the typed code of the operation reaches the module unchanged");
+        environment.RuntimeResult = new(true, null, new Dictionary<string, string> { ["big"] = new string('x', RuntimeModuleProtocol.MaxRuntimeResultBytes + 1) });
+        Check(captured.Runtime.Execute("time.read").ErrorCode == PublicErrorCodes.RUNTIME_RESPONSE_TOO_LARGE, "an oversized result is refused");
+        environment.RuntimeThrows = true;
+        Check(captured.Runtime.Execute("time.read").ErrorCode == PublicErrorCodes.RUNTIME_OPERATION_FAILED, "an exception becomes a typed failure, never an escape");
+        host.GameplayReady(); host.Stop();
+        Check(captured.Runtime.Execute("time.read").ErrorCode == PublicErrorCodes.MODULE_DISABLED, "after stop the module cannot run operations");
+        var (noDeclaration, _, noModule) = NewHost("runtime-none", "degrade", _ => { });
+        IRuntimeModuleContext? plain = null; noModule.Arming = context => plain = context; noDeclaration.Arm();
+        Check(plain!.Runtime.Execute("time.read").ErrorCode == PublicErrorCodes.MODULE_OPERATION_NOT_DECLARED, "a module that declares nothing can run nothing");
+    });
+
+    foreach (var policy in new[] { "fail-session", "disable-module", "degrade" })
+        Gate("lifecycle.tick." + policy, () =>
+        {
+            var (host, environment, module) = NewHost("ticker", policy, _ => { }, manifest: ManifestV3("ticker", "", tick: 100));
+            host.Arm();
+            environment.Clock = 1000; host.Tick();
+            Check(module.Ticks.Count == 0, "no tick before gameplay-ready");
+            host.GameplayReady();
+            environment.Clock = 1000; host.Tick();
+            Check(module.Ticks.Count == 1 && module.Ticks[0] == TimeSpan.FromMilliseconds(100), "the first tick reports the interval");
+            environment.Clock = 1050; host.Tick();
+            Check(module.Ticks.Count == 1, "no tick before the interval elapsed");
+            environment.Clock = 1100; host.Tick();
+            Check(module.Ticks.Count == 2 && module.Ticks[1] == TimeSpan.FromMilliseconds(100), "a tick when the interval elapsed");
+            environment.Clock = 5000; host.Tick(); environment.Clock = 5000; host.Tick();
+            Check(module.Ticks.Count == 3 && module.Ticks[2] == TimeSpan.FromMilliseconds(3900), "late ticks are skipped, never queued: " + module.Ticks.Count);
+            module.ThrowInTick = true;
+            environment.Clock = 5100; host.Tick();
+            var state = host.Status.Single().State;
+            if (policy == "degrade") Check(state == ModuleState.Degraded && environment.Events.Count(x => x.Name == "module.degraded") == 1, "degrade reports a failing tick once and keeps the module: " + state);
+            else Check(state == (policy == "fail-session" ? ModuleState.Failed : ModuleState.Disabled) && host.SessionFailureRequested == (policy == "fail-session"), "the policy applies to a failing tick: " + state);
+            module.ThrowInTick = false; module.SlowInTick = true;
+            var before = module.Ticks.Count;
+            environment.Clock = 5200; host.Tick();
+            if (policy == "degrade")
+            {
+                Check(module.Ticks.Count == before + 1 && host.Status.Single().LastErrorCode == PublicErrorCodes.MODULE_PHASE_TIMEOUT, "an overrunning tick is a phase timeout: " + host.Status.Single().LastErrorCode);
+                module.SlowInTick = false; environment.Clock += 10_000; host.Tick();
+                Check(module.Ticks.Count == before + 2, "a degraded module keeps ticking");
+            }
+            else Check(module.Ticks.Count == before, "a failed module no longer ticks");
+            host.Stop();
+        });
+
+    Gate("lifecycle.auxiliary-options", () =>
+    {
+        var extra = ", { \"kind\": \"auxiliary\", \"path\": \"helper.exe\", \"sha256\": \"" + Sha("helper") + "\", \"priority\": \"below-normal\", \"memory_limit_mb\": 512 }";
+        var manifestText = ManifestV3("aux-options", "", extraComponents: extra);
+        var parsed = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(manifestText));
+        var component = parsed.Components.Single(x => x.Kind == ModuleComponentKind.Auxiliary);
+        Check(component.Priority == ModuleAuxiliaryPriority.BelowNormal && component.MemoryLimitMegabytes == 512, "auxiliary options are parsed");
+        var (host, environment, module) = NewHost("aux-options", "disable-module", context => context.StartAuxiliaryProcess("helper.exe", ""), manifest: manifestText, auxiliary: true);
+        host.Arm();
+        Check(environment.AuxiliaryOptions.Count == 1 && environment.AuxiliaryOptions.Single() == new ModuleAuxiliaryOptions(ModuleAuxiliaryPriority.BelowNormal, 512), "the host hands the options to the environment");
+        host.Stop();
+    });
+
+    Gate("content.realmap-package", () =>
+    {
+        var install = NewInstallation();
+        var map = @"maps\Grundorf\global.cfg";
+        var folder = Path.Combine(install, "maps", "Grundorf");
+        Directory.CreateDirectory(folder); File.WriteAllText(Path.Combine(folder, "global.cfg"), "[name]\nGrundorf\n");
+        var parsed = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(ManifestV3("pkg", "", contentInputs: "{ \"kind\": \"realmap-package\", \"required\": true }")));
+        Check(parsed.EffectiveContentInputs.Single() == new ModuleContentInput(ModuleContentInputKind.RealmapPackage, true), "content_inputs is parsed");
+        var (directory, sha, _) = InstallModule(install, "pkg", manifest: ManifestV3("pkg", "", contentInputs: "{ \"kind\": \"realmap-package\" }"));
+        var environment = new FakeEnvironment(_ => { }) { InstallationRoot = install };
+        IRuntimeModuleContext? context = null;
+        var host = new ModuleHost(environment);
+        host.Load(new[] { new ModuleLoadRequest(directory, sha) }); environment.Module.Arming = captured => context = captured; host.Arm();
+        Check(context!.Content.IsDeclared(ModuleContentInputKind.RealmapPackage), "the input is declared");
+        Check(context.Content.LocateRealmapPackage(map) is { Found: false, ErrorCode: null }, "a map without a package is not an error");
+        var package = Path.Combine(folder, RealmapPackage.FolderName);
+        Directory.CreateDirectory(Path.Combine(package, "tiles")); File.WriteAllText(Path.Combine(package, "manifest.json"), "{}"); File.WriteAllText(Path.Combine(package, "tiles", "a.json"), "[1]");
+        var first = context.Content.LocateRealmapPackage(map);
+        Check(first.Found && first.Package!.FileCount == 2 && first.Package.Directory == package && first.Package.Fingerprint.Length == 64 && first.Package.TotalBytes == 5, "the package is located: " + first.ErrorCode + " " + first.Detail);
+        Check(context!.Content.LocateRealmapPackage(map.Replace('\\', '/')).Package!.Fingerprint == first.Package!.Fingerprint, "the fingerprint does not depend on slash style");
+        File.WriteAllText(Path.Combine(package, "tiles", "a.json"), "[1,2]");
+        Check(context.Content.LocateRealmapPackage(map).Package!.Fingerprint != first.Package.Fingerprint, "the fingerprint changes when a file changes (a cache key)");
+        File.WriteAllText(Path.Combine(package, "tiles", "b.json"), "[]");
+        Check(context.Content.LocateRealmapPackage(map).Package!.FileCount == 3, "a new file is counted");
+        foreach (var bad in new[] { @"maps\Grundorf\other.cfg", @"maps\..\global.cfg", @"maps\a\b\global.cfg", @"C:\maps\Grundorf\global.cfg", "global.cfg", "" })
+            Check(context.Content.LocateRealmapPackage(bad).ErrorCode == PublicErrorCodes.INVALID_ARGUMENT, "not a map identity: '" + bad + "'");
+        // A link inside the package is refused, not followed.
+        var target = Path.Combine(install, "elsewhere"); Directory.CreateDirectory(target);
+        var junction = Path.Combine(package, "linked");
+        var link = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c mklink /J \"" + junction + "\" \"" + target + "\"") { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true })!;
+        link.WaitForExit();
+        if (Directory.Exists(junction)) Check(context.Content.LocateRealmapPackage(map).ErrorCode == PublicErrorCodes.MODULE_CONTENT_INPUT_INVALID, "a reparse point inside the package is refused");
+        // An undeclared kind never reaches the disk.
+        var (plainHost, plainEnvironment, plainModule) = NewHost("pkg-plain", "disable-module", _ => { });
+        IRuntimeModuleContext? plain = null; plainModule.Arming = captured => plain = captured; plainHost.Arm();
+        Check(plain!.Content.LocateRealmapPackage(map).ErrorCode == PublicErrorCodes.MODULE_CONTENT_INPUT_UNDECLARED && !plain.Content.IsDeclared(ModuleContentInputKind.RealmapPackage), "a module that does not declare the input cannot ask");
+        // Planning: a required package that the session's map does not have.
+        var requiredInstall = NewInstallation();
+        var requiredFolder = Path.Combine(requiredInstall, "maps", "Grundorf"); Directory.CreateDirectory(requiredFolder); File.WriteAllText(Path.Combine(requiredFolder, "global.cfg"), "x");
+        InstallModule(requiredInstall, "needs-package", manifest: ManifestV3("needs-package", "", contentInputs: "{ \"kind\": \"realmap-package\", \"required\": true }"));
+        InstallModule(requiredInstall, "wants-package", manifest: ManifestV3("wants-package", "", contentInputs: "{ \"kind\": \"realmap-package\" }"));
+        ModuleCapabilityState Available(string _) => ModuleCapabilityState.Available;
+        var planned = ModuleEligibility.Evaluate(ModuleCatalog.Discover(requiredInstall), new[] { "needs-package", "wants-package" }, requiredInstall, map, Available).ToDictionary(x => x.Id);
+        Check(planned["needs-package"].Code == PublicErrorCodes.MODULE_CONTENT_BINDING && planned["wants-package"].IsEligible, "a required package missing for the map refuses the plan; an optional one does not");
+        Directory.CreateDirectory(Path.Combine(requiredFolder, RealmapPackage.FolderName)); File.WriteAllText(Path.Combine(requiredFolder, RealmapPackage.FolderName, "manifest.json"), "{}");
+        Check(ModuleEligibility.Evaluate(ModuleCatalog.Discover(requiredInstall), new[] { "needs-package" }, requiredInstall, map, Available).Single().IsEligible, "the plan accepts it once the map has its package");
+    });
+
+    Gate("lifecycle.input-capture", () =>
+    {
+        var manifest = ManifestV3("input-a", "").Replace("\"bridge.tick\"", "\"bridge.tick\", \"bridge.input\"");
+        var (host, environment, module) = NewHost("input-a", "disable-module", _ => { }, manifest: manifest);
+        IRuntimeModuleContext? context = null; module.Arming = captured => context = captured; host.Arm(); host.GameplayReady();
+        Check(context!.Input.IsAvailable && !context.Input.IsCapturing, "a module that declares bridge.input can capture");
+        Check(context.Input.Drain().Count == 0, "nothing is drained before the capture");
+        Check(context.Input.Capture(true) && context.Input.IsCapturing && environment.InputCapturing, "the capture starts");
+        environment.InputQueue.Add(new(ModuleInputKind.KeyDown, 27, 0, 0, ModuleMouseButton.None, 0, 0));
+        environment.InputQueue.Add(new(ModuleInputKind.ButtonDown, 0, 10, 20, ModuleMouseButton.Left, 0, 1));
+        var drained = context.Input.Drain();
+        Check(drained.Count == 2 && drained[0].Key == 27 && drained[1] == new ModuleInputEvent(ModuleInputKind.ButtonDown, 0, 10, 20, ModuleMouseButton.Left, 0, 1), "events arrive as plain data");
+        Check(context.Input.Capture(true) && environment.InputStarts == 1, "capturing twice is a no-op");
+        Check(context.Input.Capture(false) && !environment.InputCapturing && !context.Input.IsCapturing, "the capture ends");
+        // The capture is released at stop even when the module never ends it.
+        Check(context.Input.Capture(true) && environment.InputCapturing, "it can start again");
+        host.Stop();
+        Check(!environment.InputCapturing, "stop releases the capture");
+        Check(!context.Input.Capture(true), "a stopped module cannot capture");
+        // A module that does not declare it never reaches the hook.
+        var (plainHost, plainEnvironment, plainModule) = NewHost("input-b", "disable-module", _ => { });
+        IRuntimeModuleContext? plain = null; plainModule.Arming = captured => plain = captured; plainHost.Arm();
+        Check(!plain!.Input.IsAvailable && !plain.Input.Capture(true) && !plainEnvironment.InputCapturing, "no declaration, no capture");
+        // One module at a time, and a failure gives the input back.
+        var install = NewInstallation();
+        var first = new FakeEnvironment(_ => { });
+        var (directoryOne, shaOne, _) = InstallModule(install, "input-one", manifest: ManifestV3("input-one", "").Replace("\"bridge.tick\"", "\"bridge.tick\", \"bridge.input\"").Replace("disable-module", "degrade"));
+        var hostOne = new ModuleHost(first);
+        hostOne.Load(new[] { new ModuleLoadRequest(directoryOne, shaOne) });
+        IRuntimeModuleContext? one = null; first.Module.Arming = captured => one = captured; hostOne.Arm();
+        Check(one!.Input.Capture(true) && first.InputCapturing, "the first module captures");
+        first.Module.ThrowIn = "operation";
+        hostOne.GameplayReady();
+        hostOne.Execute("module.input-one.ping", new Dictionary<string, string> { ["text"] = "x" });
+        hostOne.Stop();
+        Check(!first.InputCapturing, "after the module ended the input is free");
+        var unavailable = new FakeEnvironment(_ => { }) { InputAvailable = false };
+        var (directoryTwo, shaTwo, _) = InstallModule(install, "input-two", manifest: ManifestV3("input-two", "").Replace("\"bridge.tick\"", "\"bridge.tick\", \"bridge.input\""));
+        var hostTwo = new ModuleHost(unavailable);
+        hostTwo.Load(new[] { new ModuleLoadRequest(directoryTwo, shaTwo) });
+        IRuntimeModuleContext? two = null; unavailable.Module.Arming = captured => two = captured; hostTwo.Arm();
+        Check(!two!.Input.IsAvailable && !two.Input.Capture(true), "a build without the capability refuses");
+    });
+
+    Gate("lifecycle.tick-native", () =>
+    {
+        var install = NewInstallation();
+        var manifest = ManifestV3("native-tick", "", tick: 50, extraComponents: ", { \"kind\": \"native\", \"path\": \"native.dll\", \"sha256\": \"" + Sha("native") + "\" }");
+        var (directory, sha, _) = InstallModule(install, "native-tick", manifest: manifest, extraFiles: new() { ["native.dll"] = "native" });
+        var environment = new FakeEnvironment(_ => { });
+        var host = new ModuleHost(environment);
+        host.Load(new[] { new ModuleLoadRequest(directory, sha) }); host.Arm(); host.GameplayReady();
+        environment.Clock = 1000; host.Tick(); environment.Clock = 1050; host.Tick();
+        Check(environment.NativeTicks.SequenceEqual(new uint[] { 50, 50 }), "the native tick export is called with the elapsed milliseconds: " + string.Join(",", environment.NativeTicks));
+        Check(environment.NativeValues!("omsi_version") == "2.3.004-test", "get_value answers omsi_version");
         host.Stop();
     });
 
@@ -220,6 +523,17 @@ try
         Check(PublicCapabilityRegistry.ValidateRuntimeArguments("module.null-test.ping", null).Accepted, "a module operation passes the frontend check; the session decides");
     });
 
+    Gate("handoff.v8-snapshot", () =>
+    {
+        var snapshot = new string('C', 64);
+        var modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\a", new string('A', 64), "{}", snapshot), new StartupModule(@"plugins\OmsiLaunch.Modules\b", new string('B', 64)) };
+        var handoff = new StartupHandoff(Guid.NewGuid(), "Omsi23004", WorldMode.NewMap, @"maps\Grundorf\global.cfg", 1, true, false, DateTimeMode.Unset, DateTimeMode.Unset, "", "", modules, false, false, null, null);
+        var bytes = StartupHandoffWire.Serialize(handoff);
+        Check(BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(4)) == 8 && StartupHandoffWire.Version == 8, "the wire version is 8");
+        Check(StartupHandoffWire.TryDeserialize(bytes, out var read) && read!.Modules!.Count == 2 && read.Modules[0].SnapshotSha256 == snapshot && read.Modules[1].SnapshotSha256 == "", "the snapshot travels with the module and an empty one stays empty");
+        Check(read!.Modules![0].Settings == "{}" && read.Modules[1].ManifestSha256 == new string('B', 64), "the rest of the module entry is intact");
+    });
+
     Gate("handoff.v6-modules", () =>
     {
         var modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\sample", new string('A', 64)), new StartupModule(@"plugins\OmsiLaunch.Modules\grundorf-hud", new string('B', 64)) };
@@ -249,9 +563,9 @@ try
         // Version 6: a module's settings travel as a JSON object of strings.
         var withSettings = handoff with { Modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\sample", new string('A', 64), "{\"ram\":\"auto\",\"monitor\":\"true\"}") } };
         Check(StartupHandoffWire.TryDeserialize(StartupHandoffWire.Serialize(withSettings), out var settingsDecoded) && settingsDecoded!.Modules!.Single() == withSettings.Modules!.Single(), "v6 settings round trip");
-        // A version 5 writer: one module, no settings length after its SHA-256.
+        // A version 5 writer: one module, no settings length (4) or snapshot (32, version 8) after its SHA-256.
         var singleV6 = StartupHandoffWire.Serialize(handoff with { Modules = new[] { new StartupModule(@"plugins\OmsiLaunch.Modules\sample", new string('A', 64)) } });
-        var asV5Payload = singleV6.AsSpan(64, singleV6.Length - 64 - 4 - 21 - 9).ToArray();
+        var asV5Payload = singleV6.AsSpan(64, singleV6.Length - 64 - 4 - 32 - 21 - 9).ToArray();
         var asV5 = new byte[64 + asV5Payload.Length]; singleV6.AsSpan(0, 64).CopyTo(asV5);
         BinaryPrimitives.WriteUInt16LittleEndian(asV5.AsSpan(4), 5); BinaryPrimitives.WriteUInt32LittleEndian(asV5.AsSpan(8), (uint)asV5.Length); BinaryPrimitives.WriteUInt32LittleEndian(asV5.AsSpan(28), (uint)asV5Payload.Length);
         SHA256.HashData(asV5Payload).CopyTo(asV5.AsSpan(32)); asV5Payload.CopyTo(asV5.AsSpan(64));
@@ -338,6 +652,22 @@ try
         var host = new ModuleHost(environment);
         host.Load(new[] { new ModuleLoadRequest(directory, sha) });
         Check(host.Status.Count == 0 && environment.Events.Any(x => x.Name == "module.load.failed" && x.Data["code"] == PublicErrorCodes.MODULE_CONFLICT), "in process, a loaded conflicting plugin blocks the module");
+    });
+
+    Gate("session-program.context-map", () =>
+    {
+        // A module's session program is told the session's map by OmsiLaunch, for every way to start (not by an ini).
+        var none = new Dictionary<string, OptionalValue<string>>();
+        var platform = new RuntimePlatformInfo("Windows", "10", "X64", "X64", "X86", "X86", true, false, true, true, true, true, true, true, true);
+        SessionPlan PlanFor(WorldSpec world, params ContentIdentity[] content) => new(Guid.NewGuid(), "Omsi23004", new LaunchSpec(new(root), world,
+            new(DateTimeMode.Unset, OptionalValue<SemanticDate>.Unset), new(DateTimeMode.Unset, OptionalValue<SemanticTime>.Unset), OptionalValue<PlayerVehicleSpec>.Unset,
+            new(none, none, none, none, none, none, none, none), new()), platform, content, new[] { "options.cfg" }, Array.Empty<string>(), Array.Empty<Capability>(), Array.Empty<Capability>(), Array.Empty<PlannedMutation>(), Array.Empty<LaunchDiagnostic>(), true, Array.Empty<PlannedModule>());
+        var planned = new PlannedModule("mm", "1.0.0", PlannedModule.Eligible, true, "disable-module", Array.Empty<string>());
+        var manifest = ModuleManifestParser.Parse(Encoding.UTF8.GetBytes(Manifest("mm")));
+        string MapOf(SessionPlan plan) { using var json = System.Text.Json.JsonDocument.Parse(ModuleSessionPrograms.Context(plan, planned, manifest, root, root)); var map = json.RootElement.GetProperty("world").GetProperty("map"); return map.ValueKind == System.Text.Json.JsonValueKind.Null ? "(none)" : map.GetString()!; }
+        Check(MapOf(PlanFor(new(WorldMode.NewMap, OptionalValue<string>.Set(@"maps\Test\global.cfg"), OptionalValue<string>.Unset, OptionalValue<int>.Set(0)))) == @"maps\Test\global.cfg", "NEW_MAP names its map");
+        Check(MapOf(PlanFor(new(WorldMode.LastMapState, OptionalValue<string>.Set(@"maps\Last\global.cfg"), OptionalValue<string>.Unset, OptionalValue<int>.Unset))) == @"maps\Last\global.cfg", "LAST_MAP_STATE names its map");
+        Check(MapOf(PlanFor(new(WorldMode.SavedSituation, OptionalValue<string>.Unset, OptionalValue<string>.Set("Situations\a.osn"), OptionalValue<int>.Unset), new ContentIdentity(@"maps\Saved\global.cfg", "situation-map"))) == @"maps\Saved\global.cfg", "a saved situation carries the map the planner resolved");
     });
 
     Gate("host.settings-data-and-notices", () =>
@@ -452,11 +782,11 @@ void LifecycleCase(string phase, string policy)
     if (lifecycle) Check(operation.ErrorCode is PublicErrorCodes.MODULE_DISABLED, "a disabled module rejects operations: " + operation.ErrorCode);
 }
 
-(ModuleHost Host, FakeEnvironment Environment, FakeModule Module) NewHost(string id, string policy, Action<IRuntimeModuleContext> onArm, Action<FakeModule>? configure = null, bool auxiliary = false)
+(ModuleHost Host, FakeEnvironment Environment, FakeModule Module) NewHost(string id, string policy, Action<IRuntimeModuleContext> onArm, Action<FakeModule>? configure = null, bool auxiliary = false, string? manifest = null)
 {
     var install = NewInstallation();
     var extra = auxiliary ? ", { \"kind\": \"auxiliary\", \"path\": \"helper.exe\", \"sha256\": \"" + Sha("helper") + "\" }" : "";
-    var (directory, sha, _) = InstallModule(install, id, manifest: Manifest(id, extraComponents: extra).Replace("disable-module", policy), extraFiles: auxiliary ? new() { ["helper.exe"] = "helper" } : null);
+    var (directory, sha, _) = InstallModule(install, id, manifest: (manifest ?? Manifest(id, extraComponents: extra)).Replace("disable-module", policy), extraFiles: auxiliary ? new() { ["helper.exe"] = "helper" } : null);
     var environment = new FakeEnvironment(onArm);
     configure?.Invoke(environment.Module);
     var host = new ModuleHost(environment);
@@ -529,6 +859,13 @@ static SessionPlan SessionPlanFor(string install, IEnumerable<(string Id, string
     return new SessionPlan(Guid.NewGuid(), "Omsi23004", spec, platform, Array.Empty<ContentIdentity>(), new[] { "options.cfg" }, Array.Empty<string>(), Array.Empty<Capability>(), Array.Empty<Capability>(), Array.Empty<PlannedMutation>(), Array.Empty<LaunchDiagnostic>(), true, planned);
 }
 
+// A protocol 3 manifest: runtime operations (a JSON list body, for example
+// "\"time.read\"") and an optional tick; the bridge features it needs are declared.
+static string ManifestV3(string id, string operations, int tick = 0, string extraComponents = "", string contentInputs = "") =>
+    Manifest(id, extraComponents, (operations.Length != 0 ? ", \"runtime_operations\": [ " + operations + " ]" : "") + (tick != 0 ? ", \"tick_ms\": " + tick : "") + (contentInputs.Length != 0 ? ", \"content_inputs\": [ " + contentInputs + " ]" : ""))
+        .Replace("\"min\": 1, \"max\": 1", "\"min\": 3, \"max\": 3")
+        .Replace("\"required_capabilities\": [\"bridge.events\"]", "\"required_capabilities\": [\"bridge.events\", \"bridge.runtime\", \"bridge.tick\"]");
+
 // A protocol 2 manifest (settings, conflicts, default activation).
 static string ManifestV2(string id, string extraRoot, string extraComponents = "") => Manifest(id, extraComponents, extraRoot).Replace("\"min\": 1, \"max\": 1", "\"min\": 2, \"max\": 2");
 static string Settings(string items) => ", \"settings\": [ " + items + " ]";
@@ -565,6 +902,23 @@ sealed class FakeEnvironment : IModuleHostEnvironment
     public Guid SessionId { get; } = Guid.NewGuid();
     public string InstallationRoot { get; set; } = Path.Combine(Path.GetTempPath(), "omsilaunch-module-tests-unused");
     public string ProductVersion => "9.9.9-test";
+    public string OmsiVersion => "2.3.004-test";
+    public bool InputAvailable { get; set; } = true;
+    public bool InputCapturing { get; private set; }
+    public int InputStarts { get; private set; }
+    public List<ModuleInputEvent> InputQueue { get; } = new();
+    public bool SetInputCapture(bool enabled) { if (enabled) { if (!InputAvailable) return false; InputStarts++; } InputCapturing = enabled; return true; }
+    public int DrainInput(List<ModuleInputEvent> events) { events.AddRange(InputQueue); var count = InputQueue.Count; InputQueue.Clear(); return count; }
+    public ModuleCallResult RuntimeResult { get; set; } = new(true, null, new Dictionary<string, string>());
+    public bool RuntimeThrows { get; set; }
+    public List<string> RuntimeCalls { get; } = new();
+    public List<uint> NativeTicks { get; } = new();
+    public ModuleCallResult ExecuteRuntimeOperation(string operation, IReadOnlyDictionary<string, string>? arguments)
+    {
+        RuntimeCalls.Add(operation);
+        if (RuntimeThrows) throw new InvalidOperationException("injected");
+        return RuntimeResult;
+    }
     public HashSet<string> LoadedPlugins { get; } = new(StringComparer.OrdinalIgnoreCase);
     public bool IsPluginLibraryLoaded(string fileName) => LoadedPlugins.Contains(fileName);
     public Func<string, string?>? NativeValues { get; private set; }
@@ -573,10 +927,11 @@ sealed class FakeEnvironment : IModuleHostEnvironment
     public long TickMilliseconds => Clock;
     public void Emit(string name, IReadOnlyDictionary<string, string> data) => Events.Add(new(name, data));
     public IRuntimeModule CreateModule(ModuleManifest manifest, string directory) { Module.Arming = onArm; return Module; }
-    public IModuleAuxiliaryProcess StartAuxiliaryProcess(string path, string arguments) => new FakeProcess(this);
+    public List<ModuleAuxiliaryOptions> AuxiliaryOptions { get; } = new();
+    public IModuleAuxiliaryProcess StartAuxiliaryProcess(string path, string arguments, ModuleAuxiliaryOptions options) { AuxiliaryOptions.Add(options); return new FakeProcess(this); }
     public List<string> NativeLog { get; } = new();
     public bool NativeStartFails { get; set; }
-    public IModuleNativeComponent StartNativeComponent(ModuleManifest manifest, string directory, ModuleComponent component, Func<string, string?> values)
+    public IModuleNativeComponent StartNativeComponent(ModuleManifest manifest, string directory, ModuleComponent component, Func<string, string?> values, Func<string, IReadOnlyDictionary<string, string>?, ModuleCallResult> runtime)
     {
         NativeValues = values;
         if (NativeStartFails) throw new ModuleOperationException(PublicErrorCodes.MODULE_PHASE_FAILED, "native start returned 1");
@@ -589,6 +944,10 @@ sealed class FakeEnvironment : IModuleHostEnvironment
         private readonly FakeEnvironment owner;
         public FakeNative(FakeEnvironment owner) => this.owner = owner;
         public void GameplayReady() => owner.NativeLog.Add("gameplay-ready");
+        public bool HasTick => true;
+        public void Tick(uint elapsedMilliseconds) => owner.NativeTicks.Add(elapsedMilliseconds);
+        public bool HasExecute => false;
+        public string? Execute(string operation, string argumentsJson) => null;
         public void Dispose() { owner.NativeLog.Add("dispose"); owner.Disposed.Add("native"); }
     }
 
@@ -602,8 +961,18 @@ sealed class FakeEnvironment : IModuleHostEnvironment
     }
 }
 
-sealed class FakeModule : IRuntimeModule
+sealed class FakeModule : IRuntimeModule, ITickingModule
 {
+    public List<TimeSpan> Ticks { get; } = new();
+    public bool ThrowInTick { get; set; }
+    public bool SlowInTick { get; set; }
+    public void Tick(TimeSpan elapsed)
+    {
+        Ticks.Add(elapsed);
+        if (ThrowInTick) throw new InvalidOperationException("injected failure in tick");
+        if (SlowInTick) environment.Clock += 60_000;
+    }
+
     private readonly FakeEnvironment environment;
     public FakeModule(FakeEnvironment environment) => this.environment = environment;
     public Action<IRuntimeModuleContext>? Arming { get; set; }

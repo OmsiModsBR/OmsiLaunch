@@ -85,7 +85,7 @@ if (weatherWriteCapability.Classification != PublicCapabilityClassification.Publ
         var owner = PublicCapabilityRegistry.All.Single(x => x.EffectiveOperations.Contains(operation));
         if (owner.Kind == PublicCapabilityKind.Read && operation.MutationPolicy != PublicMutationPolicy.None) throw new InvalidOperationException("A read capability declares a mutation: " + operation.Id);
     }
-    if (operations.Length != 54 || PublicCapabilityRegistry.PublicRuntimeOperationIds.Contains("internal.road-vehicles.make-basic")) throw new InvalidOperationException("Public runtime operation set changed.");
+    if (operations.Length != 58 || PublicCapabilityRegistry.PublicRuntimeOperationIds.Contains("internal.road-vehicles.make-basic")) throw new InvalidOperationException("Public runtime operation set changed.");
     Console.WriteLine("PASS capability-catalog.consistent");
 }
 
@@ -251,6 +251,7 @@ if (reusedHumans["human.0.handle"] == previousHumanHandle) throw new InvalidOper
 
 Console.WriteLine("PASS interop.handle-reuse-rejected");
 NativeResolverTests.Run();
+OmsiVersionLiteralTests.Run();
 
 sealed class FakeMemory : IOmsiMemory
 {
